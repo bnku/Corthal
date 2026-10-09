@@ -13,7 +13,9 @@
   import FolderSettingsModal from "$lib/components/FolderSettingsModal.svelte";
   import ContextMenu from "$lib/components/ContextMenu.svelte";
   import AssistantPanel from "$lib/components/AssistantPanel.svelte";
+  import SettingsModal from "$lib/components/SettingsModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import { themeStore } from "$lib/theme/store.svelte";
 
   let vaultTree = $state<VaultNode | null>(null);
   let selectedPath = $state<string | null>(null);
@@ -26,6 +28,7 @@
   let showAssistant = $state(true);
 
   // Modals state
+  let isSettingsModalOpen = $state(false);
   let isSecretModalOpen = $state(false);
   let isNewNoteModalOpen = $state(false);
   let targetFolderForNewNote = $state("");
@@ -45,7 +48,7 @@
   }>({ visible: false, x: 0, y: 0, node: null });
 
   // Dynamically derive hubs list from root children in vaultTree
-  let hubs = $derived<HubItem[]>(() => {
+  let hubs = $derived.by<HubItem[]>(() => {
     const list: HubItem[] = [{ id: "all", name: "Всё", icon: "globe" }];
     if (!vaultTree) return list;
 
@@ -123,7 +126,7 @@
   }
 
   // Filter vault tree based on active hub and search
-  let filteredTree = $derived(() => {
+  let filteredTree = $derived.by<VaultNode | null>(() => {
     if (!vaultTree) return null;
     if (activeHub === "all" && !searchQuery.trim()) return vaultTree;
 
@@ -163,7 +166,7 @@
   }
 
   // Parse YAML Frontmatter & Body
-  let parsedDoc = $derived(() => parseFrontmatter(noteContent));
+  let parsedDoc = $derived(parseFrontmatter(noteContent));
 
   // Parse markdown body into text chunks and secret tokens
   interface ContentSlice {
@@ -171,8 +174,8 @@
     content: string;
   }
 
-  let contentSlices = $derived(() => {
-    const raw = parsedDoc().body;
+  let contentSlices = $derived.by<ContentSlice[]>(() => {
+    const raw = parsedDoc.body;
     const slices: ContentSlice[] = [];
     const regex = /(`?🔒\[enc:v1:[A-Za-z0-9+/=]+\]`?)/g;
     let lastIndex = 0;
@@ -259,6 +262,7 @@
   }
 
   onMount(() => {
+    themeStore.init();
     loadVault();
     window.addEventListener("keydown", handleKeydown);
 
@@ -310,7 +314,7 @@
 
     <!-- Dynamic Hubs Bar -->
     <div class="hubs-bar">
-      {#each hubs() as hub}
+      {#each hubs as hub}
         <button
           class="hub-btn"
           class:active={activeHub === hub.id}
@@ -342,9 +346,9 @@
 
     <!-- File tree -->
     <div class="tree-container">
-      {#if filteredTree()}
+      {#if filteredTree}
         <VaultTree
-          node={filteredTree()!}
+          node={filteredTree}
           {selectedPath}
           onSelectNote={openNote}
           onCreateNote={openCreateNoteDialog}
@@ -353,6 +357,22 @@
       {:else}
         <div class="loading">Загрузка базы знаний...</div>
       {/if}
+    </div>
+
+    <!-- Sidebar Footer -->
+    <div class="sidebar-footer">
+      <button class="settings-trigger-btn" onclick={() => (isSettingsModalOpen = true)}>
+        <Icon name="settings" size={14} color="var(--cortex-accent)" />
+        <span>Настройки</span>
+      </button>
+      <button
+        class="theme-pill"
+        onclick={() => (isSettingsModalOpen = true)}
+        title="Оформление: {themeStore.currentPreset.name}"
+      >
+        <span class="theme-accent-indicator" style="background: var(--cortex-accent);"></span>
+        <span class="theme-pill-name">{themeStore.currentPreset.name}</span>
+      </button>
     </div>
   </aside>
 
@@ -423,15 +443,15 @@
         {:else}
           <div class="markdown-preview">
             <!-- Obsidian Properties Block -->
-            {#if parsedDoc().frontmatter && Object.keys(parsedDoc().frontmatter!).length > 0}
+            {#if parsedDoc.frontmatter && Object.keys(parsedDoc.frontmatter).length > 0}
               <PropertiesBlock
-                properties={parsedDoc().frontmatter!}
+                properties={parsedDoc.frontmatter}
                 onTagClick={(tag) => (searchQuery = tag)}
               />
             {/if}
 
             <!-- Note Content Body -->
-            {#each contentSlices() as slice}
+            {#each contentSlices as slice}
               {#if slice.type === "secret"}
                 <SecretPill token={slice.content} />
               {:else}
@@ -510,13 +530,18 @@
   onClose={() => (isFolderSettingsModalOpen = false)}
 />
 
+<SettingsModal
+  isOpen={isSettingsModalOpen}
+  onClose={() => (isSettingsModalOpen = false)}
+/>
+
 <style>
   :global(body) {
     margin: 0;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: #090d16;
-    color: #e2e8f0;
+    background: var(--cortex-bg-main, #090d16);
+    color: var(--cortex-fg-primary, #e2e8f0);
     overflow: hidden;
   }
 
@@ -538,8 +563,8 @@
 
   /* SIDEBAR */
   .sidebar {
-    background: #0f172a;
-    border-right: 1px solid rgba(148, 163, 184, 0.15);
+    background: var(--cortex-bg-sidebar, #0f172a);
+    border-right: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.15));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -550,7 +575,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 12px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    border-bottom: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.08));
   }
 
   .brand {
@@ -563,7 +588,7 @@
     margin: 0;
     font-size: 1.05rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: var(--cortex-fg-primary, #f8fafc);
     letter-spacing: -0.3px;
   }
 
@@ -574,9 +599,9 @@
   }
 
   .sidebar-action-btn {
-    background: rgba(30, 41, 59, 0.7);
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    color: #cbd5e1;
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.7));
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
+    color: var(--cortex-fg-secondary, #cbd5e1);
     height: 24px;
     padding: 0 7px;
     border-radius: 5px;
@@ -589,9 +614,9 @@
   }
 
   .sidebar-action-btn:hover {
-    background: rgba(59, 130, 246, 0.2);
-    border-color: #3b82f6;
-    color: #ffffff;
+    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.2));
+    border-color: var(--cortex-accent, #3b82f6);
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
   .sidebar-action-btn.folder-btn:hover {
@@ -604,8 +629,8 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 4px;
     padding: 8px 10px;
-    background: rgba(15, 23, 42, 0.6);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    background: var(--cortex-bg-header, rgba(15, 23, 42, 0.6));
+    border-bottom: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.1));
   }
 
   .hub-btn {
@@ -613,9 +638,9 @@
     align-items: center;
     gap: 6px;
     padding: 5px 6px;
-    background: rgba(30, 41, 59, 0.4);
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.4));
     border: 1px solid transparent;
-    color: #94a3b8;
+    color: var(--cortex-fg-secondary, #94a3b8);
     border-radius: 5px;
     font-size: 0.76rem;
     cursor: pointer;
@@ -624,14 +649,14 @@
   }
 
   .hub-btn:hover {
-    background: rgba(30, 41, 59, 0.8);
-    color: #f1f5f9;
+    background: var(--cortex-bg-hover, rgba(30, 41, 59, 0.8));
+    color: var(--cortex-fg-primary, #f1f5f9);
   }
 
   .hub-btn.active {
-    background: #2563eb;
-    color: #ffffff;
-    border-color: #3b82f6;
+    background: var(--cortex-accent, #2563eb);
+    color: var(--cortex-accent-fg, #ffffff);
+    border-color: var(--cortex-accent, #3b82f6);
     font-weight: 500;
   }
 
@@ -643,6 +668,7 @@
 
   .search-box {
     padding: 8px 10px;
+    background: var(--cortex-bg-sidebar, #0f172a);
   }
 
   .search-input-wrap {
@@ -659,11 +685,11 @@
 
   .search-input-wrap input {
     width: 100%;
-    background: #1e293b;
-    border: 1px solid #334155;
+    background: var(--cortex-bg-input, #1e293b);
+    border: 1px solid var(--cortex-border, #334155);
     border-radius: 6px;
     padding: 5px 26px 5px 28px;
-    color: #f8fafc;
+    color: var(--cortex-fg-primary, #f8fafc);
     font-size: 0.78rem;
     box-sizing: border-box;
     outline: none;
@@ -671,7 +697,7 @@
   }
 
   .search-input-wrap input:focus {
-    border-color: #3b82f6;
+    border-color: var(--cortex-accent, #3b82f6);
   }
 
   .clear-search-btn {
@@ -679,7 +705,7 @@
     right: 6px;
     background: none;
     border: none;
-    color: #64748b;
+    color: var(--cortex-fg-muted, #64748b);
     cursor: pointer;
     padding: 2px;
     display: flex;
@@ -687,7 +713,7 @@
   }
 
   .clear-search-btn:hover {
-    color: #cbd5e1;
+    color: var(--cortex-fg-primary, #cbd5e1);
   }
 
   .tree-container {
@@ -696,9 +722,72 @@
     padding: 6px 8px 16px;
   }
 
+  .sidebar-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--cortex-bg-header, #0b1120);
+    border-top: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.08));
+    gap: 8px;
+  }
+
+  .settings-trigger-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    color: var(--cortex-fg-secondary, #94a3b8);
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .settings-trigger-btn:hover {
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .theme-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.5));
+    border: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.1));
+    border-radius: 12px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    color: var(--cortex-fg-secondary, #cbd5e1);
+    cursor: pointer;
+    transition: all 0.15s;
+    max-width: 120px;
+  }
+
+  .theme-pill:hover {
+    border-color: var(--cortex-accent, #3b82f6);
+    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.15));
+  }
+
+  .theme-accent-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .theme-pill-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .loading {
     padding: 16px;
-    color: #64748b;
+    color: var(--cortex-fg-muted, #64748b);
     font-size: 0.85rem;
   }
 
@@ -707,7 +796,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: #090d16;
+    background: var(--cortex-bg-main, #090d16);
     overflow: hidden;
   }
 
@@ -716,8 +805,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px 24px;
-    background: #0b1120;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    background: var(--cortex-bg-header, #0b1120);
+    border-bottom: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.12));
   }
 
   .doc-meta {
@@ -728,7 +817,7 @@
 
   .doc-path {
     font-size: 0.82rem;
-    color: #94a3b8;
+    color: var(--cortex-fg-secondary, #94a3b8);
     font-family: ui-monospace, SFMono-Regular, monospace;
   }
 
@@ -742,9 +831,9 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    background: rgba(30, 41, 59, 0.7);
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    color: #cbd5e1;
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.7));
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
+    color: var(--cortex-fg-secondary, #cbd5e1);
     padding: 5px 10px;
     border-radius: 5px;
     font-size: 0.76rem;
@@ -753,14 +842,14 @@
   }
 
   .action-btn:hover {
-    background: rgba(59, 130, 246, 0.2);
-    border-color: #3b82f6;
-    color: #ffffff;
+    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.2));
+    border-color: var(--cortex-accent, #3b82f6);
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
   .view-toggle {
     display: flex;
-    background: #1e293b;
+    background: var(--cortex-bg-card, #1e293b);
     border-radius: 5px;
     padding: 2px;
   }
@@ -771,7 +860,7 @@
     gap: 5px;
     background: transparent;
     border: none;
-    color: #94a3b8;
+    color: var(--cortex-fg-secondary, #94a3b8);
     padding: 4px 10px;
     font-size: 0.76rem;
     border-radius: 4px;
@@ -780,8 +869,8 @@
   }
 
   .view-toggle button.active {
-    background: #3b82f6;
-    color: #ffffff;
+    background: var(--cortex-accent, #3b82f6);
+    color: var(--cortex-accent-fg, #ffffff);
   }
 
   .save-btn {
@@ -814,7 +903,7 @@
     height: 100%;
     background: transparent;
     border: none;
-    color: #f1f5f9;
+    color: var(--cortex-fg-primary, #f1f5f9);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
     font-size: 0.92rem;
     line-height: 1.6;
@@ -827,26 +916,26 @@
     max-width: 860px;
     line-height: 1.7;
     font-size: 0.98rem;
-    color: #e2e8f0;
+    color: var(--cortex-fg-primary, #e2e8f0);
   }
 
   .markdown-preview :global(h1) {
     font-size: 1.8rem;
-    color: #f8fafc;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    color: var(--cortex-fg-primary, #f8fafc);
+    border-bottom: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
     padding-bottom: 8px;
     margin-top: 0;
   }
 
   .markdown-preview :global(h2) {
     font-size: 1.35rem;
-    color: #f1f5f9;
+    color: var(--cortex-fg-primary, #f1f5f9);
     margin-top: 28px;
   }
 
   .markdown-preview :global(h3) {
     font-size: 1.15rem;
-    color: #e2e8f0;
+    color: var(--cortex-fg-secondary, #e2e8f0);
   }
 
   .markdown-preview :global(p) {
@@ -854,12 +943,12 @@
   }
 
   .markdown-preview :global(blockquote) {
-    border-left: 4px solid #3b82f6;
+    border-left: 4px solid var(--cortex-accent, #3b82f6);
     margin: 16px 0;
     padding: 10px 16px;
-    background: rgba(30, 41, 59, 0.35);
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.35));
     border-radius: 0 8px 8px 0;
-    color: #cbd5e1;
+    color: var(--cortex-fg-secondary, #cbd5e1);
   }
 
   .markdown-preview :global(ul),
@@ -879,25 +968,25 @@
 
   .markdown-preview :global(th),
   .markdown-preview :global(td) {
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
     padding: 8px 12px;
     text-align: left;
   }
 
   .markdown-preview :global(th) {
-    background: rgba(30, 41, 59, 0.6);
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.6));
   }
 
   .markdown-preview :global(pre) {
-    background: #0f172a;
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    background: var(--cortex-bg-input, #0f172a);
+    border: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.15));
     border-radius: 6px;
     padding: 14px;
     overflow-x: auto;
   }
 
   .markdown-preview :global(code) {
-    background: rgba(30, 41, 59, 0.6);
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.6));
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 0.88em;
@@ -910,7 +999,7 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #64748b;
+    color: var(--cortex-fg-muted, #64748b);
     gap: 12px;
   }
 
@@ -918,19 +1007,19 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #3b82f6;
+    background: var(--cortex-accent, #3b82f6);
     border: none;
-    color: #ffffff;
+    color: var(--cortex-accent-fg, #ffffff);
     font-weight: 500;
     padding: 8px 18px;
     border-radius: 6px;
     font-size: 0.88rem;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: opacity 0.15s;
   }
 
   .create-hero-btn:hover {
-    background: #2563eb;
+    opacity: 0.9;
   }
 
   /* ASSISTANT PANE */

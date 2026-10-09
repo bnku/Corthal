@@ -50,7 +50,7 @@ start_sandbox() {
     fi
 
     # 3. Запуск оконного менеджера Openbox внутри :99
-    if ! pgrep -f "openbox.*${DISPLAY_NUM}" &>/dev/null; then
+    if ! pgrep -x openbox &>/dev/null; then
         echo "  • Запуск Openbox WM на ${DISPLAY_NUM}..."
         DISPLAY="${DISPLAY_NUM}" openbox --sm-disable &
         sleep 0.2
@@ -101,7 +101,7 @@ status_sandbox() {
         echo "  • Xvfb    : 🔴 ОСТАНОВЛЕН"
     fi
 
-    if pgrep -f "openbox.*${DISPLAY_NUM}" &>/dev/null; then
+    if pgrep -x openbox &>/dev/null; then
         echo "  • Openbox : 🟢 РАБОТАЕТ"
     else
         echo "  • Openbox : 🔴 ОСТАНОВЛЕН"

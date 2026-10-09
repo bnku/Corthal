@@ -146,7 +146,7 @@
     gap: 6px;
     padding: 4px 6px;
     border-radius: 6px;
-    color: #94a3b8;
+    color: var(--cortex-fg-secondary, #94a3b8);
     cursor: pointer;
     font-weight: 500;
     transition: background 0.15s, color 0.15s;
@@ -154,8 +154,8 @@
   }
 
   .dir-item:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #f8fafc;
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
+    color: var(--cortex-fg-primary, #f8fafc);
   }
 
   .dir-item:hover .action-add-btn {
@@ -180,7 +180,7 @@
     margin-left: auto;
     background: none;
     border: none;
-    color: #94a3b8;
+    color: var(--cortex-fg-muted, #94a3b8);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -193,8 +193,8 @@
   }
 
   .action-add-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.15));
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
   .file-item {
@@ -203,20 +203,20 @@
     gap: 7px;
     padding: 4px 8px 4px 20px;
     border-radius: 6px;
-    color: #cbd5e1;
+    color: var(--cortex-fg-secondary, #cbd5e1);
     cursor: pointer;
     transition: all 0.15s;
     margin: 1px 0;
   }
 
   .file-item:hover {
-    background: rgba(255, 255, 255, 0.07);
-    color: #ffffff;
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.07));
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
   .file-item.selected {
-    background: #3b82f6;
-    color: #ffffff;
+    background: var(--cortex-accent, #3b82f6);
+    color: var(--cortex-accent-fg, #ffffff);
     font-weight: 500;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
@@ -229,7 +229,7 @@
 
   .children.nested {
     padding-left: 10px;
-    border-left: 1px solid rgba(148, 163, 184, 0.12);
+    border-left: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.12));
     margin-left: 12px;
   }
 

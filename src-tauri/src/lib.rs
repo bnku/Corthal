@@ -1,4 +1,5 @@
 pub mod crypto;
+pub mod theme;
 pub mod vault;
 
 use vault::VaultNode;
@@ -48,6 +49,21 @@ fn vault_create_dir_with_meta(relative_path: String, meta: Option<vault::MetaJso
     vault::create_dir_with_meta(&relative_path, meta.as_ref()).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn theme_detect_system() -> theme::SystemThemeInfo {
+    theme::detect_system_theme()
+}
+
+#[tauri::command]
+fn theme_list_gtk_themes() -> Vec<theme::GtkThemeSummary> {
+    theme::list_installed_gtk_themes()
+}
+
+#[tauri::command]
+fn theme_parse_gtk_theme(theme_path: String) -> Result<theme::ParsedGtkColors, String> {
+    theme::parse_gtk_theme_colors(&theme_path)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -62,6 +78,9 @@ pub fn run() {
             vault_create_dir_with_meta,
             crypto_encrypt_secret,
             crypto_decrypt_secret,
+            theme_detect_system,
+            theme_list_gtk_themes,
+            theme_parse_gtk_theme,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
