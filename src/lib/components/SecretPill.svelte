@@ -130,8 +130,8 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(30, 41, 59, 0.85);
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.85));
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
     border-radius: 6px;
     padding: 2px 8px;
     font-size: 0.85rem;
@@ -147,8 +147,9 @@
   }
 
   .badge {
-    background: #475569;
-    color: #f8fafc;
+    background: var(--cortex-accent-subtle, #475569);
+    color: var(--cortex-accent, #f8fafc);
+    border: 1px solid var(--cortex-accent-border, transparent);
     font-size: 0.7rem;
     font-weight: 600;
     padding: 1px 4px;
@@ -157,7 +158,7 @@
   }
 
   .value {
-    color: #cbd5e1;
+    color: var(--cortex-fg-primary, #cbd5e1);
     font-weight: 500;
     padding: 0 4px;
   }

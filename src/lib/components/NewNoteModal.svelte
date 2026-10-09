@@ -139,8 +139,8 @@
   }
 
   .modal-window {
-    background: #0f172a;
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: var(--cortex-bg-card, #0f172a);
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
     border-radius: 12px;
     width: 90%;
     max-width: 460px;
@@ -153,8 +153,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 18px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
-    background: rgba(30, 41, 59, 0.3);
+    border-bottom: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.15));
+    background: var(--cortex-bg-header, rgba(30, 41, 59, 0.3));
   }
 
   .title-wrap {
@@ -171,13 +171,13 @@
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
-    color: #f1f5f9;
+    color: var(--cortex-fg-primary, #f1f5f9);
   }
 
   .close-btn {
     background: none;
     border: none;
-    color: #94a3b8;
+    color: var(--cortex-fg-muted, #94a3b8);
     font-size: 1rem;
     cursor: pointer;
     padding: 4px;
@@ -186,7 +186,7 @@
   }
 
   .close-btn:hover {
-    color: #ffffff;
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
   .modal-body {
@@ -194,37 +194,38 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    background: var(--cortex-bg-main, transparent);
   }
 
   .folder-badge {
     font-size: 0.8rem;
-    color: #94a3b8;
-    background: rgba(30, 41, 59, 0.5);
+    color: var(--cortex-fg-secondary, #94a3b8);
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.5));
     padding: 6px 10px;
     border-radius: 6px;
-    border: 1px solid rgba(148, 163, 184, 0.1);
+    border: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.1));
   }
 
   .folder-badge code {
-    color: #38bdf8;
+    color: var(--cortex-accent, #38bdf8);
     font-family: monospace;
   }
 
   .input-label {
     font-size: 0.82rem;
     font-weight: 500;
-    color: #cbd5e1;
+    color: var(--cortex-fg-secondary, #cbd5e1);
     margin-top: 4px;
   }
 
   .text-input {
     width: 100%;
     box-sizing: border-box;
-    background: rgba(15, 23, 42, 0.8);
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: var(--cortex-bg-input, rgba(15, 23, 42, 0.8));
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
     border-radius: 6px;
     padding: 8px 10px;
-    color: #f8fafc;
+    color: var(--cortex-fg-primary, #f8fafc);
     font-family: inherit;
     font-size: 0.88rem;
     outline: none;
@@ -232,7 +233,7 @@
   }
 
   .text-input:focus {
-    border-color: #3b82f6;
+    border-color: var(--cortex-accent, #3b82f6);
   }
 
   .filename-input-wrap {
@@ -249,7 +250,7 @@
   .ext-badge {
     position: absolute;
     right: 10px;
-    color: #64748b;
+    color: var(--cortex-fg-muted, #64748b);
     font-family: monospace;
     font-size: 0.82rem;
     pointer-events: none;
@@ -269,14 +270,14 @@
     justify-content: flex-end;
     gap: 10px;
     padding: 12px 18px;
-    background: rgba(30, 41, 59, 0.2);
-    border-top: 1px solid rgba(148, 163, 184, 0.12);
+    background: var(--cortex-bg-header, rgba(30, 41, 59, 0.2));
+    border-top: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.12));
   }
 
   .cancel-btn {
     background: transparent;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    color: #94a3b8;
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
+    color: var(--cortex-fg-secondary, #94a3b8);
     padding: 6px 14px;
     border-radius: 6px;
     font-size: 0.84rem;
@@ -285,23 +286,24 @@
   }
 
   .cancel-btn:hover {
-    color: #f1f5f9;
+    color: var(--cortex-fg-primary, #f1f5f9);
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.05));
   }
 
   .submit-btn {
-    background: #3b82f6;
+    background: var(--cortex-accent, #3b82f6);
     border: none;
-    color: #ffffff;
+    color: var(--cortex-accent-fg, #ffffff);
     padding: 6px 16px;
     border-radius: 6px;
     font-size: 0.84rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: opacity 0.15s;
   }
 
   .submit-btn:hover:not(:disabled) {
-    background: #2563eb;
+    opacity: 0.9;
   }
 
   .submit-btn:disabled {

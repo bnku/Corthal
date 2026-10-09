@@ -77,10 +77,11 @@ start_sandbox() {
     echo "✅ Изолированный графический стенд готов к работе!"
     echo "=================================================================="
     echo "  • Переменная дисплея для агента : export DISPLAY=${DISPLAY_NUM}"
-    echo "  • Подключение для просмотра (режим наблюдения без перехвата мыши):"
-    echo "      vncviewer -ViewOnly localhost:${VNC_PORT}"
-    echo "  • Подключение для интерактивного управления:"
-    echo "      vncviewer localhost:${VNC_PORT}"
+    echo "  • Интерактивное управление (мышь и клавиатура внутри окна TigerVNC):"
+    echo "      ./scripts/sandbox.sh view"
+    echo "      или: vncviewer localhost:${VNC_PORT}"
+    echo "  • Режим наблюдения (без ввода):"
+    echo "      ./scripts/sandbox.sh view-only"
     echo "=================================================================="
 }
 
@@ -115,7 +116,7 @@ status_sandbox() {
 }
 
 view_sandbox() {
-    local view_only="${1:-true}"
+    local view_only="${1:-false}"
     if ! command -v vncviewer &>/dev/null; then
         echo "❌ Утилита vncviewer не найдена. Установите: sudo pacman -S tigervnc"
         exit 1
@@ -125,7 +126,7 @@ view_sandbox() {
         echo "👁️  Запуск VNC Viewer в режиме наблюдения (View-Only)..."
         vncviewer -ViewOnly "localhost:${VNC_PORT}" &
     else
-        echo "🎮 Запуск VNC Viewer в интерактивном режиме..."
+        echo "🎮 Запуск VNC Viewer в интерактивном режиме (мышь и ввод активны)..."
         vncviewer "localhost:${VNC_PORT}" &
     fi
 }
@@ -145,14 +146,14 @@ case "${1:-status}" in
     status)
         status_sandbox
         ;;
-    view)
-        view_sandbox true
-        ;;
-    interactive)
+    view|interactive)
         view_sandbox false
         ;;
+    view-only)
+        view_sandbox true
+        ;;
     *)
-        echo "Использование: $0 {start|stop|restart|status|view|interactive}"
+        echo "Использование: $0 {start|stop|restart|status|view|view-only|interactive}"
         exit 1
         ;;
 esac

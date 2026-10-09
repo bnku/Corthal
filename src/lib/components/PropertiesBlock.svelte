@@ -154,8 +154,8 @@
 
 <style>
   .properties-card {
-    background: rgba(15, 23, 42, 0.65);
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    background: var(--cortex-bg-card, rgba(15, 23, 42, 0.65));
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.15));
     border-radius: 8px;
     margin-bottom: 24px;
     font-size: 0.85rem;
@@ -164,7 +164,7 @@
   }
 
   .properties-card:hover {
-    border-color: rgba(148, 163, 184, 0.28);
+    border-color: var(--cortex-accent-border, rgba(148, 163, 184, 0.28));
   }
 
   .properties-header {
@@ -174,30 +174,30 @@
     padding: 8px 12px;
     cursor: pointer;
     user-select: none;
-    background: rgba(30, 41, 59, 0.4);
+    background: var(--cortex-bg-header, rgba(30, 41, 59, 0.4));
     transition: background 0.15s;
   }
 
   .properties-header:hover {
-    background: rgba(30, 41, 59, 0.7);
+    background: var(--cortex-bg-hover, rgba(30, 41, 59, 0.7));
   }
 
   .header-left {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #94a3b8;
+    color: var(--cortex-fg-primary, #94a3b8);
     font-weight: 600;
   }
 
   .chevron {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--cortex-fg-muted, #64748b);
   }
 
   .tag-counter {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--cortex-fg-muted, #64748b);
   }
 
   .header-summary {
@@ -207,13 +207,13 @@
   }
 
   .summary-tag {
-    color: #818cf8;
+    color: var(--cortex-accent, #818cf8);
     font-size: 0.78rem;
   }
 
   .summary-more {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--cortex-fg-muted, #64748b);
   }
 
   .properties-body {
@@ -234,7 +234,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #94a3b8;
+    color: var(--cortex-fg-secondary, #94a3b8);
     font-size: 0.82rem;
     width: 100px;
     flex-shrink: 0;
@@ -246,7 +246,7 @@
   }
 
   .prop-value {
-    color: #e2e8f0;
+    color: var(--cortex-fg-primary, #e2e8f0);
     font-size: 0.85rem;
     flex-grow: 1;
     min-width: 0;
@@ -255,17 +255,17 @@
 
   .prop-value.strong {
     font-weight: 600;
-    color: #f8fafc;
+    color: var(--cortex-fg-primary, #f8fafc);
   }
 
   .date-val {
-    color: #cbd5e1;
+    color: var(--cortex-fg-secondary, #cbd5e1);
     font-family: monospace;
     font-size: 0.82rem;
   }
 
   .extra-val {
-    color: #cbd5e1;
+    color: var(--cortex-fg-secondary, #cbd5e1);
   }
 
   /* TAGS */
@@ -276,9 +276,9 @@
   }
 
   .tag-pill {
-    background: rgba(99, 102, 241, 0.15);
-    color: #a5b4fc;
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: var(--cortex-accent-subtle, rgba(99, 102, 241, 0.15));
+    color: var(--cortex-accent, #a5b4fc);
+    border: 1px solid var(--cortex-accent-border, rgba(99, 102, 241, 0.3));
     border-radius: 9999px;
     padding: 2px 9px;
     font-size: 0.78rem;
@@ -287,9 +287,9 @@
   }
 
   .tag-pill:hover {
-    background: rgba(99, 102, 241, 0.3);
-    border-color: #818cf8;
-    color: #ffffff;
+    background: var(--cortex-accent-subtle-hover, rgba(99, 102, 241, 0.3));
+    border-color: var(--cortex-accent, #818cf8);
+    color: var(--cortex-accent-fg, #ffffff);
   }
 
   /* STATUS BADGE */

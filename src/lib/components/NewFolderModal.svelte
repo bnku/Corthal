@@ -252,8 +252,8 @@
   }
 
   .modal-window {
-    background: #0f172a;
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: var(--cortex-bg-card, #0f172a);
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
     border-radius: 12px;
     width: 90%;
     max-width: 500px;
@@ -266,8 +266,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 18px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
-    background: rgba(30, 41, 59, 0.3);
+    border-bottom: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.15));
+    background: var(--cortex-bg-header, rgba(30, 41, 59, 0.3));
   }
 
   .title-wrap {
@@ -280,13 +280,13 @@
     margin: 0;
     font-size: 0.98rem;
     font-weight: 600;
-    color: #f1f5f9;
+    color: var(--cortex-fg-primary, #f1f5f9);
   }
 
   .close-btn {
     background: none;
     border: none;
-    color: #94a3b8;
+    color: var(--cortex-fg-muted, #94a3b8);
     font-size: 1rem;
     cursor: pointer;
     padding: 4px;
@@ -294,7 +294,7 @@
   }
 
   .close-btn:hover {
-    color: #ffffff;
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
   .modal-body {
@@ -304,36 +304,38 @@
     gap: 10px;
     max-height: 75vh;
     overflow-y: auto;
+    background: var(--cortex-bg-main, transparent);
   }
 
   .path-badge {
     font-size: 0.78rem;
-    color: #94a3b8;
-    background: rgba(30, 41, 59, 0.5);
+    color: var(--cortex-fg-secondary, #94a3b8);
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.5));
     padding: 5px 8px;
     border-radius: 6px;
+    border: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.1));
   }
 
   .path-badge code {
-    color: #38bdf8;
+    color: var(--cortex-accent, #38bdf8);
     font-family: monospace;
   }
 
   .input-label {
     font-size: 0.8rem;
     font-weight: 500;
-    color: #cbd5e1;
+    color: var(--cortex-fg-secondary, #cbd5e1);
     margin-top: 2px;
   }
 
   .text-input {
     width: 100%;
     box-sizing: border-box;
-    background: rgba(15, 23, 42, 0.8);
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: var(--cortex-bg-input, rgba(15, 23, 42, 0.8));
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
     border-radius: 6px;
     padding: 7px 10px;
-    color: #f8fafc;
+    color: var(--cortex-fg-primary, #f8fafc);
     font-family: inherit;
     font-size: 0.85rem;
     outline: none;
@@ -341,7 +343,7 @@
   }
 
   .text-input:focus {
-    border-color: #3b82f6;
+    border-color: var(--cortex-accent, #3b82f6);
   }
 
   .slug-input {
@@ -354,8 +356,8 @@
 
   /* ICON PICKER */
   .icon-picker-section {
-    background: rgba(30, 41, 59, 0.3);
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.3));
+    border: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.15));
     border-radius: 8px;
     padding: 10px;
     display: flex;
@@ -373,27 +375,27 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(15, 23, 42, 0.7);
+    background: var(--cortex-bg-input, rgba(15, 23, 42, 0.7));
     padding: 3px 8px;
     border-radius: 5px;
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
   }
 
   .preview-name {
     font-size: 0.75rem;
-    color: #94a3b8;
+    color: var(--cortex-fg-secondary, #94a3b8);
     font-family: monospace;
   }
 
   .icon-search-input {
     width: 100%;
     box-sizing: border-box;
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: var(--cortex-bg-input, rgba(15, 23, 42, 0.6));
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 0.78rem;
-    color: #f1f5f9;
+    color: var(--cortex-fg-primary, #f1f5f9);
     outline: none;
   }
 
@@ -411,23 +413,23 @@
     align-items: center;
     justify-content: center;
     height: 32px;
-    background: rgba(15, 23, 42, 0.5);
+    background: var(--cortex-bg-input, rgba(15, 23, 42, 0.5));
     border: 1px solid transparent;
     border-radius: 5px;
-    color: #94a3b8;
+    color: var(--cortex-fg-muted, #94a3b8);
     cursor: pointer;
     transition: all 0.12s;
   }
 
   .icon-choice-btn:hover {
-    background: rgba(59, 130, 246, 0.2);
-    color: #ffffff;
+    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.2));
+    color: var(--cortex-accent, #ffffff);
   }
 
   .icon-choice-btn.selected {
-    background: #3b82f6;
-    color: #ffffff;
-    border-color: #60a5fa;
+    background: var(--cortex-accent, #3b82f6);
+    color: var(--cortex-accent-fg, #ffffff);
+    border-color: var(--cortex-accent, #60a5fa);
   }
 
   /* COLOR & ORDER */
@@ -458,8 +460,8 @@
   }
 
   .color-btn.selected {
-    border-color: #ffffff;
-    box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+    border-color: var(--cortex-fg-primary, #ffffff);
+    box-shadow: 0 0 6px var(--cortex-accent, rgba(255, 255, 255, 0.5));
   }
 
   .order-input {
@@ -480,40 +482,44 @@
     justify-content: flex-end;
     gap: 10px;
     padding: 12px 18px;
-    background: rgba(30, 41, 59, 0.2);
-    border-top: 1px solid rgba(148, 163, 184, 0.12);
+    background: var(--cortex-bg-header, rgba(30, 41, 59, 0.2));
+    border-top: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.12));
   }
 
   .cancel-btn {
     background: transparent;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    color: #94a3b8;
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
+    color: var(--cortex-fg-secondary, #94a3b8);
     padding: 6px 14px;
     border-radius: 6px;
     font-size: 0.84rem;
     cursor: pointer;
+    transition: all 0.15s;
   }
 
   .cancel-btn:hover {
-    color: #f1f5f9;
+    color: var(--cortex-fg-primary, #f1f5f9);
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.05));
   }
 
   .submit-btn {
-    background: #3b82f6;
+    background: var(--cortex-accent, #3b82f6);
     border: none;
-    color: #ffffff;
+    color: var(--cortex-accent-fg, #ffffff);
     padding: 6px 16px;
     border-radius: 6px;
     font-size: 0.84rem;
     font-weight: 500;
     cursor: pointer;
+    transition: opacity 0.15s;
   }
 
   .submit-btn:hover:not(:disabled) {
-    background: #2563eb;
+    opacity: 0.9;
   }
 
   .submit-btn:disabled {
     opacity: 0.5;
+    cursor: not-allowed;
   }
 </style>

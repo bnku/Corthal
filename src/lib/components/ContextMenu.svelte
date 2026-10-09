@@ -95,8 +95,8 @@
   .context-menu {
     position: fixed;
     z-index: 2000;
-    background: #0f172a;
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: var(--cortex-bg-card, #0f172a);
+    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
     border-radius: 8px;
     padding: 4px;
     min-width: 220px;
@@ -111,7 +111,7 @@
     align-items: center;
     gap: 6px;
     padding: 6px 8px;
-    color: #94a3b8;
+    color: var(--cortex-fg-muted, #94a3b8);
     font-weight: 500;
     font-size: 0.76rem;
   }
@@ -124,7 +124,7 @@
 
   .menu-divider {
     height: 1px;
-    background: rgba(148, 163, 184, 0.12);
+    background: var(--cortex-border-subtle, rgba(148, 163, 184, 0.12));
     margin: 3px 0;
   }
 
@@ -136,7 +136,7 @@
     padding: 6px 10px;
     border: none;
     background: transparent;
-    color: #e2e8f0;
+    color: var(--cortex-fg-primary, #e2e8f0);
     border-radius: 5px;
     font-size: 0.82rem;
     text-align: left;
@@ -145,7 +145,7 @@
   }
 
   .menu-item:hover {
-    background: rgba(59, 130, 246, 0.15);
-    color: #ffffff;
+    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.15));
+    color: var(--cortex-accent, #ffffff);
   }
 </style>
