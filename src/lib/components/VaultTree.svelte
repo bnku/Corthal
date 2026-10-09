@@ -6,9 +6,10 @@
   interface Props {
     node: VaultNode;
     selectedPath: string | null;
+    expandedFolders: Set<string>;
     depth?: number;
-    treeActionSignal?: { action: "collapse" | "expand"; version: number };
     onSelectNote: (path: string) => void;
+    onToggleFolder: (folderPath: string) => void;
     onCreateNote?: (folderPath: string) => void;
     onFolderContextMenu?: (e: MouseEvent, node: VaultNode) => void;
   }
@@ -16,40 +17,25 @@
   let {
     node,
     selectedPath,
+    expandedFolders,
     depth = 0,
-    treeActionSignal = { action: "collapse", version: 0 },
     onSelectNote,
+    onToggleFolder,
     onCreateNote,
     onFolderContextMenu,
   }: Props = $props();
 
-  $effect(() => {
-    if (treeActionSignal.version > 0 && node.relative_path !== "") {
-      if (treeActionSignal.action === "collapse") {
-        userExpanded = false;
-      } else if (treeActionSignal.action === "expand") {
-        userExpanded = depth <= 1;
-      }
-    }
-  });
-
-  // Root or 1st-level directories default to expanded; subdirectories default to collapsed unless selected
   let isSelectedChild = $derived(
     Boolean(selectedPath && node.relative_path && selectedPath.startsWith(node.relative_path + "/"))
   );
 
-  let userExpanded = $state<boolean | null>(null);
-
-  // If user explicitly toggled, use that; otherwise auto-expand if root/1st level or contains active note
   let isExpanded = $derived(
-    userExpanded !== null
-      ? userExpanded
-      : depth <= 1 || isSelectedChild || node.relative_path === ""
+    node.relative_path === "" || expandedFolders.has(node.relative_path)
   );
 
   function toggleExpand(e: MouseEvent) {
     e.stopPropagation();
-    userExpanded = !isExpanded;
+    onToggleFolder(node.relative_path);
   }
 
   function handleFileClick(path: string) {
@@ -75,6 +61,40 @@
   let fileDisplayName = $derived(
     node.title || node.name.replace(/\.md$/, "")
   );
+
+  function getFileIcon(name: string): string {
+    const ext = name.split(".").pop()?.toLowerCase();
+    switch (ext) {
+      case "md":
+      case "markdown":
+        return "file-text";
+      case "rs":
+      case "js":
+      case "mjs":
+      case "cjs":
+      case "ts":
+      case "py":
+      case "sh":
+      case "bash":
+      case "json":
+      case "yaml":
+      case "yml":
+      case "toml":
+      case "css":
+      case "html":
+      case "c":
+      case "cpp":
+      case "cs":
+      case "go":
+      case "sql":
+      case "lua":
+        return "file-code";
+      default:
+        return "file-text";
+    }
+  }
+
+  let fileIconName = $derived(getFileIcon(node.name));
 
   let folderIconName = $derived(
     node.icon || (isExpanded ? "folder-open" : "folder")
@@ -121,9 +141,10 @@
           <VaultTree
             node={child}
             {selectedPath}
+            {expandedFolders}
             depth={depth + 1}
-            {treeActionSignal}
             {onSelectNote}
+            {onToggleFolder}
             {onCreateNote}
             {onFolderContextMenu}
           />
@@ -140,7 +161,7 @@
       onkeydown={(e) => e.key === "Enter" && handleFileClick(node.relative_path)}
     >
       <span class="file-icon">
-        <Icon name="file-text" size={14} color={selectedPath === node.relative_path ? "#ffffff" : "#94a3b8"} />
+        <Icon name={fileIconName} size={14} color={selectedPath === node.relative_path ? "#ffffff" : "#94a3b8"} />
       </span>
       <span class="file-name">{fileDisplayName}</span>
     </div>

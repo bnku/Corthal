@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { marked } from "marked";
+  import { Marked } from "marked";
+  import hljs from "highlight.js";
+  import "highlight.js/styles/github-dark.css";
   import { parseFrontmatter } from "$lib/frontmatter";
   import Icon from "./Icon.svelte";
   import SecretPill from "./SecretPill.svelte";
@@ -31,8 +33,13 @@
     onCloseSplit?: () => void;
     onOpenSecretModal: () => void;
     onContentChange: (newContent: string) => void;
+    onCursorChange?: (line: number, col: number) => void;
     onTagClick?: (tag: string) => void;
     onOpenCreateNote?: () => void;
+    onOpenSearch?: () => void;
+    onToggleSidebar?: () => void;
+    onToggleAssistant?: () => void;
+    onOpenSettings?: () => void;
   }
 
   let {
@@ -55,9 +62,197 @@
     onCloseSplit,
     onOpenSecretModal,
     onContentChange,
+    onCursorChange,
     onTagClick,
     onOpenCreateNote,
+    onOpenSearch,
+    onToggleSidebar,
+    onToggleAssistant,
+    onOpenSettings,
   }: Props = $props();
+
+  // Custom Marked renderer with syntax highlighting via highlight.js
+  const customMarked = new Marked({
+    renderer: {
+      code({ text, lang }: { text: string; lang?: string }) {
+        const validLang = lang && hljs.getLanguage(lang) ? lang : undefined;
+        const res = validLang
+          ? hljs.highlight(text, { language: validLang, ignoreIllegals: true }).value
+          : hljs.highlightAuto(text).value;
+        return `<pre><code class="hljs ${validLang || ''}">${res}</code></pre>`;
+      }
+    }
+  });
+
+  function getFileLanguage(path: string): string {
+    const ext = path.split(".").pop()?.toLowerCase();
+    const filename = path.split("/").pop()?.toLowerCase() || "";
+
+    if (filename === "dockerfile") return "dockerfile";
+    if (filename.endsWith(".service")) return "ini";
+
+    switch (ext) {
+      case "rs": return "rust";
+      case "js":
+      case "mjs":
+      case "cjs":
+      case "jsx": return "javascript";
+      case "ts":
+      case "mts":
+      case "cts":
+      case "tsx": return "typescript";
+      case "py": return "python";
+      case "sh":
+      case "bash":
+      case "zsh": return "bash";
+      case "json": return "json";
+      case "yaml":
+      case "yml": return "yaml";
+      case "toml": return "toml";
+      case "css":
+      case "scss":
+      case "sass":
+      case "less": return "css";
+      case "html":
+      case "xml":
+      case "svg": return "xml";
+      case "c":
+      case "h": return "c";
+      case "cpp":
+      case "hpp":
+      case "cc": return "cpp";
+      case "cs": return "csharp";
+      case "go": return "go";
+      case "sql": return "sql";
+      case "lua": return "lua";
+      case "ini":
+      case "conf": return "ini";
+      case "md":
+      case "markdown": return "markdown";
+      default: return "plaintext";
+    }
+  }
+
+  function getFileIcon(path: string): string {
+    const ext = path.split(".").pop()?.toLowerCase();
+    switch (ext) {
+      case "md":
+      case "markdown":
+        return "file-text";
+      case "rs":
+      case "js":
+      case "mjs":
+      case "cjs":
+      case "ts":
+      case "py":
+      case "sh":
+      case "bash":
+      case "json":
+      case "yaml":
+      case "yml":
+      case "toml":
+      case "css":
+      case "html":
+      case "c":
+      case "cpp":
+      case "cs":
+      case "go":
+      case "sql":
+      case "lua":
+        return "file-code";
+      default:
+        return "file-text";
+    }
+  }
+
+  let isMarkdown = $derived(
+    activePath ? activePath.endsWith(".md") || activePath.endsWith(".markdown") : true
+  );
+
+  let detectedLang = $derived(
+    activePath ? getFileLanguage(activePath) : "plaintext"
+  );
+
+  let lineNumbers = $derived.by<number[]>(() => {
+    const count = content ? content.split("\n").length : 1;
+    const arr = new Array(count);
+    for (let i = 0; i < count; i++) arr[i] = i + 1;
+    return arr;
+  });
+
+  let highlightedCode = $derived.by<string>(() => {
+    if (!content) return "";
+    try {
+      const valid = detectedLang && detectedLang !== "plaintext" && hljs.getLanguage(detectedLang) ? detectedLang : undefined;
+      if (valid) {
+        return hljs.highlight(content, { language: valid, ignoreIllegals: true }).value;
+      }
+      return hljs.highlightAuto(content).value;
+    } catch {
+      return content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  });
+
+  // Editor cursor & scroll synchronization
+  let gutterEl = $state<HTMLElement | null>(null);
+  let textareaEl = $state<HTMLTextAreaElement | null>(null);
+  let codeGutterEl = $state<HTMLElement | null>(null);
+  let codePreEl = $state<HTMLElement | null>(null);
+
+  let currentCursorLine = $state(1);
+  let currentCursorCol = $state(1);
+  let copiedCode = $state(false);
+
+  function copyCodeToClipboard() {
+    if (!content) return;
+    navigator.clipboard.writeText(content);
+    copiedCode = true;
+    setTimeout(() => {
+      copiedCode = false;
+    }, 1500);
+  }
+
+  function handleEditorScroll() {
+    if (textareaEl && gutterEl) {
+      gutterEl.scrollTop = textareaEl.scrollTop;
+    }
+  }
+
+  function handleCodeViewerScroll(e: Event) {
+    const target = e.target as HTMLElement;
+    if (codeGutterEl) {
+      codeGutterEl.scrollTop = target.scrollTop;
+    }
+  }
+
+  function updateCursorPosition() {
+    if (!textareaEl) return;
+    const selStart = textareaEl.selectionStart || 0;
+    const before = content.slice(0, selStart);
+    const lines = before.split("\n");
+    currentCursorLine = lines.length;
+    currentCursorCol = (lines[lines.length - 1]?.length || 0) + 1;
+    onCursorChange?.(currentCursorLine, currentCursorCol);
+  }
+
+  function handleTextareaKeydown(e: KeyboardEvent) {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      if (!textareaEl) return;
+      const start = textareaEl.selectionStart;
+      const end = textareaEl.selectionEnd;
+      const val = textareaEl.value;
+      const indent = "  "; // 2 spaces
+      const newVal = val.substring(0, start) + indent + val.substring(end);
+      onContentChange(newVal);
+      setTimeout(() => {
+        if (textareaEl) {
+          textareaEl.selectionStart = textareaEl.selectionEnd = start + indent.length;
+          updateCursorPosition();
+        }
+      }, 0);
+    }
+  }
 
   // Parse YAML Frontmatter & Body
   let parsedDoc = $derived(parseFrontmatter(content));
@@ -112,6 +307,7 @@
   function handleTextareaInput(e: Event) {
     const target = e.target as HTMLTextAreaElement;
     onContentChange(target.value);
+    updateCursorPosition();
   }
 
   function handleTabsWheel(e: WheelEvent) {
@@ -157,17 +353,22 @@
           class="editor-tab"
           class:active={isActive}
           onclick={(e) => handleTabClick(tab.path, e)}
-          onauxclick={(e) => e.button === 1 && handleCloseTab(tab.path, e)}
+          onpointerdown={(e) => {
+            if (e.button === 1) {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCloseTab(tab.path, e as any);
+            }
+          }}
           role="tab"
           tabindex="0"
           aria-selected={isActive}
-          title={tab.path}
           onkeydown={(e) => e.key === "Enter" && handleTabClick(tab.path, e as any)}
         >
           <span class="tab-icon">
-            <Icon name="file-text" size={13} color={isActive ? "var(--cortex-accent)" : "var(--cortex-fg-muted)"} />
+            <Icon name={getFileIcon(tab.path)} size={13} color={isActive ? "var(--cortex-accent)" : "var(--cortex-fg-muted)"} />
           </span>
-          <span class="tab-title">{tab.title}</span>
+          <span class="tab-title" title={tab.path}>{tab.title}</span>
 
           {#if tab.isDirty}
             <span class="dirty-indicator" title="Несохранённые изменения">●</span>
@@ -176,7 +377,11 @@
           <button
             class="tab-close-btn"
             aria-label="Закрыть вкладку"
-            onclick={(e) => handleCloseTab(tab.path, e)}
+            onclick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCloseTab(tab.path, e);
+            }}
           >
             <Icon name="x" size={12} />
           </button>
@@ -205,7 +410,7 @@
             class="mode-btn"
             class:active={!isEditing}
             onclick={() => onToggleEditing(false)}
-            title="Режим просмотра Markdown"
+            title={isMarkdown ? "Режим просмотра Markdown" : "Режим просмотра кода"}
           >
             <Icon name="eye" size={12} />
             <span class="btn-text">Просмотр</span>
@@ -239,45 +444,153 @@
   <div class="pane-content-body">
     {#if activePath}
       {#if isEditing}
-        <textarea
-          class="editor-area"
-          value={content}
-          oninput={handleTextareaInput}
-          placeholder="Пишите в формате Markdown..."
-          spellcheck="false"
-        ></textarea>
-      {:else}
-        <div class="markdown-preview">
-          <!-- Properties Block -->
-          {#if parsedDoc.frontmatter && Object.keys(parsedDoc.frontmatter).length > 0}
-            <PropertiesBlock
-              properties={parsedDoc.frontmatter}
-              onTagClick={(tag) => onTagClick?.(tag)}
-            />
-          {/if}
+        <!-- EDIT MODE (with Line Numbers Gutter and 1:1 Scroll Sync) -->
+        <div class="editor-workspace">
+          <div class="line-gutter" bind:this={gutterEl}>
+            {#each lineNumbers as lineNum}
+              <div
+                class="gutter-line"
+                class:active={currentCursorLine === lineNum}
+              >
+                {lineNum}
+              </div>
+            {/each}
+          </div>
 
-          <!-- Note Content Body -->
-          {#each contentSlices as slice}
-            {#if slice.type === "secret"}
-              <SecretPill token={slice.content} />
-            {:else}
-              {@html marked.parse(slice.content)}
-            {/if}
-          {/each}
+          <textarea
+            bind:this={textareaEl}
+            class="editor-textarea"
+            value={content}
+            oninput={handleTextareaInput}
+            onscroll={handleEditorScroll}
+            onclick={updateCursorPosition}
+            onkeyup={updateCursorPosition}
+            onselect={updateCursorPosition}
+            onkeydown={handleTextareaKeydown}
+            placeholder={isMarkdown ? "Пишите в формате Markdown..." : "Исходный код файла..."}
+            spellcheck="false"
+          ></textarea>
         </div>
+      {:else}
+        <!-- VIEW MODE -->
+        {#if isMarkdown}
+          <!-- Markdown Preview -->
+          <div class="markdown-preview">
+            {#if parsedDoc.frontmatter && Object.keys(parsedDoc.frontmatter).length > 0}
+              <PropertiesBlock
+                properties={parsedDoc.frontmatter}
+                onTagClick={(tag) => onTagClick?.(tag)}
+              />
+            {/if}
+
+            {#each contentSlices as slice}
+              {#if slice.type === "secret"}
+                <SecretPill token={slice.content} />
+              {:else}
+                {@html customMarked.parse(slice.content)}
+              {/if}
+            {/each}
+          </div>
+        {:else}
+          <!-- Code Viewer for Non-Markdown files (.rs, .py, .js, .sh, .json, etc.) -->
+          <div class="code-viewer-container">
+            <div class="code-viewer-toolbar">
+              <div class="lang-pill">
+                <Icon name="file-code" size={13} color="var(--cortex-accent)" />
+                <span>{detectedLang.toUpperCase()}</span>
+              </div>
+              <span class="code-meta-lines">{lineNumbers.length} строк</span>
+              <button class="copy-code-btn" onclick={copyCodeToClipboard}>
+                <Icon name={copiedCode ? "check" : "copy"} size={12} />
+                <span>{copiedCode ? "Скопировано!" : "Копировать код"}</span>
+              </button>
+            </div>
+
+            <div class="code-viewer-workspace" onscroll={handleCodeViewerScroll}>
+              <div class="line-gutter code-viewer-gutter" bind:this={codeGutterEl}>
+                {#each lineNumbers as lineNum}
+                  <div class="gutter-line">{lineNum}</div>
+                {/each}
+              </div>
+              <pre class="code-viewer-pre"><code class="hljs {detectedLang}">{@html highlightedCode}</code></pre>
+            </div>
+          </div>
+        {/if}
       {/if}
     {:else}
-      <!-- Empty Pane State -->
-      <div class="empty-pane">
-        <Icon name="book-open" size={40} color="var(--cortex-fg-muted, #64748b)" />
-        <p class="empty-title">Нет открытых вкладок</p>
-        <p class="empty-desc">Выберите заметку в проводнике слева или создайте новую</p>
-        {#if onOpenCreateNote}
-          <button class="empty-create-btn" onclick={onOpenCreateNote}>
-            <Icon name="plus" size={13} />
-            <span>Создать заметку</span>
+      <!-- VS Code Style Welcome / Watermark State -->
+      <div class="empty-welcome-workspace">
+        <div class="watermark-logo">
+          <Icon name="brain" size={96} color="var(--cortex-accent, #38bdf8)" />
+        </div>
+
+        <div class="welcome-shortcuts-list">
+          <button
+            class="shortcut-action-row"
+            onclick={onOpenSearch}
+            title="Быстрый поиск заметок и тегов"
+          >
+            <span class="shortcut-label">Поиск заметок и тегов</span>
+            <span class="shortcut-keys">
+              <kbd>Ctrl</kbd> + <kbd>F</kbd>
+            </span>
           </button>
-        {/if}
+
+          <button
+            class="shortcut-action-row"
+            onclick={onOpenCreateNote}
+            title="Создать новую заметку"
+          >
+            <span class="shortcut-label">Новая заметка</span>
+            <span class="shortcut-keys">
+              <kbd>Ctrl</kbd> + <kbd>N</kbd>
+            </span>
+          </button>
+
+          <button
+            class="shortcut-action-row"
+            onclick={onToggleSidebar}
+            title="Скрыть или показать проводник"
+          >
+            <span class="shortcut-label">Проводник заметок</span>
+            <span class="shortcut-keys">
+              <kbd>Ctrl</kbd> + <kbd>B</kbd>
+            </span>
+          </button>
+
+          <button
+            class="shortcut-action-row"
+            onclick={onSplitToggle}
+            title="Разделить экран пополам"
+          >
+            <span class="shortcut-label">Разделить редактор</span>
+            <span class="shortcut-keys">
+              <kbd>Ctrl</kbd> + <kbd>\</kbd>
+            </span>
+          </button>
+
+          <button
+            class="shortcut-action-row"
+            onclick={onToggleAssistant}
+            title="Открыть ИИ-ассистента"
+          >
+            <span class="shortcut-label">ИИ-ассистент Cortex</span>
+            <span class="shortcut-keys">
+              <kbd>Ctrl</kbd> + <kbd>J</kbd>
+            </span>
+          </button>
+
+          <button
+            class="shortcut-action-row"
+            onclick={onOpenSettings}
+            title="Настройки темы и шифрования"
+          >
+            <span class="shortcut-label">Настройки темы</span>
+            <span class="shortcut-keys">
+              <kbd>Ctrl</kbd> + <kbd>,</kbd>
+            </span>
+          </button>
+        </div>
       </div>
     {/if}
   </div>
@@ -380,16 +693,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 17px;
-    height: 17px;
-    border-radius: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
     background: transparent;
     border: none;
     color: var(--cortex-fg-muted, #94a3b8);
     cursor: pointer;
-    opacity: 0.6;
+    opacity: 0.7;
     transition: all 0.12s;
-    margin-left: 2px;
+    margin-left: auto;
+    flex-shrink: 0;
+    z-index: 5;
+    pointer-events: auto;
   }
 
   .editor-tab:hover .tab-close-btn,
@@ -398,8 +714,12 @@
   }
 
   .tab-close-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.18);
     color: #ffffff;
+  }
+
+  .tab-close-btn :global(*) {
+    pointer-events: none;
   }
 
   /* PANE ACTIONS */
@@ -497,153 +817,246 @@
     min-height: 0;
   }
 
-  .editor-area {
-    width: 100%;
+  /* EDITOR WORKSPACE WITH LINE GUTTER */
+  .editor-workspace {
+    display: flex;
     height: 100%;
-    padding: 20px 24px;
+    width: 100%;
+    background: var(--cortex-bg-main, #0f172a);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .line-gutter {
+    flex-shrink: 0;
+    min-width: 48px;
+    padding: 16px 12px 16px 0;
+    text-align: right;
+    box-sizing: border-box;
+    background: var(--cortex-bg-main, #0f172a);
+    border-right: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+    overflow-y: hidden;
+    user-select: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.88rem;
+  }
+
+  .gutter-line {
+    height: 22px;
+    line-height: 22px;
+    color: var(--cortex-fg-muted, #64748b);
+    font-variant-numeric: tabular-nums;
+    transition: color 0.1s ease;
+  }
+
+  .gutter-line.active {
+    color: var(--cortex-accent, #38bdf8);
+    font-weight: 700;
+  }
+
+  .editor-textarea {
+    flex: 1;
+    height: 100%;
+    padding: 16px 20px;
     box-sizing: border-box;
     background: transparent;
     border: none;
     color: var(--cortex-fg-primary, #f1f5f9);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.88rem;
-    line-height: 1.6;
+    line-height: 22px;
     resize: none;
     outline: none;
-    user-select: text;
-    -webkit-user-select: text;
-  }
-
-  .markdown-preview {
-    padding: 24px 28px;
-    color: var(--cortex-fg-primary, #cbd5e1);
-    line-height: 1.65;
-    font-size: 0.92rem;
-    max-width: 860px;
-    margin: 0 auto;
-    user-select: text;
-    -webkit-user-select: text;
-  }
-
-  .markdown-preview :global(*) {
-    user-select: text;
-    -webkit-user-select: text;
-  }
-
-  .markdown-preview :global(h1) {
-    font-size: 1.7rem;
-    color: var(--cortex-fg-primary, #ffffff);
-    margin-top: 0;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.1));
-    padding-bottom: 8px;
-  }
-
-  .markdown-preview :global(h2) {
-    font-size: 1.3rem;
-    color: var(--cortex-fg-primary, #ffffff);
-    margin-top: 1.6rem;
-    margin-bottom: 0.7rem;
-  }
-
-  .markdown-preview :global(h3) {
-    font-size: 1.05rem;
-    color: var(--cortex-fg-primary, #ffffff);
-    margin-top: 1.3rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .markdown-preview :global(p) {
-    margin-top: 0;
-    margin-bottom: 0.9rem;
-  }
-
-  .markdown-preview :global(ul),
-  .markdown-preview :global(ol) {
-    margin-top: 0;
-    margin-bottom: 0.9rem;
-    padding-left: 20px;
-  }
-
-  .markdown-preview :global(li) {
-    margin-bottom: 0.35rem;
-  }
-
-  .markdown-preview :global(code) {
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.08));
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 0.84rem;
-    color: var(--cortex-accent, #38bdf8);
-  }
-
-  .markdown-preview :global(pre) {
-    background: var(--cortex-bg-card, #091823);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
-    border-radius: 6px;
-    padding: 12px 16px;
+    white-space: pre;
     overflow-x: auto;
-    margin-bottom: 1.2rem;
+    overflow-y: auto;
+    tab-size: 2;
+    user-select: text;
+    -webkit-user-select: text;
   }
 
-  .markdown-preview :global(pre code) {
-    background: none;
-    padding: 0;
-    color: var(--cortex-fg-primary, #e2e8f0);
+  /* CODE VIEWER FOR NON-MD FILES */
+  .code-viewer-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--cortex-bg-main, #0f172a);
+    overflow: hidden;
   }
 
-  .markdown-preview :global(blockquote) {
-    border-left: 3px solid var(--cortex-accent, #38bdf8);
-    margin: 0 0 1rem 0;
-    padding: 4px 14px;
-    color: var(--cortex-fg-secondary, #94a3b8);
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.05));
-    border-radius: 0 4px 4px 0;
+  .code-viewer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 16px;
+    background: var(--cortex-bg-header, rgba(0, 0, 0, 0.2));
+    border-bottom: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.06));
+    user-select: none;
+    flex-shrink: 0;
   }
 
-  /* EMPTY PANE */
-  .empty-pane {
+  .lang-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 7px;
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
+    border: 1px solid var(--cortex-accent-border, rgba(56, 189, 248, 0.25));
+    border-radius: 4px;
+    color: var(--cortex-accent, #38bdf8);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .code-meta-lines {
+    font-size: 0.72rem;
+    color: var(--cortex-fg-muted, #94a3b8);
+  }
+
+  .copy-code-btn {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    background: transparent;
+    border: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.1));
+    border-radius: 4px;
+    color: var(--cortex-fg-secondary, #cbd5e1);
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .copy-code-btn:hover {
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .code-viewer-workspace {
+    display: flex;
+    flex: 1;
+    overflow: auto;
+    position: relative;
+    background: var(--cortex-bg-main, #0f172a);
+  }
+
+  .code-viewer-gutter {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+
+  .code-viewer-pre {
+    flex: 1;
+    margin: 0;
+    padding: 16px 20px;
+    background: transparent;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.88rem;
+    line-height: 22px;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  .code-viewer-pre code {
+    background: transparent !important;
+    padding: 0 !important;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  :global(pre code.hljs) {
+    background: transparent !important;
+    padding: 0 !important;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  /* VS CODE STYLE WELCOME / WATERMARK STATE */
+  .empty-welcome-workspace {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
-    padding: 30px;
-    text-align: center;
+    width: 100%;
+    user-select: none;
+    padding: 24px;
+    box-sizing: border-box;
   }
 
-  .empty-title {
-    margin-top: 14px;
-    margin-bottom: 6px;
-    font-size: 1rem;
-    font-weight: 600;
+  .watermark-logo {
+    opacity: 0.12;
+    margin-bottom: 32px;
+    filter: drop-shadow(0 4px 20px rgba(56, 189, 248, 0.25));
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  .watermark-logo:hover {
+    opacity: 0.24;
+    transform: scale(1.05);
+  }
+
+  .welcome-shortcuts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 330px;
+    max-width: 90%;
+  }
+
+  .shortcut-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: transparent;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .shortcut-action-row:hover {
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
+  }
+
+  .shortcut-label {
+    font-size: 0.83rem;
+    color: var(--cortex-fg-muted, #94a3b8);
+    transition: color 0.15s;
+    font-weight: 500;
+  }
+
+  .shortcut-action-row:hover .shortcut-label {
     color: var(--cortex-fg-primary, #ffffff);
   }
 
-  .empty-desc {
-    margin: 0 0 16px 0;
-    font-size: 0.82rem;
-    color: var(--cortex-fg-muted, #94a3b8);
-    max-width: 320px;
-  }
-
-  .empty-create-btn {
-    display: inline-flex;
+  .shortcut-keys {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    background: var(--cortex-accent, #38bdf8);
-    color: #ffffff;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: opacity 0.15s;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--cortex-fg-muted, #64748b);
   }
 
-  .empty-create-btn:hover {
-    opacity: 0.9;
+  .shortcut-keys kbd {
+    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.12));
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: inherit;
+    font-size: 0.72rem;
+    color: var(--cortex-fg-secondary, #cbd5e1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 </style>

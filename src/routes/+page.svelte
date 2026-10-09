@@ -21,10 +21,50 @@
   let selectedHubIds = $state<string[]>(["all"]);
   let searchQuery = $state("");
   let areFoldersCollapsed = $state(false);
-  let treeActionSignal = $state<{ action: "collapse" | "expand"; version: number }>({
-    action: "collapse",
-    version: 0,
-  });
+  let expandedFolders = $state<Set<string>>(new Set());
+
+  function revealPathAncestors(path: string | null) {
+    if (!path) return;
+    const parts = path.split("/");
+    if (parts.length <= 1) return;
+    let current = "";
+    let changed = false;
+    const next = new Set(expandedFolders);
+    for (let i = 0; i < parts.length - 1; i++) {
+      current = current ? `${current}/${parts[i]}` : parts[i];
+      if (!next.has(current)) {
+        next.add(current);
+        changed = true;
+      }
+    }
+    if (changed) {
+      expandedFolders = next;
+    }
+  }
+
+  function handleToggleFolder(folderPath: string) {
+    const next = new Set(expandedFolders);
+    if (next.has(folderPath)) {
+      next.delete(folderPath);
+    } else {
+      next.add(folderPath);
+    }
+    expandedFolders = next;
+  }
+
+  function collectAllFolderPaths(node: VaultNode, result: string[] = []): string[] {
+    if (node.is_dir && node.relative_path !== "") {
+      result.push(node.relative_path);
+    }
+    if (node.children) {
+      for (const child of node.children) {
+        if (child.is_dir) {
+          collectAllFolderPaths(child, result);
+        }
+      }
+    }
+    return result;
+  }
 
   // Autosave engine
   let autosaveEnabled = $state(true);
@@ -67,10 +107,16 @@
 
   // Active path and active file based on focused pane
   let activeFilePath = $derived.by<string | null>(() => {
-    if (focusedPane === "right" && isSplit) {
+    if (isSplit && focusedPane === "right") {
       return paneRightActive || paneLeftActive;
     }
-    return paneLeftActive || paneRightActive;
+    return paneLeftActive || (isSplit ? paneRightActive : null);
+  });
+
+  $effect(() => {
+    if (activeFilePath) {
+      revealPathAncestors(activeFilePath);
+    }
   });
 
   let activeFile = $derived<FileCacheItem | null>(
@@ -81,6 +127,60 @@
     if (!activeFile) return false;
     return activeFile.content !== activeFile.originalContent;
   });
+
+  function getFormatLabel(path: string | null): string {
+    if (!path) return "Markdown";
+    const ext = path.split(".").pop()?.toLowerCase();
+    switch (ext) {
+      case "md":
+      case "markdown":
+        return "Markdown";
+      case "rs": return "Rust";
+      case "py": return "Python";
+      case "js":
+      case "mjs":
+      case "cjs": return "JavaScript";
+      case "ts":
+      case "mts":
+      case "cts": return "TypeScript";
+      case "sh":
+      case "bash": return "Shell Script";
+      case "json": return "JSON";
+      case "yaml":
+      case "yml": return "YAML";
+      case "toml": return "TOML";
+      case "css": return "CSS";
+      case "html": return "HTML";
+      case "c":
+      case "h": return "C";
+      case "cpp": return "C++";
+      case "cs": return "C#";
+      case "go": return "Go";
+      case "sql": return "SQL";
+      default: return ext ? ext.toUpperCase() : "Текст";
+    }
+  }
+
+  let activeFileFormat = $derived(getFormatLabel(activeFilePath));
+
+  let editorCursorLine = $state(1);
+  let editorCursorCol = $state(1);
+
+  function handleCursorChange(line: number, col: number) {
+    editorCursorLine = line;
+    editorCursorCol = col;
+  }
+
+  let isCurrentEditing = $derived(
+    focusedPane === "right" && isSplit ? paneRightEditing : paneLeftEditing
+  );
+
+  function handleFocusSearch() {
+    showLeftSidebar = true;
+    setTimeout(() => {
+      document.querySelector<HTMLInputElement>(".search-input-wrap input")?.focus();
+    }, 50);
+  }
 
   // Human-readable title and breadcrumb for center header
   let activeFileTitle = $derived.by<string>(() => {
@@ -166,10 +266,10 @@
   let filteredTree = $derived.by<VaultNode | null>(() => {
     if (!vaultTree) return null;
 
+    const realHubsCount = hubs.filter((h) => h.id !== "all").length;
     const isAll =
-      selectedHubIds.length === 0 ||
       selectedHubIds.includes("all") ||
-      selectedHubIds.length === hubs.filter((h) => h.id !== "all").length;
+      (realHubsCount > 0 && selectedHubIds.length >= realHubsCount);
 
     if (isAll && !searchQuery.trim()) return vaultTree;
 
@@ -211,6 +311,15 @@
   async function loadVault() {
     try {
       vaultTree = await invoke<VaultNode>("vault_get_tree");
+      if (expandedFolders.size === 0 && vaultTree) {
+        const initial = new Set<string>();
+        for (const child of vaultTree.children) {
+          if (child.is_dir) {
+            initial.add(child.relative_path);
+          }
+        }
+        expandedFolders = initial;
+      }
       if (!paneLeftActive && paneLeftTabs.length === 0) {
         selectDefaultNote(vaultTree);
       }
@@ -291,17 +400,23 @@
     if (paneId === "left") {
       const idx = paneLeftTabs.indexOf(path);
       if (idx !== -1) {
-        paneLeftTabs.splice(idx, 1);
+        paneLeftTabs = paneLeftTabs.filter((p) => p !== path);
         if (paneLeftActive === path) {
-          paneLeftActive = paneLeftTabs[Math.max(0, idx - 1)] || null;
+          paneLeftActive =
+            paneLeftTabs.length > 0
+              ? paneLeftTabs[Math.min(idx, paneLeftTabs.length - 1)] || null
+              : null;
         }
       }
     } else {
       const idx = paneRightTabs.indexOf(path);
       if (idx !== -1) {
-        paneRightTabs.splice(idx, 1);
+        paneRightTabs = paneRightTabs.filter((p) => p !== path);
         if (paneRightActive === path) {
-          paneRightActive = paneRightTabs[Math.max(0, idx - 1)] || null;
+          paneRightActive =
+            paneRightTabs.length > 0
+              ? paneRightTabs[Math.min(idx, paneRightTabs.length - 1)] || null
+              : null;
         }
         if (paneRightTabs.length === 0) {
           isSplit = false;
@@ -372,10 +487,14 @@
 
   function toggleCollapseAll() {
     areFoldersCollapsed = !areFoldersCollapsed;
-    treeActionSignal = {
-      action: areFoldersCollapsed ? "collapse" : "expand",
-      version: treeActionSignal.version + 1,
-    };
+    if (areFoldersCollapsed) {
+      expandedFolders = new Set();
+    } else {
+      if (vaultTree) {
+        const allPaths = collectAllFolderPaths(vaultTree);
+        expandedFolders = new Set(allPaths);
+      }
+    }
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -383,6 +502,30 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
       saveNote();
+    }
+    // New Note: Ctrl+N
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
+      e.preventDefault();
+      openCreateNoteDialog("");
+    }
+    // Close Tab: Ctrl+W
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "w") {
+      e.preventDefault();
+      if (focusedPane === "right" && isSplit && paneRightActive) {
+        closeTab("right", paneRightActive);
+      } else if (paneLeftActive) {
+        closeTab("left", paneLeftActive);
+      }
+    }
+    // Search: Ctrl+F or Ctrl+P
+    if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "f" || e.key.toLowerCase() === "p")) {
+      e.preventDefault();
+      handleFocusSearch();
+    }
+    // Settings: Ctrl+,
+    if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+      e.preventDefault();
+      isSettingsModalOpen = true;
     }
     // Toggle Split: Ctrl+\ or Ctrl+2
     if ((e.ctrlKey || e.metaKey) && (e.key === "\\" || e.key === "2")) {
@@ -627,7 +770,8 @@
             <VaultTree
               node={filteredTree}
               selectedPath={activeFilePath}
-              {treeActionSignal}
+              {expandedFolders}
+              onToggleFolder={handleToggleFolder}
               onSelectNote={(p) => openNote(p)}
               onCreateNote={openCreateNoteDialog}
               onFolderContextMenu={handleFolderContextMenu}
@@ -667,8 +811,13 @@
               triggerAutosave(paneLeftActive);
             }
           }}
+          onCursorChange={handleCursorChange}
           onTagClick={(tag) => (searchQuery = tag)}
           onOpenCreateNote={() => openCreateNoteDialog("")}
+          onOpenSearch={handleFocusSearch}
+          onToggleSidebar={() => (showLeftSidebar = !showLeftSidebar)}
+          onToggleAssistant={() => (showAssistant = !showAssistant)}
+          onOpenSettings={() => (isSettingsModalOpen = true)}
         />
 
         <!-- Pane 2 (Right, when split enabled) -->
@@ -699,8 +848,13 @@
                 triggerAutosave(paneRightActive);
               }
             }}
+            onCursorChange={handleCursorChange}
             onTagClick={(tag) => (searchQuery = tag)}
             onOpenCreateNote={() => openCreateNoteDialog("")}
+            onOpenSearch={handleFocusSearch}
+            onToggleSidebar={() => (showLeftSidebar = !showLeftSidebar)}
+            onToggleAssistant={() => (showAssistant = !showAssistant)}
+            onOpenSettings={() => (isSettingsModalOpen = true)}
           />
         {/if}
       </div>
@@ -748,12 +902,18 @@
     <!-- Right status items -->
     <div class="statusbar-right">
       {#if activeFilePath && activeFile}
+        {#if isCurrentEditing}
+          <span class="statusbar-item cursor-pos" title="Текущая строка и столбец курсора">
+            Стр {editorCursorLine}, Кол {editorCursorCol}
+          </span>
+          <span class="statusbar-dot">•</span>
+        {/if}
         <span class="statusbar-item stat-item">
           {docStats.words} слов
         </span>
         <span class="statusbar-dot">•</span>
         <span class="statusbar-item format-item">
-          Markdown
+          {activeFileFormat}
         </span>
         <span class="statusbar-dot">•</span>
         <span class="statusbar-item save-status">

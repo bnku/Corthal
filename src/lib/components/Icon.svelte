@@ -56,6 +56,7 @@
   import ListFilter from "lucide-svelte/icons/list-filter";
   import Ellipsis from "lucide-svelte/icons/ellipsis";
   import ShieldCheck from "lucide-svelte/icons/shield-check";
+  import FileCode from "lucide-svelte/icons/file-code";
 
   interface Props {
     name: string;
@@ -72,6 +73,7 @@
     "folder-open": FolderOpen,
     "file-text": FileText,
     "file": FileText,
+    "file-code": FileCode,
     "archive": Archive,
     "inbox": Inbox,
     "globe": Globe,

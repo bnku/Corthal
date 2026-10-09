@@ -18,7 +18,7 @@
 
   // Check if all are selected
   let isAllSelected = $derived(
-    selectedHubIds.length === 0 || selectedHubIds.includes("all") || selectedHubIds.length === realHubs.length
+    selectedHubIds.includes("all") || (realHubs.length > 0 && selectedHubIds.length === realHubs.length)
   );
 
   let filteredHubs = $derived.by(() => {
@@ -33,6 +33,9 @@
     if (isAllSelected) {
       return `Все разделы (${realHubs.length})`;
     }
+    if (selectedHubIds.length === 0) {
+      return `Разделы не выбраны (0)`;
+    }
     if (selectedHubIds.length === 1) {
       const match = realHubs.find((h) => h.id === selectedHubIds[0]);
       return match ? match.name : selectedHubIds[0];
@@ -42,10 +45,22 @@
     return `${firstName} (+${selectedHubIds.length - 1})`;
   });
 
+  function closeDropdown() {
+    if (isOpen) {
+      isOpen = false;
+      // If user closed popover with no sections selected, restore all to prevent impossible state
+      if (selectedHubIds.length === 0) {
+        onSelectionChange(["all"]);
+      }
+    }
+  }
+
   function toggleDropdown(e: MouseEvent) {
     e.stopPropagation();
-    isOpen = !isOpen;
     if (isOpen) {
+      closeDropdown();
+    } else {
+      isOpen = true;
       filterText = "";
     }
   }
@@ -58,11 +73,17 @@
     onSelectionChange([]);
   }
 
+  function toggleAllHubs() {
+    if (isAllSelected) {
+      onSelectionChange([]);
+    } else {
+      onSelectionChange(["all"]);
+    }
+  }
+
   function toggleHub(id: string) {
     if (isAllSelected) {
-      // If was "all", toggling one unchecks all others and keeps only unchecked/remaining or this one
-      // Usually user wants to isolate to this one if clicking from "all", or toggle off
-      // Standard multi-select: start with all checked except this one
+      // If was "all", clicking one unchecks it and leaves the rest checked
       const remaining = realHubs.map((h) => h.id).filter((item) => item !== id);
       onSelectionChange(remaining);
       return;
@@ -84,13 +105,13 @@
   function handleClickOutside(e: MouseEvent) {
     const target = e.target as HTMLElement | null;
     if (target && !target.closest(".hub-filter-container")) {
-      isOpen = false;
+      closeDropdown();
     }
   }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Escape" && isOpen) {
-      isOpen = false;
+      closeDropdown();
     }
   }
 
@@ -153,7 +174,7 @@
         <button
           class="hub-row"
           class:checked={isAllSelected}
-          onclick={handleSelectAll}
+          onclick={toggleAllHubs}
         >
           <span class="checkbox-box" class:checked={isAllSelected}>
             {#if isAllSelected}
