@@ -49,6 +49,9 @@ start_sandbox() {
         echo "  ✔ Xvfb успешно запущен (PID: ${xvfb_pid})"
     fi
 
+    # Настройка раскладки клавиатуры (us,ru) для корректного ввода в VNC без пропуска кириллических символов
+    setxkbmap -display "${DISPLAY_NUM}" -layout "us,ru" -option "grp:alt_shift_toggle" 2>/dev/null || true
+
     # 3. Запуск оконного менеджера Openbox внутри :99
     if ! pgrep -x openbox &>/dev/null; then
         echo "  • Запуск Openbox WM на ${DISPLAY_NUM}..."

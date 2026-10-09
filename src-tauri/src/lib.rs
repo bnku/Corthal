@@ -2,6 +2,7 @@ pub mod assistant;
 pub mod crypto;
 pub mod theme;
 pub mod vault;
+pub mod watcher;
 
 use vault::VaultNode;
 
@@ -102,8 +103,25 @@ fn vault_get_active() -> Result<vault::VaultInfo, String> {
 }
 
 #[tauri::command]
-fn vault_switch(path: String) -> Result<vault::VaultInfo, String> {
-    vault::set_active_vault_root(&path).map_err(|e| e.to_string())
+fn vault_switch(app: tauri::AppHandle, path: String) -> Result<vault::VaultInfo, String> {
+    let info = vault::set_active_vault_root(&path).map_err(|e| e.to_string())?;
+    let target = vault::expand_path(&path);
+    let _ = watcher::start_vault_watcher(app, &target);
+    Ok(info)
+}
+
+#[tauri::command]
+fn vault_watch_start(app: tauri::AppHandle, path: Option<String>) -> Result<(), String> {
+    let watch_path = match path {
+        Some(p) => vault::expand_path(&p),
+        None => vault::get_vault_root().map_err(|e| e.to_string())?,
+    };
+    watcher::start_vault_watcher(app, &watch_path)
+}
+
+#[tauri::command]
+fn vault_watch_stop(app: tauri::AppHandle) -> Result<(), String> {
+    watcher::stop_vault_watcher(&app)
 }
 
 #[tauri::command]
@@ -140,6 +158,14 @@ fn crypto_set_vault_key(key_path: String) -> Result<crypto::SshKeyInfo, String> 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(watcher::VaultWatcherState::default())
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            if let Ok(root) = vault::get_vault_root() {
+                let _ = watcher::start_vault_watcher(app_handle, &root);
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             assistant_get_config,
             assistant_save_config,
@@ -155,6 +181,8 @@ pub fn run() {
             vault_create_dir_with_meta,
             vault_get_active,
             vault_switch,
+            vault_watch_start,
+            vault_watch_stop,
             vault_list_recents,
             vault_remove_recent,
             vault_pick_directory,

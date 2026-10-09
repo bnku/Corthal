@@ -10,9 +10,10 @@
     activeNotePath: string | null;
     activeNoteContent?: string | null;
     onInsertText?: (text: string) => void;
+    onVaultRefresh?: () => void;
   }
 
-  let { activeNotePath, activeNoteContent = null, onInsertText }: Props = $props();
+  let { activeNotePath, activeNoteContent = null, onInsertText, onVaultRefresh }: Props = $props();
 
   let inputMessage = $state("");
   let quickSecretInput = $state("");
@@ -79,6 +80,7 @@
           messages[lastIdx].isStreaming = false;
           isGenerating = false;
           currentSessionId = null;
+          onVaultRefresh?.();
         }
 
         scrollToBottom();

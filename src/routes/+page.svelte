@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import type { VaultNode, HubItem, VaultInfo, VaultSummary, SshKeyInfo } from "$lib/types";
   import { parseFrontmatter } from "$lib/frontmatter";
   import VaultTree from "$lib/components/VaultTree.svelte";
@@ -330,6 +331,20 @@
     return res;
   }
 
+  let isRefreshing = $state(false);
+
+  async function handleRefreshVault() {
+    if (isRefreshing) return;
+    isRefreshing = true;
+    try {
+      await loadVault();
+    } finally {
+      setTimeout(() => {
+        isRefreshing = false;
+      }, 500);
+    }
+  }
+
   async function loadVault() {
     try {
       activeVault = await invoke<VaultInfo>("vault_get_active");
@@ -345,6 +360,19 @@
       }
       if (!paneLeftActive && paneLeftTabs.length === 0) {
         selectDefaultNote(vaultTree);
+      }
+
+      // Automatically refresh open tabs if changed externally on disk
+      for (const p of [...paneLeftTabs, ...paneRightTabs]) {
+        try {
+          const fresh = await invoke<string>("vault_read_file", { relativePath: p });
+          if (fileCache[p] && fileCache[p].content !== fresh && fileCache[p].content === fileCache[p].originalContent) {
+            fileCache[p].content = fresh;
+            fileCache[p].originalContent = fresh;
+            const parsed = parseFrontmatter(fresh);
+            fileCache[p].title = parsed.frontmatter?.title || p.split("/").pop()?.replace(/\.md$/, "") || p;
+          }
+        } catch {}
       }
     } catch (err: any) {
       console.error("Failed to load vault:", err);
@@ -591,6 +619,11 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    // Refresh: F5 or Ctrl+R
+    if (e.key === "F5" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r")) {
+      e.preventDefault();
+      handleRefreshVault();
+    }
     // Save: Ctrl+S
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
@@ -704,6 +737,18 @@
     loadSshKeys();
     window.addEventListener("keydown", handleKeydown);
 
+    let unlistenFs: UnlistenFn | null = null;
+    listen("vault:fs-change", () => {
+      loadVault();
+    }).then((un) => {
+      unlistenFs = un;
+    });
+
+    function handleWindowFocus() {
+      loadVault();
+    }
+    window.addEventListener("focus", handleWindowFocus);
+
     function preventDefaultMenu(e: MouseEvent) {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
@@ -714,6 +759,8 @@
     window.addEventListener("contextmenu", preventDefaultMenu);
 
     return () => {
+      if (unlistenFs) unlistenFs();
+      window.removeEventListener("focus", handleWindowFocus);
       window.removeEventListener("keydown", handleKeydown);
       window.removeEventListener("contextmenu", preventDefaultMenu);
     };
@@ -815,6 +862,16 @@
           </div>
 
           <div class="explorer-actions">
+            <button
+              class="icon-action-btn"
+              class:spinning={isRefreshing}
+              onclick={handleRefreshVault}
+              title="Синхронизировать с диском (F5 / Ctrl+R)"
+              aria-label="Синхронизировать с диском"
+            >
+              <Icon name="refresh-cw" size={13} />
+            </button>
+
             <button
               class="icon-action-btn"
               onclick={() => openCreateNoteDialog("")}
@@ -964,6 +1021,7 @@
           activeNotePath={activeFilePath}
           activeNoteContent={activeFile?.content || null}
           onInsertText={handleInsertText}
+          onVaultRefresh={loadVault}
         />
       </aside>
     {/if}
@@ -1402,6 +1460,19 @@
   .icon-action-btn:hover {
     background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
     color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .icon-action-btn.spinning :global(svg) {
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .search-box {
