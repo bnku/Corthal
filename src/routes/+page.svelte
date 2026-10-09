@@ -9,7 +9,11 @@
   import PropertiesBlock from "$lib/components/PropertiesBlock.svelte";
   import InsertSecretModal from "$lib/components/InsertSecretModal.svelte";
   import NewNoteModal from "$lib/components/NewNoteModal.svelte";
+  import NewFolderModal from "$lib/components/NewFolderModal.svelte";
+  import FolderSettingsModal from "$lib/components/FolderSettingsModal.svelte";
+  import ContextMenu from "$lib/components/ContextMenu.svelte";
   import AssistantPanel from "$lib/components/AssistantPanel.svelte";
+  import Icon from "$lib/components/Icon.svelte";
 
   let vaultTree = $state<VaultNode | null>(null);
   let selectedPath = $state<string | null>(null);
@@ -26,9 +30,23 @@
   let isNewNoteModalOpen = $state(false);
   let targetFolderForNewNote = $state("");
 
+  let isNewFolderModalOpen = $state(false);
+  let parentFolderForNew = $state("");
+
+  let isFolderSettingsModalOpen = $state(false);
+  let selectedFolderForSettings = $state<VaultNode | null>(null);
+
+  // Context Menu state
+  let contextMenu = $state<{
+    visible: boolean;
+    x: number;
+    y: number;
+    node: VaultNode | null;
+  }>({ visible: false, x: 0, y: 0, node: null });
+
   // Dynamically derive hubs list from root children in vaultTree
   let hubs = $derived<HubItem[]>(() => {
-    const list: HubItem[] = [{ id: "all", name: "Всё", icon: "🌐" }];
+    const list: HubItem[] = [{ id: "all", name: "Всё", icon: "globe" }];
     if (!vaultTree) return list;
 
     const dirChildren = vaultTree.children.filter((c) => c.is_dir);
@@ -36,7 +54,7 @@
       list.push({
         id: child.name,
         name: child.title || child.name.replace(/^\d+-/, ""),
-        icon: child.icon || "📁",
+        icon: child.icon || "folder",
         color: child.color,
         description: child.description,
       });
@@ -89,7 +107,6 @@
       });
       saveFeedback = true;
       setTimeout(() => (saveFeedback = false), 2000);
-      // Reload vault tree to update title/metadata if changed
       loadVault();
     } catch (err: any) {
       alert("Ошибка сохранения: " + err);
@@ -208,16 +225,56 @@
     isNewNoteModalOpen = true;
   }
 
+  function openCreateFolderDialog(parentFolder = "") {
+    parentFolderForNew = parentFolder;
+    isNewFolderModalOpen = true;
+  }
+
+  function openFolderSettings(node: VaultNode) {
+    selectedFolderForSettings = node;
+    isFolderSettingsModalOpen = true;
+  }
+
+  function handleFolderContextMenu(e: MouseEvent, node: VaultNode) {
+    contextMenu = {
+      visible: true,
+      x: Math.min(e.clientX, window.innerWidth - 240),
+      y: Math.min(e.clientY, window.innerHeight - 180),
+      node,
+    };
+  }
+
   async function handleNoteCreated(newPath: string) {
     await loadVault();
     openNote(newPath);
     isEditing = true;
   }
 
+  async function handleFolderCreated(createdPath: string) {
+    await loadVault();
+  }
+
+  async function handleFolderMetaSaved() {
+    await loadVault();
+  }
+
   onMount(() => {
     loadVault();
     window.addEventListener("keydown", handleKeydown);
-    return () => window.removeEventListener("keydown", handleKeydown);
+
+    function preventDefaultMenu(e: MouseEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+        return;
+      }
+      e.preventDefault();
+    }
+    window.addEventListener("contextmenu", preventDefaultMenu);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener("contextmenu", preventDefaultMenu);
+    };
   });
 </script>
 
@@ -226,16 +283,29 @@
   <aside class="sidebar">
     <div class="sidebar-top">
       <div class="brand">
-        <span class="logo">🧠</span>
+        <Icon name="brain" size={20} color="#60a5fa" />
         <h2>Cortex</h2>
       </div>
-      <button
-        class="create-note-icon-btn"
-        title="Создать новую заметку"
-        onclick={() => openCreateNoteDialog(activeHub !== "all" ? activeHub : "")}
-      >
-        <span>+</span>
-      </button>
+
+      <div class="sidebar-top-actions">
+        <button
+          class="sidebar-action-btn"
+          aria-label="Создать заметку"
+          onclick={() => openCreateNoteDialog(activeHub !== "all" ? activeHub : "")}
+        >
+          <Icon name="plus" size={13} />
+          <span>Заметка</span>
+        </button>
+
+        <button
+          class="sidebar-action-btn folder-btn"
+          aria-label="Создать папку"
+          onclick={() => openCreateFolderDialog(activeHub !== "all" ? activeHub : "")}
+        >
+          <Icon name="folder" size={13} />
+          <span>Папка</span>
+        </button>
+      </div>
     </div>
 
     <!-- Dynamic Hubs Bar -->
@@ -245,9 +315,9 @@
           class="hub-btn"
           class:active={activeHub === hub.id}
           onclick={() => (activeHub = hub.id)}
-          title={hub.name}
+          aria-label={hub.name}
         >
-          <span class="hub-icon">{hub.icon}</span>
+          <Icon name={hub.icon} size={14} color={hub.color || (activeHub === hub.id ? "#ffffff" : "#94a3b8")} />
           <span class="hub-label">{hub.name}</span>
         </button>
       {/each}
@@ -255,14 +325,19 @@
 
     <!-- Search box -->
     <div class="search-box">
-      <input
-        type="text"
-        placeholder="Поиск заметок и тегов..."
-        bind:value={searchQuery}
-      />
-      {#if searchQuery}
-        <button class="clear-search-btn" onclick={() => (searchQuery = "")}>✕</button>
-      {/if}
+      <div class="search-input-wrap">
+        <Icon name="search" size={13} color="#64748b" class="search-icon" />
+        <input
+          type="text"
+          placeholder="Поиск заметок и тегов..."
+          bind:value={searchQuery}
+        />
+        {#if searchQuery}
+          <button class="clear-search-btn" onclick={() => (searchQuery = "")}>
+            <Icon name="x" size={12} />
+          </button>
+        {/if}
+      </div>
     </div>
 
     <!-- File tree -->
@@ -273,6 +348,7 @@
           {selectedPath}
           onSelectNote={openNote}
           onCreateNote={openCreateNoteDialog}
+          onFolderContextMenu={handleFolderContextMenu}
         />
       {:else}
         <div class="loading">Загрузка базы знаний...</div>
@@ -285,6 +361,7 @@
     {#if selectedPath}
       <header class="doc-header">
         <div class="doc-meta">
+          <Icon name="file-text" size={14} color="#64748b" />
           <span class="doc-path">{selectedPath}</span>
         </div>
 
@@ -292,39 +369,46 @@
           {#if isEditing}
             <button
               class="action-btn insert-secret-btn"
-              title="Зашифровать и вставить секрет"
+              aria-label="Зашифровать и вставить секрет"
               onclick={() => (isSecretModalOpen = true)}
             >
-              🔒 Вставить секрет
+              <Icon name="lock" size={13} color="#f59e0b" />
+              <span>Вставить секрет</span>
             </button>
           {/if}
 
           <div class="view-toggle">
             <button class:active={!isEditing} onclick={() => (isEditing = false)}>
-              Просмотр
+              <Icon name="eye" size={13} />
+              <span>Просмотр</span>
             </button>
             <button class:active={isEditing} onclick={() => (isEditing = true)}>
-              Правка
+              <Icon name="file-edit" size={13} />
+              <span>Правка</span>
             </button>
           </div>
 
           <button class="save-btn" onclick={saveNote} disabled={isSaving}>
-            {#if saveFeedback}
-              ✓ Сохранено!
-            {:else if isSaving}
-              Сохранение...
-            {:else}
-              Сохранить (Ctrl+S)
-            {/if}
+            <Icon name="check" size={13} />
+            <span>
+              {#if saveFeedback}
+                Сохранено!
+              {:else if isSaving}
+                Сохранение...
+              {:else}
+                Сохранить (Ctrl+S)
+              {/if}
+            </span>
           </button>
 
           <button
             class="action-btn toggle-assistant-btn"
             class:active={showAssistant}
             onclick={() => (showAssistant = !showAssistant)}
-            title="Показать или скрыть ИИ-панель"
+            aria-label="Показать или скрыть ИИ-панель"
           >
-            {showAssistant ? "🤖 Скрыть ИИ" : "🤖 ИИ"}
+            <Icon name="bot" size={14} />
+            <span>{showAssistant ? "Скрыть ИИ" : "ИИ"}</span>
           </button>
         </div>
       </header>
@@ -359,10 +443,11 @@
       </div>
     {:else}
       <div class="empty-state">
-        <span class="empty-icon">📖</span>
+        <Icon name="book-open" size={48} color="#334155" />
         <p>Выберите заметку в панели слева или создайте новую</p>
         <button class="create-hero-btn" onclick={() => openCreateNoteDialog("")}>
-          + Создать заметку
+          <Icon name="plus" size={15} />
+          <span>Создать заметку</span>
         </button>
       </div>
     {/if}
@@ -377,6 +462,26 @@
   </aside>
 </div>
 
+<!-- Context Menu -->
+{#if contextMenu.visible && contextMenu.node}
+  <ContextMenu
+    x={contextMenu.x}
+    y={contextMenu.y}
+    folderPath={contextMenu.node.relative_path}
+    folderTitle={contextMenu.node.title || contextMenu.node.name}
+    onConfigureFolder={() => {
+      if (contextMenu.node) openFolderSettings(contextMenu.node);
+    }}
+    onCreateNote={() => {
+      if (contextMenu.node) openCreateNoteDialog(contextMenu.node.relative_path);
+    }}
+    onCreateSubfolder={() => {
+      if (contextMenu.node) openCreateFolderDialog(contextMenu.node.relative_path);
+    }}
+    onClose={() => (contextMenu.visible = false)}
+  />
+{/if}
+
 <!-- Modals -->
 <InsertSecretModal
   isOpen={isSecretModalOpen}
@@ -389,6 +494,20 @@
   targetFolder={targetFolderForNewNote}
   onCreated={handleNoteCreated}
   onClose={() => (isNewNoteModalOpen = false)}
+/>
+
+<NewFolderModal
+  isOpen={isNewFolderModalOpen}
+  parentFolder={parentFolderForNew}
+  onCreated={handleFolderCreated}
+  onClose={() => (isNewFolderModalOpen = false)}
+/>
+
+<FolderSettingsModal
+  isOpen={isFolderSettingsModalOpen}
+  folderNode={selectedFolderForSettings}
+  onSaved={handleFolderMetaSaved}
+  onClose={() => (isFolderSettingsModalOpen = false)}
 />
 
 <style>
@@ -430,7 +549,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 14px 10px;
+    padding: 10px 12px;
     border-bottom: 1px solid rgba(148, 163, 184, 0.08);
   }
 
@@ -438,10 +557,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-  }
-
-  .logo {
-    font-size: 1.25rem;
   }
 
   .brand h2 {
@@ -452,25 +567,36 @@
     letter-spacing: -0.3px;
   }
 
-  .create-note-icon-btn {
-    background: rgba(59, 130, 246, 0.15);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    color: #60a5fa;
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
+  .sidebar-top-actions {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    line-height: 1;
+    gap: 6px;
+  }
+
+  .sidebar-action-btn {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: #cbd5e1;
+    height: 24px;
+    padding: 0 7px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.74rem;
     cursor: pointer;
     transition: all 0.15s;
   }
 
-  .create-note-icon-btn:hover {
-    background: #3b82f6;
+  .sidebar-action-btn:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
     color: #ffffff;
+  }
+
+  .sidebar-action-btn.folder-btn:hover {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: #f59e0b;
   }
 
   .hubs-bar {
@@ -485,7 +611,7 @@
   .hub-btn {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     padding: 5px 6px;
     background: rgba(30, 41, 59, 0.4);
     border: 1px solid transparent;
@@ -509,11 +635,6 @@
     font-weight: 500;
   }
 
-  .hub-icon {
-    font-size: 0.85rem;
-    flex-shrink: 0;
-  }
-
   .hub-label {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -521,36 +642,48 @@
   }
 
   .search-box {
-    position: relative;
     padding: 8px 10px;
   }
 
-  .search-box input {
+  .search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .search-input-wrap :global(.search-icon) {
+    position: absolute;
+    left: 8px;
+    pointer-events: none;
+  }
+
+  .search-input-wrap input {
     width: 100%;
     background: #1e293b;
     border: 1px solid #334155;
     border-radius: 6px;
-    padding: 6px 28px 6px 10px;
+    padding: 5px 26px 5px 28px;
     color: #f8fafc;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.15s;
   }
 
-  .search-box input:focus {
-    outline: none;
+  .search-input-wrap input:focus {
     border-color: #3b82f6;
   }
 
   .clear-search-btn {
     position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
+    right: 6px;
     background: none;
     border: none;
     color: #64748b;
-    font-size: 0.75rem;
     cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
   }
 
   .clear-search-btn:hover {
@@ -587,6 +720,12 @@
     border-bottom: 1px solid rgba(148, 163, 184, 0.12);
   }
 
+  .doc-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   .doc-path {
     font-size: 0.82rem;
     color: #94a3b8;
@@ -596,16 +735,19 @@
   .doc-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
 
   .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     background: rgba(30, 41, 59, 0.7);
     border: 1px solid rgba(148, 163, 184, 0.2);
     color: #cbd5e1;
-    padding: 4px 10px;
+    padding: 5px 10px;
     border-radius: 5px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     cursor: pointer;
     transition: all 0.15s;
   }
@@ -624,11 +766,14 @@
   }
 
   .view-toggle button {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     background: transparent;
     border: none;
     color: #94a3b8;
     padding: 4px 10px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s;
@@ -640,13 +785,16 @@
   }
 
   .save-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     background: #10b981;
     border: none;
     color: #ffffff;
     font-weight: 500;
     padding: 5px 12px;
     border-radius: 5px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     cursor: pointer;
     transition: background 0.15s;
   }
@@ -766,11 +914,10 @@
     gap: 12px;
   }
 
-  .empty-icon {
-    font-size: 3rem;
-  }
-
   .create-hero-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     background: #3b82f6;
     border: none;
     color: #ffffff;

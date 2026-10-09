@@ -38,6 +38,16 @@ fn vault_create_dir(relative_path: String) -> Result<(), String> {
     vault::create_dir(&relative_path).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn vault_save_dir_meta(relative_path: String, meta: vault::MetaJson) -> Result<(), String> {
+    vault::save_dir_meta(&relative_path, &meta).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn vault_create_dir_with_meta(relative_path: String, meta: Option<vault::MetaJson>) -> Result<String, String> {
+    vault::create_dir_with_meta(&relative_path, meta.as_ref()).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -48,6 +58,8 @@ pub fn run() {
             vault_write_file,
             vault_create_note,
             vault_create_dir,
+            vault_save_dir_meta,
+            vault_create_dir_with_meta,
             crypto_encrypt_secret,
             crypto_decrypt_secret,
         ])

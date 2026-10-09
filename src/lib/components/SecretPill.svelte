@@ -94,7 +94,7 @@
     <button
       class="action-btn"
       onclick={toggleReveal}
-      title={isRevealed ? "Скрыть" : "Показать (расшифровать SSH-ключом)"}
+      aria-label={isRevealed ? "Скрыть" : "Показать (расшифровать SSH-ключом)"}
       disabled={isLoading}
     >
       {#if isLoading}
@@ -109,7 +109,7 @@
     <button
       class="action-btn copy-btn"
       onclick={copyToClipboard}
-      title="Скопировать в буфер обмена"
+      aria-label="Скопировать в буфер обмена"
       disabled={isLoading}
     >
       {#if copyFeedback}

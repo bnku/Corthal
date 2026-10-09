@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { VaultNode } from "$lib/types";
   import VaultTree from "./VaultTree.svelte";
+  import Icon from "./Icon.svelte";
 
   interface Props {
     node: VaultNode;
@@ -8,9 +9,17 @@
     depth?: number;
     onSelectNote: (path: string) => void;
     onCreateNote?: (folderPath: string) => void;
+    onFolderContextMenu?: (e: MouseEvent, node: VaultNode) => void;
   }
 
-  let { node, selectedPath, depth = 0, onSelectNote, onCreateNote }: Props = $props();
+  let {
+    node,
+    selectedPath,
+    depth = 0,
+    onSelectNote,
+    onCreateNote,
+    onFolderContextMenu,
+  }: Props = $props();
 
   // Root or 1st-level directories default to expanded; subdirectories default to collapsed unless selected
   let isSelectedChild = $derived(
@@ -40,6 +49,12 @@
     onCreateNote?.(node.relative_path);
   }
 
+  function handleContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    onFolderContextMenu?.(e, node);
+  }
+
   // Formatting friendly names
   let folderDisplayName = $derived(
     node.title || node.name.replace(/^\d+-/, "")
@@ -49,8 +64,8 @@
     node.title || node.name.replace(/\.md$/, "")
   );
 
-  let folderIcon = $derived(
-    node.icon || (isExpanded ? "📂" : "📁")
+  let folderIconName = $derived(
+    node.icon || (isExpanded ? "folder-open" : "folder")
   );
 </script>
 
@@ -61,22 +76,28 @@
         class="dir-item"
         class:has-selected-child={isSelectedChild}
         onclick={toggleExpand}
+        oncontextmenu={handleContextMenu}
         role="button"
         tabindex="0"
         onkeydown={(e) => e.key === "Enter" && toggleExpand(e as any)}
-        title={node.title ? `${node.title} (${node.name})` : node.name}
       >
-        <span class="chevron" class:expanded={isExpanded}>▶</span>
-        <span class="icon">{folderIcon}</span>
+        <span class="chevron">
+          <Icon name={isExpanded ? "chevron-down" : "chevron-right"} size={13} color="#64748b" />
+        </span>
+
+        <span class="icon">
+          <Icon name={folderIconName} size={15} color={node.color || "#94a3b8"} />
+        </span>
+
         <span class="label">{folderDisplayName}</span>
 
         {#if onCreateNote}
           <button
             class="action-add-btn"
-            title="Создать заметку в этой папке"
+            aria-label="Создать заметку в этой папке"
             onclick={handleNewNoteClick}
           >
-            +
+            <Icon name="plus" size={13} />
           </button>
         {/if}
       </div>
@@ -91,6 +112,7 @@
             depth={depth + 1}
             {onSelectNote}
             {onCreateNote}
+            {onFolderContextMenu}
           />
         {/each}
       </div>
@@ -103,9 +125,10 @@
       role="button"
       tabindex="0"
       onkeydown={(e) => e.key === "Enter" && handleFileClick(node.relative_path)}
-      title={node.title ? `${node.title} (${node.name})` : node.name}
     >
-      <span class="file-icon">📄</span>
+      <span class="file-icon">
+        <Icon name="file-text" size={14} color={selectedPath === node.relative_path ? "#ffffff" : "#94a3b8"} />
+      </span>
       <span class="file-name">{fileDisplayName}</span>
     </div>
   {/if}
@@ -113,7 +136,7 @@
 
 <style>
   .tree-node {
-    font-size: 0.86rem;
+    font-size: 0.85rem;
     user-select: none;
   }
 
@@ -140,16 +163,17 @@
   }
 
   .chevron {
-    font-size: 0.65rem;
-    color: #64748b;
-    display: inline-block;
-    transition: transform 0.15s ease;
-    width: 12px;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    flex-shrink: 0;
   }
 
-  .chevron.expanded {
-    transform: rotate(90deg);
+  .icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 
   .action-add-btn {
@@ -157,10 +181,12 @@
     background: none;
     border: none;
     color: #94a3b8;
-    font-size: 1rem;
-    line-height: 1;
-    padding: 0 4px;
-    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
     cursor: pointer;
     opacity: 0;
     transition: all 0.15s;
@@ -174,8 +200,8 @@
   .file-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 8px 4px 18px;
+    gap: 7px;
+    padding: 4px 8px 4px 20px;
     border-radius: 6px;
     color: #cbd5e1;
     cursor: pointer;
@@ -195,16 +221,16 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
+  .file-icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
   .children.nested {
     padding-left: 10px;
     border-left: 1px solid rgba(148, 163, 184, 0.12);
-    margin-left: 11px;
-  }
-
-  .icon,
-  .file-icon {
-    font-size: 0.9rem;
-    flex-shrink: 0;
+    margin-left: 12px;
   }
 
   .label,

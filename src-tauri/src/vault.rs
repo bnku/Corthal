@@ -289,6 +289,38 @@ pub fn create_dir(relative_path: &str) -> Result<(), VaultError> {
     Ok(())
 }
 
+/// Saves `.meta.json` inside a directory relative to ~/knowledge
+pub fn save_dir_meta(relative_path: &str, meta: &MetaJson) -> Result<(), VaultError> {
+    let target = resolve_safe_path(relative_path)?;
+    if !target.exists() || !target.is_dir() {
+        return Err(VaultError::NotFound(format!("Directory not found: {}", relative_path)));
+    }
+    let meta_path = target.join(".meta.json");
+    let json_str = serde_json::to_string_pretty(meta)
+        .map_err(|e| VaultError::RootError(e.to_string()))?;
+    fs::write(meta_path, json_str)?;
+    Ok(())
+}
+
+/// Creates a new directory with optional metadata relative to ~/knowledge
+pub fn create_dir_with_meta(relative_path: &str, meta: Option<&MetaJson>) -> Result<String, VaultError> {
+    let clean_path = relative_path.trim_start_matches('/').to_string();
+    let target = resolve_safe_path(&clean_path)?;
+    if target.exists() {
+        return Err(VaultError::AlreadyExists(format!("Directory already exists: {}", clean_path)));
+    }
+    fs::create_dir_all(&target)?;
+
+    if let Some(m) = meta {
+        let meta_path = target.join(".meta.json");
+        let json_str = serde_json::to_string_pretty(m)
+            .map_err(|e| VaultError::RootError(e.to_string()))?;
+        fs::write(meta_path, json_str)?;
+    }
+
+    Ok(clean_path)
+}
+
 fn chrono_date_str() -> String {
     // Current date format YYYY-MM-DD
     let now = std::time::SystemTime::now();
@@ -365,5 +397,33 @@ mod tests {
         let system_node = tree.children.iter().find(|c| c.name == "10-System").expect("10-System exists");
         assert_eq!(system_node.title.as_deref(), Some("Система"));
         assert_eq!(system_node.icon.as_deref(), Some("🖥️"));
+    }
+
+    #[test]
+    fn test_create_and_save_dir_meta() {
+        let test_dir = "_test_meta_dir_temp";
+        let meta = MetaJson {
+            title: Some("Тест Директория".to_string()),
+            icon: Some("car".to_string()),
+            order: Some(99),
+            color: Some("#f59e0b".to_string()),
+            description: Some("Тестовое описание".to_string()),
+        };
+        let created = create_dir_with_meta(test_dir, Some(&meta)).expect("Should create test dir");
+        assert_eq!(created, test_dir);
+
+        let root = get_vault_root().unwrap();
+        let target = root.join(test_dir);
+        let meta_file = target.join(".meta.json");
+        assert!(meta_file.exists());
+
+        let mut updated = meta.clone();
+        updated.title = Some("Обновленный Тест".to_string());
+        save_dir_meta(test_dir, &updated).expect("Should update meta");
+
+        let content = fs::read_to_string(&meta_file).unwrap();
+        assert!(content.contains("Обновленный Тест"));
+
+        let _ = fs::remove_dir_all(target);
     }
 }

@@ -93,7 +93,7 @@
       class="tool-btn"
       class:active={showEncryptTool}
       onclick={() => (showEncryptTool = !showEncryptTool)}
-      title="Инструмент шифрования секретов"
+      aria-label="Инструмент шифрования секретов"
     >
       🔒 Зашифровать
     </button>

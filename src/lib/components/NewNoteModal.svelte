@@ -52,6 +52,7 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if (!isOpen) return;
     if (e.key === "Escape") {
       onClose();
     } else if (e.key === "Enter") {
@@ -60,6 +61,8 @@
     }
   }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 {#if isOpen}
   <div class="modal-backdrop" onclick={onClose} role="presentation">

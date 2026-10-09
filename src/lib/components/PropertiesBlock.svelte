@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { NoteFrontmatter } from "$lib/types";
+  import Icon from "./Icon.svelte";
 
   interface Props {
     properties: NoteFrontmatter;
@@ -43,7 +44,9 @@
     onkeydown={(e) => e.key === "Enter" && (isCollapsed = !isCollapsed)}
   >
     <div class="header-left">
-      <span class="chevron">{isCollapsed ? "▶" : "▼"}</span>
+      <span class="chevron">
+        <Icon name={isCollapsed ? "chevron-right" : "chevron-down"} size={13} color="#64748b" />
+      </span>
       <span class="header-title">Свойства</span>
       {#if properties.tags && properties.tags.length > 0}
         <span class="tag-counter">({properties.tags.length})</span>
@@ -72,7 +75,7 @@
       {#if properties.title}
         <div class="prop-row">
           <div class="prop-key">
-            <span class="prop-icon">📌</span>
+            <Icon name="pin" size={14} color="#94a3b8" />
             <span>Название</span>
           </div>
           <div class="prop-value strong">{properties.title}</div>
@@ -83,7 +86,7 @@
       {#if properties.status}
         <div class="prop-row">
           <div class="prop-key">
-            <span class="prop-icon">🚦</span>
+            <Icon name="check-circle" size={14} color="#94a3b8" />
             <span>Статус</span>
           </div>
           <div class="prop-value">
@@ -99,7 +102,7 @@
       {#if properties.date}
         <div class="prop-row">
           <div class="prop-key">
-            <span class="prop-icon">📅</span>
+            <Icon name="calendar" size={14} color="#94a3b8" />
             <span>Дата</span>
           </div>
           <div class="prop-value date-val">{properties.date}</div>
@@ -110,7 +113,7 @@
       {#if properties.tags && properties.tags.length > 0}
         <div class="prop-row">
           <div class="prop-key">
-            <span class="prop-icon">🏷️</span>
+            <Icon name="tag" size={14} color="#94a3b8" />
             <span>Теги</span>
           </div>
           <div class="prop-value tags-container">
@@ -133,7 +136,7 @@
       {#each extraEntries() as [key, value]}
         <div class="prop-row">
           <div class="prop-key">
-            <span class="prop-icon">⚙️</span>
+            <Icon name="settings" size={14} color="#94a3b8" />
             <span>{key}</span>
           </div>
           <div class="prop-value extra-val">
