@@ -4,14 +4,25 @@ export interface VaultNode {
   is_dir: boolean;
   children: VaultNode[];
   size_bytes?: number;
+  title?: string;
+  icon?: string;
+  order?: number;
+  color?: string;
+  description?: string;
 }
 
-export type HubId = "all" | "00-Inbox" | "10-System" | "20-Work" | "30-Life" | "40-Resources" | "90-Archive";
-
-export interface HubInfo {
-  id: HubId;
+export interface HubItem {
+  id: string;
   name: string;
   icon: string;
-  description: string;
-  color: string;
+  color?: string;
+  description?: string;
+}
+
+export interface NoteFrontmatter {
+  title?: string;
+  date?: string;
+  tags?: string[];
+  status?: string;
+  [key: string]: any;
 }

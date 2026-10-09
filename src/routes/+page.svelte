@@ -2,29 +2,47 @@
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { marked } from "marked";
-  import type { VaultNode, HubId } from "$lib/types";
+  import type { VaultNode, HubItem } from "$lib/types";
+  import { parseFrontmatter } from "$lib/frontmatter";
   import VaultTree from "$lib/components/VaultTree.svelte";
   import SecretPill from "$lib/components/SecretPill.svelte";
+  import PropertiesBlock from "$lib/components/PropertiesBlock.svelte";
+  import InsertSecretModal from "$lib/components/InsertSecretModal.svelte";
+  import NewNoteModal from "$lib/components/NewNoteModal.svelte";
   import AssistantPanel from "$lib/components/AssistantPanel.svelte";
 
   let vaultTree = $state<VaultNode | null>(null);
   let selectedPath = $state<string | null>(null);
-  let activeHub = $state<HubId>("all");
+  let activeHub = $state<string>("all");
   let noteContent = $state("");
   let isEditing = $state(false);
   let isSaving = $state(false);
   let saveFeedback = $state(false);
   let searchQuery = $state("");
+  let showAssistant = $state(true);
 
-  // Hub list for top navigation
-  const hubs: Array<{ id: HubId; name: string; icon: string }> = [
-    { id: "all", name: "Всё", icon: "🌐" },
-    { id: "10-System", name: "Система", icon: "🖥️" },
-    { id: "20-Work", name: "Работа", icon: "💼" },
-    { id: "30-Life", name: "Жизнь", icon: "🏠" },
-    { id: "40-Resources", name: "Ресурсы", icon: "📚" },
-    { id: "00-Inbox", name: "Инбокс", icon: "📥" },
-  ];
+  // Modals state
+  let isSecretModalOpen = $state(false);
+  let isNewNoteModalOpen = $state(false);
+  let targetFolderForNewNote = $state("");
+
+  // Dynamically derive hubs list from root children in vaultTree
+  let hubs = $derived<HubItem[]>(() => {
+    const list: HubItem[] = [{ id: "all", name: "Всё", icon: "🌐" }];
+    if (!vaultTree) return list;
+
+    const dirChildren = vaultTree.children.filter((c) => c.is_dir);
+    for (const child of dirChildren) {
+      list.push({
+        id: child.name,
+        name: child.title || child.name.replace(/^\d+-/, ""),
+        icon: child.icon || "📁",
+        color: child.color,
+        description: child.description,
+      });
+    }
+    return list;
+  });
 
   async function loadVault() {
     try {
@@ -71,6 +89,8 @@
       });
       saveFeedback = true;
       setTimeout(() => (saveFeedback = false), 2000);
+      // Reload vault tree to update title/metadata if changed
+      loadVault();
     } catch (err: any) {
       alert("Ошибка сохранения: " + err);
     } finally {
@@ -110,11 +130,14 @@
   function filterNodesBySearch(nodes: VaultNode[], query: string): VaultNode[] {
     const res: VaultNode[] = [];
     for (const n of nodes) {
-      if (!n.is_dir && n.name.toLowerCase().includes(query)) {
+      const matchName = n.name.toLowerCase().includes(query);
+      const matchTitle = n.title?.toLowerCase().includes(query);
+
+      if (!n.is_dir && (matchName || matchTitle)) {
         res.push(n);
       } else if (n.is_dir) {
         const matchingChildren = filterNodesBySearch(n.children, query);
-        if (matchingChildren.length > 0 || n.name.toLowerCase().includes(query)) {
+        if (matchingChildren.length > 0 || matchName || matchTitle) {
           res.push({ ...n, children: matchingChildren });
         }
       }
@@ -122,14 +145,17 @@
     return res;
   }
 
-  // Parse markdown into text chunks and secret tokens
+  // Parse YAML Frontmatter & Body
+  let parsedDoc = $derived(() => parseFrontmatter(noteContent));
+
+  // Parse markdown body into text chunks and secret tokens
   interface ContentSlice {
     type: "text" | "secret";
     content: string;
   }
 
   let contentSlices = $derived(() => {
-    const raw = noteContent;
+    const raw = parsedDoc().body;
     const slices: ContentSlice[] = [];
     const regex = /(`?🔒\[enc:v1:[A-Za-z0-9+/=]+\]`?)/g;
     let lastIndex = 0;
@@ -159,6 +185,15 @@
     return slices;
   });
 
+  function handleInsertSecretToken(encryptedToken: string) {
+    if (isEditing) {
+      noteContent += `\n${encryptedToken}\n`;
+    } else {
+      navigator.clipboard.writeText(encryptedToken);
+      alert("Токен скопирован в буфер обмена!");
+    }
+  }
+
   function handleInsertText(text: string) {
     if (isEditing) {
       noteContent += "\n" + text;
@@ -168,6 +203,17 @@
     }
   }
 
+  function openCreateNoteDialog(folderPath = "") {
+    targetFolderForNewNote = folderPath;
+    isNewNoteModalOpen = true;
+  }
+
+  async function handleNoteCreated(newPath: string) {
+    await loadVault();
+    openNote(newPath);
+    isEditing = true;
+  }
+
   onMount(() => {
     loadVault();
     window.addEventListener("keydown", handleKeydown);
@@ -175,24 +221,33 @@
   });
 </script>
 
-<div class="cortex-layout">
+<div class="cortex-layout" class:hide-assistant={!showAssistant}>
   <!-- 1. LEFT SIDEBAR: EXPLORER -->
   <aside class="sidebar">
-    <div class="brand">
-      <span class="logo">🧠</span>
-      <h2>Cortex</h2>
+    <div class="sidebar-top">
+      <div class="brand">
+        <span class="logo">🧠</span>
+        <h2>Cortex</h2>
+      </div>
+      <button
+        class="create-note-icon-btn"
+        title="Создать новую заметку"
+        onclick={() => openCreateNoteDialog(activeHub !== "all" ? activeHub : "")}
+      >
+        <span>+</span>
+      </button>
     </div>
 
-    <!-- Hub selector tabs -->
+    <!-- Dynamic Hubs Bar -->
     <div class="hubs-bar">
-      {#each hubs as hub}
+      {#each hubs() as hub}
         <button
           class="hub-btn"
           class:active={activeHub === hub.id}
           onclick={() => (activeHub = hub.id)}
           title={hub.name}
         >
-          <span>{hub.icon}</span>
+          <span class="hub-icon">{hub.icon}</span>
           <span class="hub-label">{hub.name}</span>
         </button>
       {/each}
@@ -200,7 +255,14 @@
 
     <!-- Search box -->
     <div class="search-box">
-      <input type="text" placeholder="Поиск заметок..." bind:value={searchQuery} />
+      <input
+        type="text"
+        placeholder="Поиск заметок и тегов..."
+        bind:value={searchQuery}
+      />
+      {#if searchQuery}
+        <button class="clear-search-btn" onclick={() => (searchQuery = "")}>✕</button>
+      {/if}
     </div>
 
     <!-- File tree -->
@@ -210,6 +272,7 @@
           node={filteredTree()!}
           {selectedPath}
           onSelectNote={openNote}
+          onCreateNote={openCreateNoteDialog}
         />
       {:else}
         <div class="loading">Загрузка базы знаний...</div>
@@ -226,6 +289,16 @@
         </div>
 
         <div class="doc-actions">
+          {#if isEditing}
+            <button
+              class="action-btn insert-secret-btn"
+              title="Зашифровать и вставить секрет"
+              onclick={() => (isSecretModalOpen = true)}
+            >
+              🔒 Вставить секрет
+            </button>
+          {/if}
+
           <div class="view-toggle">
             <button class:active={!isEditing} onclick={() => (isEditing = false)}>
               Просмотр
@@ -237,12 +310,21 @@
 
           <button class="save-btn" onclick={saveNote} disabled={isSaving}>
             {#if saveFeedback}
-              Сохранено!
+              ✓ Сохранено!
             {:else if isSaving}
-              ...
+              Сохранение...
             {:else}
               Сохранить (Ctrl+S)
             {/if}
+          </button>
+
+          <button
+            class="action-btn toggle-assistant-btn"
+            class:active={showAssistant}
+            onclick={() => (showAssistant = !showAssistant)}
+            title="Показать или скрыть ИИ-панель"
+          >
+            {showAssistant ? "🤖 Скрыть ИИ" : "🤖 ИИ"}
           </button>
         </div>
       </header>
@@ -256,6 +338,15 @@
           ></textarea>
         {:else}
           <div class="markdown-preview">
+            <!-- Obsidian Properties Block -->
+            {#if parsedDoc().frontmatter && Object.keys(parsedDoc().frontmatter!).length > 0}
+              <PropertiesBlock
+                properties={parsedDoc().frontmatter!}
+                onTagClick={(tag) => (searchQuery = tag)}
+              />
+            {/if}
+
+            <!-- Note Content Body -->
             {#each contentSlices() as slice}
               {#if slice.type === "secret"}
                 <SecretPill token={slice.content} />
@@ -269,7 +360,10 @@
     {:else}
       <div class="empty-state">
         <span class="empty-icon">📖</span>
-        <p>Выберите заметку в панели слева</p>
+        <p>Выберите заметку в панели слева или создайте новую</p>
+        <button class="create-hero-btn" onclick={() => openCreateNoteDialog("")}>
+          + Создать заметку
+        </button>
       </div>
     {/if}
   </main>
@@ -283,6 +377,20 @@
   </aside>
 </div>
 
+<!-- Modals -->
+<InsertSecretModal
+  isOpen={isSecretModalOpen}
+  onInsert={handleInsertSecretToken}
+  onClose={() => (isSecretModalOpen = false)}
+/>
+
+<NewNoteModal
+  isOpen={isNewNoteModalOpen}
+  targetFolder={targetFolderForNewNote}
+  onCreated={handleNoteCreated}
+  onClose={() => (isNewNoteModalOpen = false)}
+/>
+
 <style>
   :global(body) {
     margin: 0;
@@ -295,9 +403,18 @@
 
   .cortex-layout {
     display: grid;
-    grid-template-columns: 280px 1fr 340px;
+    grid-template-columns: 260px 1fr 320px;
     height: 100vh;
     width: 100vw;
+    transition: grid-template-columns 0.2s ease;
+  }
+
+  .cortex-layout.hide-assistant {
+    grid-template-columns: 260px 1fr 0px;
+  }
+
+  .cortex-layout.hide-assistant .assistant-pane {
+    display: none;
   }
 
   /* SIDEBAR */
@@ -309,31 +426,58 @@
     overflow: hidden;
   }
 
+  .sidebar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  }
+
   .brand {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 16px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    gap: 8px;
+  }
+
+  .logo {
+    font-size: 1.25rem;
   }
 
   .brand h2 {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: 700;
-    letter-spacing: -0.01em;
     color: #f8fafc;
+    letter-spacing: -0.3px;
   }
 
-  .brand .logo {
-    font-size: 1.3rem;
+  .create-note-icon-btn {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #60a5fa;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .create-note-icon-btn:hover {
+    background: #3b82f6;
+    color: #ffffff;
   }
 
   .hubs-bar {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 4px;
-    padding: 8px 12px;
+    padding: 8px 10px;
     background: rgba(15, 23, 42, 0.6);
     border-bottom: 1px solid rgba(148, 163, 184, 0.1);
   }
@@ -341,23 +485,33 @@
   .hub-btn {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 4px;
-    background: #1e293b;
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    gap: 5px;
+    padding: 5px 6px;
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid transparent;
     color: #94a3b8;
-    padding: 5px;
-    border-radius: 4px;
-    font-size: 0.75rem;
+    border-radius: 5px;
+    font-size: 0.76rem;
     cursor: pointer;
     transition: all 0.15s;
+    overflow: hidden;
   }
 
-  .hub-btn:hover,
+  .hub-btn:hover {
+    background: rgba(30, 41, 59, 0.8);
+    color: #f1f5f9;
+  }
+
   .hub-btn.active {
     background: #2563eb;
     color: #ffffff;
     border-color: #3b82f6;
+    font-weight: 500;
+  }
+
+  .hub-icon {
+    font-size: 0.85rem;
+    flex-shrink: 0;
   }
 
   .hub-label {
@@ -367,7 +521,8 @@
   }
 
   .search-box {
-    padding: 10px 12px;
+    position: relative;
+    padding: 8px 10px;
   }
 
   .search-box input {
@@ -375,7 +530,7 @@
     background: #1e293b;
     border: 1px solid #334155;
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 6px 28px 6px 10px;
     color: #f8fafc;
     font-size: 0.8rem;
     box-sizing: border-box;
@@ -386,10 +541,26 @@
     border-color: #3b82f6;
   }
 
+  .clear-search-btn {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  .clear-search-btn:hover {
+    color: #cbd5e1;
+  }
+
   .tree-container {
     flex: 1;
     overflow-y: auto;
-    padding: 6px 12px 16px;
+    padding: 6px 8px 16px;
   }
 
   .loading {
@@ -411,13 +582,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 24px;
+    padding: 10px 24px;
     background: #0b1120;
     border-bottom: 1px solid rgba(148, 163, 184, 0.12);
   }
 
   .doc-path {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: #94a3b8;
     font-family: ui-monospace, SFMono-Regular, monospace;
   }
@@ -425,7 +596,24 @@
   .doc-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+  }
+
+  .action-btn {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: #cbd5e1;
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .action-btn:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+    color: #ffffff;
   }
 
   .view-toggle {
@@ -439,8 +627,8 @@
     background: transparent;
     border: none;
     color: #94a3b8;
-    padding: 4px 12px;
-    font-size: 0.8rem;
+    padding: 4px 10px;
+    font-size: 0.78rem;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s;
@@ -456,9 +644,9 @@
     border: none;
     color: #ffffff;
     font-weight: 500;
-    padding: 5px 14px;
+    padding: 5px 12px;
     border-radius: 5px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     cursor: pointer;
     transition: background 0.15s;
   }
@@ -470,7 +658,7 @@
   .doc-body {
     flex: 1;
     overflow-y: auto;
-    padding: 24px 32px;
+    padding: 24px 36px;
   }
 
   .editor-area {
@@ -517,7 +705,17 @@
     margin: 14px 0;
   }
 
-  .markdown-preview :global(ul), .markdown-preview :global(ol) {
+  .markdown-preview :global(blockquote) {
+    border-left: 4px solid #3b82f6;
+    margin: 16px 0;
+    padding: 10px 16px;
+    background: rgba(30, 41, 59, 0.35);
+    border-radius: 0 8px 8px 0;
+    color: #cbd5e1;
+  }
+
+  .markdown-preview :global(ul),
+  .markdown-preview :global(ol) {
     padding-left: 24px;
   }
 
@@ -531,7 +729,8 @@
     margin: 16px 0;
   }
 
-  .markdown-preview :global(th), .markdown-preview :global(td) {
+  .markdown-preview :global(th),
+  .markdown-preview :global(td) {
     border: 1px solid rgba(148, 163, 184, 0.2);
     padding: 8px 12px;
     text-align: left;
@@ -564,11 +763,27 @@
     justify-content: center;
     height: 100%;
     color: #64748b;
+    gap: 12px;
   }
 
   .empty-icon {
     font-size: 3rem;
-    margin-bottom: 12px;
+  }
+
+  .create-hero-btn {
+    background: #3b82f6;
+    border: none;
+    color: #ffffff;
+    font-weight: 500;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .create-hero-btn:hover {
+    background: #2563eb;
   }
 
   /* ASSISTANT PANE */

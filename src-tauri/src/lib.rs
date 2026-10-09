@@ -28,6 +28,16 @@ fn crypto_decrypt_secret(token: String, passphrase: Option<String>) -> Result<St
     crypto::decrypt_secret(&token, None, passphrase.as_deref()).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn vault_create_note(relative_path: String, title: Option<String>) -> Result<String, String> {
+    vault::create_note(&relative_path, title.as_deref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn vault_create_dir(relative_path: String) -> Result<(), String> {
+    vault::create_dir(&relative_path).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -36,6 +46,8 @@ pub fn run() {
             vault_get_tree,
             vault_read_file,
             vault_write_file,
+            vault_create_note,
+            vault_create_dir,
             crypto_encrypt_secret,
             crypto_decrypt_secret,
         ])
