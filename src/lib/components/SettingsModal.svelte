@@ -1,12 +1,13 @@
 <script lang="ts">
+  import { invoke } from "@tauri-apps/api/core";
   import Icon from "./Icon.svelte";
   import { themeStore } from "$lib/theme/store.svelte";
   import { THEME_PRESETS, ACCENT_COLORS } from "$lib/theme/presets";
-  import type { VaultInfo, SshKeyInfo } from "$lib/types";
+  import type { VaultInfo, SshKeyInfo, AssistantConfig, CodexStatus, AssistantProvider } from "$lib/types";
 
   interface Props {
     isOpen: boolean;
-    initialTab?: "appearance" | "security" | "about";
+    initialTab?: "appearance" | "security" | "assistant" | "about";
     activeVault?: VaultInfo | null;
     activeSshKey?: SshKeyInfo | null;
     sshKeys?: SshKeyInfo[];
@@ -24,21 +25,120 @@
     onRequestChangeSshKey,
   }: Props = $props();
 
-  let activeTab = $state<"appearance" | "security" | "about">("appearance");
+  let activeTab = $state<"appearance" | "security" | "assistant" | "about">("appearance");
   let customGtkInput = $state("");
   let selectedGtkPath = $state("");
   let selectedKeyPath = $state("");
+
+  // AI Assistant state
+  let assistantConfig = $state<AssistantConfig>({
+    provider: "codex",
+    codex_model: "gpt-6.1-sol",
+    codex_sandbox: "workspace-write",
+    codex_reasoning_effort: "auto",
+    openrouter_key: null,
+    openrouter_model: "anthropic/claude-3.7-sonnet",
+    openrouter_reasoning_effort: "auto",
+    openrouter_temperature: 0.7,
+    openai_base_url: "http://localhost:11434/v1",
+    openai_key: null,
+    openai_model: "llama3",
+    openai_reasoning_effort: "auto",
+    openai_temperature: 0.7,
+    system_prompt: "Ты — встроенный AI-ассистент базы знаний Cortex. Ты помогаешь формулировать мысли, структурировать заметки и связывать концепции. Все секреты, переданные в формате 🔒[enc:...], являются защищенными токенами шифрования Age — сохраняй их в неизменном виде.",
+    include_vault_context: true,
+    include_active_note: true,
+  });
+
+  let codexStatus = $state<CodexStatus | null>(null);
+  let showOpenrouterKey = $state(false);
+  let showOpenaiKey = $state(false);
+
+  // Model discovery states
+  let isOpenrouterLoading = $state(false);
+  let openrouterFetchError = $state<string | null>(null);
+  let openrouterModels = $state<string[]>([]);
+
+  let isOpenaiLoading = $state(false);
+  let openaiFetchError = $state<string | null>(null);
+  let openaiModels = $state<string[]>([]);
 
   $effect(() => {
     if (isOpen) {
       if (initialTab) activeTab = initialTab;
       if (activeSshKey) selectedKeyPath = activeSshKey.path;
+      loadAssistantSettings();
     }
   });
 
+  async function loadAssistantSettings() {
+    try {
+      const cfg = await invoke<AssistantConfig>("assistant_get_config");
+      assistantConfig = {
+        ...cfg,
+        codex_reasoning_effort: cfg.codex_reasoning_effort || "auto",
+        openrouter_reasoning_effort: cfg.openrouter_reasoning_effort || "auto",
+        openai_reasoning_effort: cfg.openai_reasoning_effort || "auto",
+      };
+    } catch (e) {
+      console.error("Failed to load assistant config:", e);
+    }
+
+    try {
+      codexStatus = await invoke<CodexStatus>("assistant_check_codex_status");
+    } catch (e) {
+      console.error("Failed to check codex status:", e);
+    }
+  }
+
+  async function saveAssistantSettings() {
+    try {
+      await invoke("assistant_save_config", { config: $state.snapshot(assistantConfig) });
+    } catch (e) {
+      console.error("Failed to save assistant config:", e);
+    }
+  }
+
+  async function fetchOpenrouterModels() {
+    isOpenrouterLoading = true;
+    openrouterFetchError = null;
+    try {
+      const list = await invoke<string[]>("assistant_fetch_models", {
+        baseUrl: "https://openrouter.ai/api/v1/models",
+        apiKey: assistantConfig.openrouter_key,
+      });
+      openrouterModels = list;
+    } catch (err: any) {
+      openrouterFetchError = err?.toString() || "Не удалось загрузить модели с OpenRouter";
+    } finally {
+      isOpenrouterLoading = false;
+    }
+  }
+
+  async function fetchOpenaiModels() {
+    isOpenaiLoading = true;
+    openaiFetchError = null;
+    try {
+      const list = await invoke<string[]>("assistant_fetch_models", {
+        baseUrl: assistantConfig.openai_base_url,
+        apiKey: assistantConfig.openai_key,
+      });
+      openaiModels = list;
+    } catch (err: any) {
+      openaiFetchError = err?.toString() || "Не удалось загрузить модели с эндпоинта";
+    } finally {
+      isOpenaiLoading = false;
+    }
+  }
+
+  function handleDone() {
+    saveAssistantSettings();
+    onClose();
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Escape" && isOpen) {
-      onClose();
+      handleDone();
     }
   }
 
@@ -87,9 +187,9 @@
       <header class="modal-header">
         <div class="header-left">
           <Icon name="settings" size={20} color="var(--cortex-accent)" />
-          <h2 id="settings-title">Параметры и оформление</h2>
+          <h2 id="settings-title">Параметры</h2>
         </div>
-        <button class="close-btn" onclick={onClose} aria-label="Закрыть">
+        <button class="close-btn" onclick={handleDone} aria-label="Закрыть">
           <Icon name="x" size={18} />
         </button>
       </header>
@@ -113,6 +213,14 @@
           >
             <Icon name="shield" size={16} />
             <span>Шифрование</span>
+          </button>
+          <button
+            class="nav-item"
+            class:active={activeTab === "assistant"}
+            onclick={() => (activeTab = "assistant")}
+          >
+            <Icon name="sparkles" size={16} />
+            <span>ИИ-ассистент</span>
           </button>
           <button
             class="nav-item"
@@ -435,7 +543,7 @@
                   <span class="sec-note">При смене ключа будет запрошено подтверждение, а файл .meta.json обновится.</span>
                 </div>
 
-                <div class="sec-item">
+                  <div class="sec-item">
                   <span class="sec-label">Формат токенов шифрования:</span>
                   <code class="sec-code">🔒[enc:v1:AGE-ENCRYPTED-DATA]</code>
                 </div>
@@ -444,6 +552,464 @@
                   <span class="sec-label">Статус хранилища:</span>
                   <span class="sec-badge ok">✓ Защищено локальным ключом пользователя</span>
                 </div>
+              </div>
+            </section>
+          {:else if activeTab === "assistant"}
+            <section class="settings-section">
+              <h3 class="section-title">Активный ИИ-движок</h3>
+              <p class="section-desc">
+                Выберите бэкенд для работы персонального ассистента. Настройки выбранного провайдера раскрываются автоматически.
+              </p>
+
+              <div class="provider-accordion-list">
+                <!-- 1. CODEX CLI -->
+                <div class="provider-card-accordion" class:selected={assistantConfig.provider === "codex"}>
+                  <label class="provider-card-header">
+                    <input
+                      type="radio"
+                      name="settings-provider"
+                      value="codex"
+                      checked={assistantConfig.provider === "codex"}
+                      onchange={() => {
+                        assistantConfig.provider = "codex";
+                        saveAssistantSettings();
+                      }}
+                    />
+                    <div class="provider-header-main">
+                      <div class="provider-title-line">
+                        <span class="provider-label">Codex CLI</span>
+                        <span class="provider-tag codex">ChatGPT Plus / Pro</span>
+                      </div>
+                      <span class="provider-hint">
+                        Использование авторизованной утилиты codex без оплаты API-токенов.
+                      </span>
+                    </div>
+                    <div class="provider-header-status">
+                      {#if codexStatus?.is_logged_in}
+                        <span class="status-chip success">✓ Авторизован в ChatGPT</span>
+                      {:else if codexStatus?.installed}
+                        <span class="status-chip warning">⚠ Требуется вход (codex login)</span>
+                      {:else}
+                        <span class="status-chip error">✕ Не найден (~/.local/bin/codex)</span>
+                      {/if}
+                    </div>
+                  </label>
+
+                  {#if assistantConfig.provider === "codex"}
+                    <div class="provider-card-body">
+                      <!-- Model Selection -->
+                      <div class="field-row">
+                        <label class="field-label" for="codex-model">Модель ChatGPT:</label>
+                        <div class="field-control">
+                          <select
+                            id="codex-model"
+                            class="cortex-select"
+                            bind:value={assistantConfig.codex_model}
+                            onchange={saveAssistantSettings}
+                          >
+                            {#each (codexStatus?.available_models && codexStatus.available_models.length > 0 ? codexStatus.available_models : ["gpt-6.1-sol", "gpt-6-astra", "gpt-5.6-sol", "gpt-5.5", "o3-mini", "o1", "gpt-4o"]) as m}
+                              <option value={m}>{m}</option>
+                            {/each}
+                          </select>
+                        </div>
+                      </div>
+
+                      <!-- Custom Model text input -->
+                      <div class="field-row">
+                        <label class="field-label" for="codex-custom-model">Произвольная модель:</label>
+                        <div class="field-control">
+                          <input
+                            id="codex-custom-model"
+                            type="text"
+                            class="cortex-input"
+                            bind:value={assistantConfig.codex_model}
+                            onblur={saveAssistantSettings}
+                            placeholder="gpt-6.1-sol"
+                          />
+                        </div>
+                      </div>
+
+                      <!-- Reasoning Effort -->
+                      <div class="field-row">
+                        <label class="field-label" for="codex-effort">Уровень рассуждений (Reasoning):</label>
+                        <div class="field-control">
+                          <select
+                            id="codex-effort"
+                            class="cortex-select"
+                            bind:value={assistantConfig.codex_reasoning_effort}
+                            onchange={saveAssistantSettings}
+                          >
+                            <option value="auto">auto (По умолчанию)</option>
+                            <option value="low">low (Низкий)</option>
+                            <option value="medium">medium (Средний)</option>
+                            <option value="high">high (Высокий)</option>
+                            <option value="xhigh">xhigh / sky (Максимальный)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+
+                <!-- 2. OPENROUTER API -->
+                <div class="provider-card-accordion" class:selected={assistantConfig.provider === "openrouter"}>
+                  <label class="provider-card-header">
+                    <input
+                      type="radio"
+                      name="settings-provider"
+                      value="openrouter"
+                      checked={assistantConfig.provider === "openrouter"}
+                      onchange={() => {
+                        assistantConfig.provider = "openrouter";
+                        saveAssistantSettings();
+                      }}
+                    />
+                    <div class="provider-header-main">
+                      <div class="provider-title-line">
+                        <span class="provider-label">OpenRouter API</span>
+                        <span class="provider-tag openrouter">Claude, Gemini, DeepSeek</span>
+                      </div>
+                      <span class="provider-hint">
+                        Единый шлюз к лучшим мировым LLM моделям через один API-ключ.
+                      </span>
+                    </div>
+                  </label>
+
+                  {#if assistantConfig.provider === "openrouter"}
+                    <div class="provider-card-body">
+                      <!-- OpenRouter API Key -->
+                      <div class="field-row">
+                        <label class="field-label" for="or-key">API-ключ OpenRouter:</label>
+                        <div class="field-control input-with-btn">
+                          <input
+                            id="or-key"
+                            type={showOpenrouterKey ? "text" : "password"}
+                            class="cortex-input"
+                            placeholder="sk-or-v1-..."
+                            bind:value={assistantConfig.openrouter_key}
+                            onblur={saveAssistantSettings}
+                          />
+                          <button
+                            type="button"
+                            class="field-icon-btn"
+                            onclick={() => (showOpenrouterKey = !showOpenrouterKey)}
+                            title={showOpenrouterKey ? "Скрыть" : "Показать"}
+                          >
+                            <Icon name={showOpenrouterKey ? "eye-off" : "eye"} size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Fetch Models Button -->
+                      <div class="field-row">
+                        <span class="field-label">Каталог моделей:</span>
+                        <div class="field-control">
+                          <button
+                            type="button"
+                            class="action-secondary-btn"
+                            onclick={fetchOpenrouterModels}
+                            disabled={isOpenrouterLoading}
+                          >
+                            <Icon name="refresh-cw" size={13} class={isOpenrouterLoading ? "spin" : ""} />
+                            <span>{isOpenrouterLoading ? "Загрузка списка..." : "Загрузить список моделей с OpenRouter"}</span>
+                          </button>
+                          {#if openrouterModels.length > 0}
+                            <span class="inline-count">Доступно: {openrouterModels.length} моделей</span>
+                          {/if}
+                          {#if openrouterFetchError}
+                            <span class="inline-error">{openrouterFetchError}</span>
+                          {/if}
+                        </div>
+                      </div>
+
+                      <!-- Model Selection -->
+                      <div class="field-row">
+                        <label class="field-label" for="or-model-select">Модель:</label>
+                        <div class="field-control">
+                          <select
+                            id="or-model-select"
+                            class="cortex-select"
+                            bind:value={assistantConfig.openrouter_model}
+                            onchange={saveAssistantSettings}
+                          >
+                            {#if openrouterModels.length > 0}
+                              {#each openrouterModels as m}
+                                <option value={m}>{m}</option>
+                              {/each}
+                            {:else}
+                              <option value="anthropic/claude-3.7-sonnet">Claude 3.7 Sonnet (Hybrid Reasoning)</option>
+                              <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                              <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+                              <option value="openai/gpt-4o">OpenAI GPT-4o</option>
+                              <option value="deepseek/deepseek-chat">DeepSeek V3</option>
+                            {/if}
+                          </select>
+                        </div>
+                      </div>
+
+                      <!-- Custom Model input -->
+                      <div class="field-row">
+                        <label class="field-label" for="or-custom-model">Или ввести ID модели:</label>
+                        <div class="field-control">
+                          <input
+                            id="or-custom-model"
+                            type="text"
+                            class="cortex-input"
+                            bind:value={assistantConfig.openrouter_model}
+                            onblur={saveAssistantSettings}
+                            placeholder="anthropic/claude-3.7-sonnet"
+                          />
+                        </div>
+                      </div>
+
+                      <!-- Reasoning Effort -->
+                      <div class="field-row">
+                        <label class="field-label" for="or-effort">Уровень рассуждений (Reasoning):</label>
+                        <div class="field-control">
+                          <select
+                            id="or-effort"
+                            class="cortex-select"
+                            bind:value={assistantConfig.openrouter_reasoning_effort}
+                            onchange={saveAssistantSettings}
+                          >
+                            <option value="auto">auto (По умолчанию / Без параметра)</option>
+                            <option value="low">low (Низкий)</option>
+                            <option value="medium">medium (Средний)</option>
+                            <option value="high">high (Высокий)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <!-- Temperature -->
+                      <div class="field-row">
+                        <label class="field-label" for="or-temp">Температура ({assistantConfig.openrouter_temperature}):</label>
+                        <div class="field-control range-box">
+                          <input
+                            id="or-temp"
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            bind:value={assistantConfig.openrouter_temperature}
+                            onchange={saveAssistantSettings}
+                          />
+                          <span class="range-display">{assistantConfig.openrouter_temperature}</span>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+
+                <!-- 3. CUSTOM OPENAI-COMPATIBLE API -->
+                <div class="provider-card-accordion" class:selected={assistantConfig.provider === "openai"}>
+                  <label class="provider-card-header">
+                    <input
+                      type="radio"
+                      name="settings-provider"
+                      value="openai"
+                      checked={assistantConfig.provider === "openai"}
+                      onchange={() => {
+                        assistantConfig.provider = "openai";
+                        saveAssistantSettings();
+                      }}
+                    />
+                    <div class="provider-header-main">
+                      <div class="provider-title-line">
+                        <span class="provider-label">Кастомный OpenAI-совместимый API</span>
+                        <span class="provider-tag local">Ollama, vLLM, LMStudio, Прокси</span>
+                      </div>
+                      <span class="provider-hint">
+                        Подключение к любому сервису или локальной LLM с поддержкой /v1/chat/completions.
+                      </span>
+                    </div>
+                  </label>
+
+                  {#if assistantConfig.provider === "openai"}
+                    <div class="provider-card-body">
+                      <!-- Base URL -->
+                      <div class="field-row">
+                        <label class="field-label" for="custom-url">Базовый URL эндпоинта:</label>
+                        <div class="field-control">
+                          <input
+                            id="custom-url"
+                            type="text"
+                            class="cortex-input"
+                            bind:value={assistantConfig.openai_base_url}
+                            onblur={saveAssistantSettings}
+                            placeholder="http://localhost:11434/v1"
+                          />
+                          <span class="field-tip">Например: http://localhost:11434/v1 (Ollama) или http://127.0.0.1:1234/v1 (LM Studio)</span>
+                        </div>
+                      </div>
+
+                      <!-- API Key -->
+                      <div class="field-row">
+                        <label class="field-label" for="custom-key">API-ключ (если требуется):</label>
+                        <div class="field-control input-with-btn">
+                          <input
+                            id="custom-key"
+                            type={showOpenaiKey ? "text" : "password"}
+                            class="cortex-input"
+                            placeholder="sk-... (не требуется для Ollama)"
+                            bind:value={assistantConfig.openai_key}
+                            onblur={saveAssistantSettings}
+                          />
+                          <button
+                            type="button"
+                            class="field-icon-btn"
+                            onclick={() => (showOpenaiKey = !showOpenaiKey)}
+                            title={showOpenaiKey ? "Скрыть" : "Показать"}
+                          >
+                            <Icon name={showOpenaiKey ? "eye-off" : "eye"} size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Fetch Models Button -->
+                      <div class="field-row">
+                        <span class="field-label">Модели эндпоинта:</span>
+                        <div class="field-control">
+                          <button
+                            type="button"
+                            class="action-secondary-btn"
+                            onclick={fetchOpenaiModels}
+                            disabled={isOpenaiLoading}
+                          >
+                            <Icon name="refresh-cw" size={13} class={isOpenaiLoading ? "spin" : ""} />
+                            <span>{isOpenaiLoading ? "Опрос эндпоинта..." : "Загрузить модели с эндпоинта (/models)"}</span>
+                          </button>
+                          {#if openaiModels.length > 0}
+                            <span class="inline-count">Найдено: {openaiModels.length} моделей</span>
+                          {/if}
+                          {#if openaiFetchError}
+                            <span class="inline-error">{openaiFetchError}</span>
+                          {/if}
+                        </div>
+                      </div>
+
+                      <!-- Model Selection -->
+                      <div class="field-row">
+                        <label class="field-label" for="custom-model-select">Модель:</label>
+                        <div class="field-control">
+                          {#if openaiModels.length > 0}
+                            <select
+                              id="custom-model-select"
+                              class="cortex-select"
+                              bind:value={assistantConfig.openai_model}
+                              onchange={saveAssistantSettings}
+                            >
+                              {#each openaiModels as m}
+                                <option value={m}>{m}</option>
+                              {/each}
+                            </select>
+                          {:else}
+                            <input
+                              id="custom-model-select"
+                              type="text"
+                              class="cortex-input"
+                              bind:value={assistantConfig.openai_model}
+                              onblur={saveAssistantSettings}
+                              placeholder="llama3, mistral, qwen2.5..."
+                            />
+                          {/if}
+                        </div>
+                      </div>
+
+                      {#if openaiModels.length > 0}
+                        <div class="field-row">
+                          <label class="field-label" for="custom-model-text">Или указать вручную:</label>
+                          <div class="field-control">
+                            <input
+                              id="custom-model-text"
+                              type="text"
+                              class="cortex-input"
+                              bind:value={assistantConfig.openai_model}
+                              onblur={saveAssistantSettings}
+                              placeholder="llama3"
+                            />
+                          </div>
+                        </div>
+                      {/if}
+
+                      <!-- Reasoning Effort -->
+                      <div class="field-row">
+                        <label class="field-label" for="custom-effort">Уровень рассуждений (Reasoning):</label>
+                        <div class="field-control">
+                          <select
+                            id="custom-effort"
+                            class="cortex-select"
+                            bind:value={assistantConfig.openai_reasoning_effort}
+                            onchange={saveAssistantSettings}
+                          >
+                            <option value="auto">auto (По умолчанию / Без параметра)</option>
+                            <option value="low">low (Низкий)</option>
+                            <option value="medium">medium (Средний)</option>
+                            <option value="high">high (Высокий)</option>
+                            <option value="xhigh">xhigh (Максимальный)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <!-- Temperature -->
+                      <div class="field-row">
+                        <label class="field-label" for="custom-temp">Температура ({assistantConfig.openai_temperature}):</label>
+                        <div class="field-control range-box">
+                          <input
+                            id="custom-temp"
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            bind:value={assistantConfig.openai_temperature}
+                            onchange={saveAssistantSettings}
+                          />
+                          <span class="range-display">{assistantConfig.openai_temperature}</span>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            </section>
+
+            <!-- Context and Prompt -->
+            <section class="settings-section">
+              <h3 class="section-title">Контекст и системный промпт</h3>
+              <div class="context-toggles">
+                <label class="toggle-checkbox-row">
+                  <input
+                    type="checkbox"
+                    bind:checked={assistantConfig.include_vault_context}
+                    onchange={saveAssistantSettings}
+                  />
+                  <div class="toggle-text">
+                    <span class="toggle-title">Контекст базы знаний</span>
+                    <span class="toggle-desc">Передавать путь к текущему активному хранилищу заметок.</span>
+                  </div>
+                </label>
+
+                <label class="toggle-checkbox-row">
+                  <input
+                    type="checkbox"
+                    bind:checked={assistantConfig.include_active_note}
+                    onchange={saveAssistantSettings}
+                  />
+                  <div class="toggle-text">
+                    <span class="toggle-title">Контекст открытой заметки</span>
+                    <span class="toggle-desc">Автоматически прикреплять текст открытого в редакторе файла к запросу.</span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="system-prompt-box">
+                <label class="field-label" for="settings-system-prompt">Системный промпт ассистента:</label>
+                <textarea
+                  id="settings-system-prompt"
+                  class="cortex-textarea"
+                  rows="4"
+                  bind:value={assistantConfig.system_prompt}
+                  onblur={saveAssistantSettings}
+                ></textarea>
               </div>
             </section>
           {:else if activeTab === "about"}
@@ -464,12 +1030,7 @@
 
       <!-- Footer -->
       <footer class="modal-footer">
-        <div class="footer-status">
-          <span>Тема: <strong>{themeStore.currentPreset.name}</strong></span>
-          <span class="dot-separator">•</span>
-          <span>Акцент: <strong>{themeStore.currentAccent.name}</strong></span>
-        </div>
-        <button class="close-done-btn" onclick={onClose}>
+        <button class="close-done-btn" onclick={handleDone}>
           Готово
         </button>
       </footer>
@@ -1260,30 +1821,337 @@
     line-height: 1.5;
   }
 
-  /* FOOTER */
-  .modal-footer {
+  /* AI ASSISTANT ACCORDION & FIELDS */
+  .provider-accordion-list {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 22px;
-    background: var(--cortex-bg-header, #171a22);
-    border-top: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    flex-direction: column;
+    gap: 12px;
   }
 
-  .footer-status {
-    font-size: 0.8rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+  .provider-card-accordion {
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+    background: var(--cortex-bg-card, #131720);
+    overflow: hidden;
+    transition: border-color 0.15s, background-color 0.15s;
+  }
+
+  .provider-card-accordion.selected {
+    border-color: var(--cortex-accent, #3b82f6);
+    background: rgba(59, 130, 246, 0.04);
+  }
+
+  .provider-card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .provider-card-header input[type="radio"] {
+    accent-color: var(--cortex-accent, #3b82f6);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .provider-header-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .provider-title-line {
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  .footer-status strong {
+  .provider-label {
+    font-size: 0.92rem;
+    font-weight: 600;
     color: var(--cortex-fg-primary, #ffffff);
   }
 
-  .dot-separator {
-    opacity: 0.4;
+  .provider-tag {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.2px;
+  }
+
+  .provider-tag.codex {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+
+  .provider-tag.openrouter {
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+  }
+
+  .provider-tag.local {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+
+  .provider-hint {
+    font-size: 0.76rem;
+    color: var(--cortex-fg-muted, #94a3b8);
+  }
+
+  .provider-header-status {
+    flex-shrink: 0;
+  }
+
+  .status-chip {
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .status-chip.success {
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+  }
+
+  .status-chip.warning {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+  }
+
+  .status-chip.error {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+  }
+
+  .provider-card-body {
+    padding: 16px;
+    border-top: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: fadeIn 0.15s ease-out;
+  }
+
+  .field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--cortex-fg-primary, #cbd5e1);
+  }
+
+  .field-control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field-tip {
+    font-size: 0.72rem;
+    color: var(--cortex-fg-muted, #64748b);
+  }
+
+  .cortex-input,
+  .cortex-select,
+  .cortex-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--cortex-bg-main, #0b0f17);
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.14));
+    border-radius: 6px;
+    padding: 7px 12px;
+    color: var(--cortex-fg-primary, #f1f5f9);
+    font-size: 0.84rem;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+  }
+
+  .cortex-input:focus,
+  .cortex-select:focus,
+  .cortex-textarea:focus {
+    border-color: var(--cortex-accent, #3b82f6);
+    box-shadow: 0 0 0 2px var(--cortex-accent-subtle, rgba(59, 130, 246, 0.2));
+  }
+
+  .cortex-textarea {
+    resize: vertical;
+    line-height: 1.45;
+  }
+
+  .input-with-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-with-btn .cortex-input {
+    padding-right: 36px;
+  }
+
+  .field-icon-btn {
+    position: absolute;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--cortex-fg-muted, #94a3b8);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .field-icon-btn:hover {
+    color: var(--cortex-fg-primary, #ffffff);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .action-secondary-btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.14));
+    color: var(--cortex-fg-primary, #cbd5e1);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .action-secondary-btn:hover:not(:disabled) {
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.12));
+    border-color: var(--cortex-accent, #3b82f6);
+    color: #ffffff;
+  }
+
+  .action-secondary-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .inline-count {
+    font-size: 0.74rem;
+    color: #34d399;
+    font-weight: 500;
+  }
+
+  .inline-error {
+    font-size: 0.74rem;
+    color: #f87171;
+  }
+
+  .range-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .range-box input[type="range"] {
+    flex: 1;
+    accent-color: var(--cortex-accent, #3b82f6);
+  }
+
+  .range-display {
+    font-family: ui-monospace, monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--cortex-accent, #38bdf8);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  .context-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .toggle-checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.06));
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .toggle-checkbox-row input[type="checkbox"] {
+    margin-top: 3px;
+    accent-color: var(--cortex-accent, #3b82f6);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+  }
+
+  .toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .toggle-title {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .toggle-desc {
+    font-size: 0.74rem;
+    color: var(--cortex-fg-muted, #94a3b8);
+  }
+
+  .system-prompt-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  :global(.spin) {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* FOOTER */
+  .modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 12px 22px;
+    background: var(--cortex-bg-header, #171a22);
+    border-top: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
   }
 
   .close-done-btn {
@@ -1292,14 +2160,14 @@
     border: none;
     font-size: 0.84rem;
     font-weight: 600;
-    padding: 7px 18px;
+    padding: 7px 22px;
     border-radius: 6px;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, filter 0.15s;
   }
 
   .close-done-btn:hover {
-    opacity: 0.9;
+    filter: brightness(1.1);
   }
 
   @keyframes fadeIn {

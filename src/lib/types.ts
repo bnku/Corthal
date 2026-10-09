@@ -58,12 +58,15 @@ export interface AssistantConfig {
   provider: AssistantProvider;
   codex_model: string;
   codex_sandbox: "read-only" | "workspace-write";
+  codex_reasoning_effort?: string;
   openrouter_key: string | null;
   openrouter_model: string;
+  openrouter_reasoning_effort?: string;
   openrouter_temperature: number;
   openai_base_url: string;
   openai_key: string | null;
   openai_model: string;
+  openai_reasoning_effort?: string;
   openai_temperature: number;
   system_prompt: string;
   include_vault_context: boolean;

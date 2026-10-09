@@ -4,23 +4,22 @@
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import type { AssistantConfig, CodexStatus, AssistantStreamChunk, ChatMessage, AssistantProvider } from "$lib/types";
   import Icon from "./Icon.svelte";
-  import AssistantSettingsModal from "./AssistantSettingsModal.svelte";
 
   interface Props {
     activeNotePath: string | null;
     activeNoteContent?: string | null;
     onInsertText?: (text: string) => void;
     onVaultRefresh?: () => void;
+    onOpenSettings?: (tab?: "appearance" | "security" | "assistant" | "about") => void;
   }
 
-  let { activeNotePath, activeNoteContent = null, onInsertText, onVaultRefresh }: Props = $props();
+  let { activeNotePath, activeNoteContent = null, onInsertText, onVaultRefresh, onOpenSettings }: Props = $props();
 
   let inputMessage = $state("");
   let quickSecretInput = $state("");
   let encryptedResult = $state("");
   let isEncrypting = $state(false);
   let showEncryptTool = $state(false);
-  let isSettingsOpen = $state(false);
   let isProviderDropdownOpen = $state(false);
 
   let isGenerating = $state(false);
@@ -54,6 +53,7 @@
   ]);
 
   let unlistenChunk: UnlistenFn | null = null;
+  let unlistenConfig: UnlistenFn | null = null;
   let messagesContainer: HTMLDivElement | null = null;
 
   onMount(async () => {
@@ -86,11 +86,19 @@
         scrollToBottom();
       }
     });
+
+    unlistenConfig = await listen<AssistantConfig>("assistant:config-changed", (event) => {
+      config = event.payload;
+      checkCodex();
+    });
   });
 
   onDestroy(() => {
     if (unlistenChunk) {
       unlistenChunk();
+    }
+    if (unlistenConfig) {
+      unlistenConfig();
     }
   });
 
@@ -363,11 +371,11 @@
               class="p-drop-settings-btn"
               onclick={() => {
                 isProviderDropdownOpen = false;
-                isSettingsOpen = true;
+                onOpenSettings?.("assistant");
               }}
             >
               <Icon name="sliders" size={13} />
-              <span>Все настройки провайдеров...</span>
+              <span>Параметры ИИ-ассистента...</span>
             </button>
           </div>
         {/if}
@@ -397,8 +405,8 @@
 
       <button
         class="action-icon-btn"
-        onclick={() => (isSettingsOpen = true)}
-        title="Настройки моделей и API"
+        onclick={() => onOpenSettings?.("assistant")}
+        title="Параметры ИИ-ассистента"
         aria-label="Настройки"
       >
         <Icon name="settings" size={14} />
@@ -535,14 +543,7 @@
   </div>
 </div>
 
-<!-- Assistant Settings Modal -->
-<AssistantSettingsModal
-  isOpen={isSettingsOpen}
-  {config}
-  {codexStatus}
-  onClose={() => (isSettingsOpen = false)}
-  onSave={handleSaveConfig}
-/>
+
 
 <style>
   .assistant-container {

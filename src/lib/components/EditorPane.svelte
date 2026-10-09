@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { mount, unmount } from "svelte";
   import { Marked } from "marked";
   import hljs from "highlight.js";
   import "highlight.js/styles/github-dark.css";
@@ -40,6 +41,7 @@
     onToggleSidebar?: () => void;
     onToggleAssistant?: () => void;
     onOpenSettings?: () => void;
+    onPassphraseNeeded?: () => Promise<string | null>;
   }
 
   let {
@@ -69,6 +71,7 @@
     onToggleSidebar,
     onToggleAssistant,
     onOpenSettings,
+    onPassphraseNeeded,
   }: Props = $props();
 
   // Custom Marked renderer with syntax highlighting via highlight.js
@@ -257,41 +260,60 @@
   // Parse YAML Frontmatter & Body
   let parsedDoc = $derived(parseFrontmatter(content));
 
-  interface ContentSlice {
-    type: "text" | "secret";
-    content: string;
-  }
-
-  let contentSlices = $derived.by<ContentSlice[]>(() => {
-    const raw = parsedDoc.body;
-    const slices: ContentSlice[] = [];
-    const regex = /(`?🔒\[enc:v1:[A-Za-z0-9+/=]+\]`?)/g;
-    let lastIndex = 0;
-    let match;
-
-    while ((match = regex.exec(raw)) !== null) {
-      if (match.index > lastIndex) {
-        slices.push({
-          type: "text",
-          content: raw.slice(lastIndex, match.index),
-        });
-      }
-      slices.push({
-        type: "secret",
-        content: match[1],
-      });
-      lastIndex = regex.lastIndex;
-    }
-
-    if (lastIndex < raw.length) {
-      slices.push({
-        type: "text",
-        content: raw.slice(lastIndex),
-      });
-    }
-
-    return slices;
+  let parsedMarkdownHtml = $derived.by<string>(() => {
+    if (!parsedDoc.body) return "";
+    let html = customMarked.parse(parsedDoc.body) as string;
+    // Replace secrets inside code or text with inline secret mount point
+    const regex = /(?:<code>\s*)?(🔒\[enc:v1:[^\]]+\])(?:\s*<\/code>)?/g;
+    return html.replace(regex, (_match, token) => {
+      return `<span class="cortex-secret-mount" data-token="${token}"></span>`;
+    });
   });
+
+  function mountSecrets(node: HTMLElement, passphraseCallback?: () => Promise<string | null>) {
+    let instances: any[] = [];
+    let currentCallback = passphraseCallback;
+
+    function renderWidgets() {
+      for (const inst of instances) {
+        unmount(inst);
+      }
+      instances = [];
+
+      const placeholders = node.querySelectorAll<HTMLElement>(".cortex-secret-mount");
+      for (const el of placeholders) {
+        const token = el.getAttribute("data-token");
+        if (token) {
+          try {
+            const inst = mount(SecretPill, {
+              target: el,
+              props: {
+                token,
+                onPassphraseNeeded: () => (currentCallback ? currentCallback() : Promise.resolve(null)),
+              },
+            });
+            instances.push(inst);
+          } catch (e) {
+            console.error("Failed to mount SecretPill:", e);
+          }
+        }
+      }
+    }
+
+    renderWidgets();
+
+    return {
+      update(newCallback?: () => Promise<string | null>) {
+        currentCallback = newCallback;
+      },
+      destroy() {
+        for (const inst of instances) {
+          unmount(inst);
+        }
+        instances = [];
+      },
+    };
+  }
 
   function handleTabClick(path: string, e: MouseEvent) {
     e.stopPropagation();
@@ -475,21 +497,21 @@
         <!-- VIEW MODE -->
         {#if isMarkdown}
           <!-- Markdown Preview -->
-          <div class="markdown-preview">
+          <div class="markdown-preview-container">
             {#if parsedDoc.frontmatter && Object.keys(parsedDoc.frontmatter).length > 0}
-              <PropertiesBlock
-                properties={parsedDoc.frontmatter}
-                onTagClick={(tag) => onTagClick?.(tag)}
-              />
+              <div class="frontmatter-wrap">
+                <PropertiesBlock
+                  properties={parsedDoc.frontmatter}
+                  onTagClick={(tag) => onTagClick?.(tag)}
+                />
+              </div>
             {/if}
 
-            {#each contentSlices as slice}
-              {#if slice.type === "secret"}
-                <SecretPill token={slice.content} />
-              {:else}
-                {@html customMarked.parse(slice.content)}
-              {/if}
-            {/each}
+            {#key parsedMarkdownHtml}
+              <div class="markdown-preview-content" use:mountSecrets={onPassphraseNeeded}>
+                {@html parsedMarkdownHtml}
+              </div>
+            {/key}
           </div>
         {:else}
           <!-- Code Viewer for Non-Markdown files (.rs, .py, .js, .sh, .json, etc.) -->
@@ -976,6 +998,108 @@
     font-family: inherit;
     font-size: inherit;
     line-height: inherit;
+  }
+
+  /* MARKDOWN PREVIEW STYLING */
+  .markdown-preview-container {
+    padding: 24px 32px;
+    max-width: 880px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .frontmatter-wrap {
+    margin-bottom: 20px;
+  }
+
+  .markdown-preview-content {
+    color: var(--cortex-fg-primary, #e2e8f0);
+    line-height: 1.65;
+    font-size: 0.95rem;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  .markdown-preview-content :global(h1),
+  .markdown-preview-content :global(h2),
+  .markdown-preview-content :global(h3),
+  .markdown-preview-content :global(h4) {
+    color: var(--cortex-fg-primary, #f8fafc);
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.6em;
+    line-height: 1.3;
+  }
+
+  .markdown-preview-content :global(h1) {
+    font-size: 1.6rem;
+    border-bottom: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+    padding-bottom: 0.3em;
+  }
+
+  .markdown-preview-content :global(h2) {
+    font-size: 1.3rem;
+  }
+
+  .markdown-preview-content :global(h3) {
+    font-size: 1.1rem;
+  }
+
+  .markdown-preview-content :global(p) {
+    margin-top: 0.6em;
+    margin-bottom: 0.8em;
+  }
+
+  .markdown-preview-content :global(ul),
+  .markdown-preview-content :global(ol) {
+    padding-left: 24px;
+    margin-top: 0.5em;
+    margin-bottom: 0.8em;
+  }
+
+  .markdown-preview-content :global(li) {
+    margin-bottom: 0.35em;
+    line-height: 1.6;
+  }
+
+  .markdown-preview-content :global(code) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85em;
+    padding: 0.15em 0.4em;
+    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.08));
+    border-radius: 4px;
+    color: var(--cortex-accent, #38bdf8);
+  }
+
+  .markdown-preview-content :global(pre) {
+    background: var(--cortex-bg-sidebar, #090e17);
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 1em 0;
+  }
+
+  .markdown-preview-content :global(pre code) {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font-size: 0.88rem;
+  }
+
+  .markdown-preview-content :global(blockquote) {
+    border-left: 3px solid var(--cortex-accent, #38bdf8);
+    padding-left: 14px;
+    margin-left: 0;
+    color: var(--cortex-fg-muted, #94a3b8);
+    font-style: italic;
+  }
+
+  :global(.cortex-secret-mount) {
+    display: inline-flex;
+    vertical-align: middle;
+    margin: 0 4px;
   }
 
   /* VS CODE STYLE WELCOME / WATERMARK STATE */

@@ -4,6 +4,7 @@ pub mod theme;
 pub mod vault;
 pub mod watcher;
 
+use tauri::Emitter;
 use vault::VaultNode;
 
 #[tauri::command]
@@ -12,8 +13,10 @@ fn assistant_get_config() -> assistant::AssistantConfig {
 }
 
 #[tauri::command]
-fn assistant_save_config(config: assistant::AssistantConfig) -> Result<(), String> {
-    assistant::save_assistant_config(&config)
+fn assistant_save_config(app: tauri::AppHandle, config: assistant::AssistantConfig) -> Result<(), String> {
+    assistant::save_assistant_config(&config)?;
+    let _ = app.emit("assistant:config-changed", &config);
+    Ok(())
 }
 
 #[tauri::command]
@@ -35,6 +38,11 @@ async fn assistant_send_message(
 #[tauri::command]
 fn assistant_cancel_stream(session_id: String) -> bool {
     assistant::cancel_assistant_stream(&session_id)
+}
+
+#[tauri::command]
+async fn assistant_fetch_models(base_url: String, api_key: Option<String>) -> Result<Vec<String>, String> {
+    assistant::fetch_models(base_url, api_key).await
 }
 
 #[tauri::command]
@@ -172,6 +180,7 @@ pub fn run() {
             assistant_check_codex_status,
             assistant_send_message,
             assistant_cancel_stream,
+            assistant_fetch_models,
             vault_get_tree,
             vault_read_file,
             vault_write_file,

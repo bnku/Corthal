@@ -19,6 +19,7 @@
   import SshKeyDropdown from "$lib/components/SshKeyDropdown.svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import ThemeQuickDropdown from "$lib/components/ThemeQuickDropdown.svelte";
+  import PassphraseModal from "$lib/components/PassphraseModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { themeStore } from "$lib/theme/store.svelte";
 
@@ -37,9 +38,38 @@
   let pendingSshKey = $state<SshKeyInfo | null>(null);
   let confirmKeyMessage = $state("");
 
+  // Passphrase modal state
+  let isPassphraseModalOpen = $state(false);
+  let passphraseKeyPath = $state("");
+  let pendingPassphraseResolve: ((val: string | null) => void) | null = null;
+
+  function requestPassphrase(): Promise<string | null> {
+    return new Promise((resolve) => {
+      passphraseKeyPath = activeSshKey?.path || "~/.ssh/id_ed25519";
+      pendingPassphraseResolve = resolve;
+      isPassphraseModalOpen = true;
+    });
+  }
+
+  function handlePassphraseSubmit(passphrase: string) {
+    isPassphraseModalOpen = false;
+    if (pendingPassphraseResolve) {
+      pendingPassphraseResolve(passphrase);
+      pendingPassphraseResolve = null;
+    }
+  }
+
+  function handlePassphraseCancel() {
+    isPassphraseModalOpen = false;
+    if (pendingPassphraseResolve) {
+      pendingPassphraseResolve(null);
+      pendingPassphraseResolve = null;
+    }
+  }
+
   // Theme dropdown & settings modal state
   let isThemeDropdownOpen = $state(false);
-  let settingsInitialTab = $state<"appearance" | "security" | "about">("appearance");
+  let settingsInitialTab = $state<"appearance" | "security" | "assistant" | "about">("appearance");
 
   let selectedHubIds = $state<string[]>(["all"]);
   let searchQuery = $state("");
@@ -971,7 +1001,11 @@
           onOpenSearch={handleFocusSearch}
           onToggleSidebar={() => (showLeftSidebar = !showLeftSidebar)}
           onToggleAssistant={() => (showAssistant = !showAssistant)}
-          onOpenSettings={() => (isSettingsModalOpen = true)}
+          onOpenSettings={() => {
+            settingsInitialTab = "appearance";
+            isSettingsModalOpen = true;
+          }}
+          onPassphraseNeeded={requestPassphrase}
         />
 
         <!-- Pane 2 (Right, when split enabled) -->
@@ -1008,7 +1042,11 @@
             onOpenSearch={handleFocusSearch}
             onToggleSidebar={() => (showLeftSidebar = !showLeftSidebar)}
             onToggleAssistant={() => (showAssistant = !showAssistant)}
-            onOpenSettings={() => (isSettingsModalOpen = true)}
+            onOpenSettings={() => {
+              settingsInitialTab = "appearance";
+              isSettingsModalOpen = true;
+            }}
+            onPassphraseNeeded={requestPassphrase}
           />
         {/if}
       </div>
@@ -1022,6 +1060,10 @@
           activeNoteContent={activeFile?.content || null}
           onInsertText={handleInsertText}
           onVaultRefresh={loadVault}
+          onOpenSettings={(tab) => {
+            settingsInitialTab = tab || "assistant";
+            isSettingsModalOpen = true;
+          }}
         />
       </aside>
     {/if}
@@ -1229,6 +1271,13 @@
   sshKeys={systemSshKeys}
   onClose={() => (isSettingsModalOpen = false)}
   onRequestChangeSshKey={handleRequestChangeSshKey}
+/>
+
+<PassphraseModal
+  isOpen={isPassphraseModalOpen}
+  keyPath={passphraseKeyPath}
+  onSubmit={handlePassphraseSubmit}
+  onCancel={handlePassphraseCancel}
 />
 
 <style>

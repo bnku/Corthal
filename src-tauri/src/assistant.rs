@@ -11,12 +11,18 @@ pub struct AssistantConfig {
     pub provider: String, // "codex" | "openrouter" | "openai"
     pub codex_model: String,
     pub codex_sandbox: String, // "read-only" | "workspace-write"
+    #[serde(default)]
+    pub codex_reasoning_effort: Option<String>, // "auto" | "low" | "medium" | "high" | "xhigh"
     pub openrouter_key: Option<String>,
     pub openrouter_model: String,
+    #[serde(default)]
+    pub openrouter_reasoning_effort: Option<String>,
     pub openrouter_temperature: f32,
     pub openai_base_url: String,
     pub openai_key: Option<String>,
     pub openai_model: String,
+    #[serde(default)]
+    pub openai_reasoning_effort: Option<String>,
     pub openai_temperature: f32,
     pub system_prompt: String,
     pub include_vault_context: bool,
@@ -27,14 +33,17 @@ impl Default for AssistantConfig {
     fn default() -> Self {
         Self {
             provider: "codex".to_string(),
-            codex_model: "gpt-5.6-sol".to_string(),
-            codex_sandbox: "read-only".to_string(),
+            codex_model: "gpt-6.1-sol".to_string(),
+            codex_sandbox: "workspace-write".to_string(),
+            codex_reasoning_effort: Some("auto".to_string()),
             openrouter_key: None,
-            openrouter_model: "anthropic/claude-3.5-sonnet".to_string(),
+            openrouter_model: "anthropic/claude-3.7-sonnet".to_string(),
+            openrouter_reasoning_effort: Some("auto".to_string()),
             openrouter_temperature: 0.7,
             openai_base_url: "http://localhost:11434/v1".to_string(),
             openai_key: None,
             openai_model: "llama3".to_string(),
+            openai_reasoning_effort: Some("auto".to_string()),
             openai_temperature: 0.7,
             system_prompt: "Ты — встроенный AI-ассистент базы знаний Cortex. Ты помогаешь формулировать мысли, структурировать заметки и связывать концепции. Все секреты, переданные в формате 🔒[enc:...], являются защищенными токенами шифрования Age — сохраняй их в неизменном виде.".to_string(),
             include_vault_context: true,
@@ -145,12 +154,46 @@ pub async fn check_codex_status() -> CodexStatus {
         }
     }
 
-    let available_models = vec![
-        "gpt-5.6-sol".to_string(),
-        "o3-mini".to_string(),
-        "o1".to_string(),
-        "gpt-4o".to_string(),
+    let mut available_models = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        let toml_path = home.join(".codex/config.toml");
+        if toml_path.exists() {
+            if let Ok(content) = fs::read_to_string(&toml_path) {
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("model =") {
+                        if let Some(val) = trimmed.split('=').nth(1) {
+                            let m = val.trim().trim_matches('"').trim_matches('\'');
+                            if !m.is_empty() {
+                                available_models.push(m.to_string());
+                            }
+                        }
+                    }
+                    if trimmed.starts_with('"') && trimmed.contains("= 4") {
+                        let m = trimmed.split('=').next().unwrap_or("").trim().trim_matches('"');
+                        if !m.is_empty() {
+                            available_models.push(m.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let defaults = [
+        "gpt-6.1-sol",
+        "gpt-6-astra",
+        "gpt-5.6-sol",
+        "gpt-5.5",
+        "o3-mini",
+        "o1",
+        "gpt-4o",
     ];
+    for d in defaults {
+        if !available_models.contains(&d.to_string()) {
+            available_models.push(d.to_string());
+        }
+    }
 
     CodexStatus {
         installed,
@@ -159,6 +202,73 @@ pub async fn check_codex_status() -> CodexStatus {
         is_logged_in,
         available_models,
     }
+}
+
+pub async fn fetch_models(base_url: String, api_key: Option<String>) -> Result<Vec<String>, String> {
+    let clean_base = base_url.trim().trim_end_matches('/');
+    let url = if clean_base.ends_with("/models") {
+        clean_base.to_string()
+    } else if clean_base.ends_with("/v1") {
+        format!("{}/models", clean_base)
+    } else {
+        format!("{}/v1/models", clean_base)
+    };
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut req = client.get(&url);
+    if let Some(ref key) = api_key {
+        let trimmed = key.trim();
+        if !trimmed.is_empty() {
+            req = req.header("Authorization", format!("Bearer {}", trimmed));
+        }
+    }
+
+    if url.contains("openrouter.ai") {
+        req = req.header("HTTP-Referer", "https://cortex.local")
+                 .header("X-Title", "Cortex Personal Knowledge Base");
+    }
+
+    let resp = req.send().await.map_err(|e| format!("Не удалось связаться с сервером ({}): {}", url, e))?;
+    if !resp.status().is_success() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(format!("Сервер вернул ошибку: {}", err_text));
+    }
+
+    let json: serde_json::Value = resp.json().await.map_err(|e| format!("Ошибка парсинга JSON ответа: {}", e))?;
+    let mut models = Vec::new();
+
+    // Check OpenAI standard format: { "data": [ { "id": "model-1" } ] }
+    if let Some(data) = json.get("data").and_then(|v| v.as_array()) {
+        for item in data {
+            if let Some(id) = item.get("id").and_then(|v| v.as_str()) {
+                models.push(id.to_string());
+            }
+        }
+    }
+
+    // Check Ollama format: { "models": [ { "name": "llama3:latest" } ] }
+    if models.is_empty() {
+        if let Some(arr) = json.get("models").and_then(|v| v.as_array()) {
+            for item in arr {
+                if let Some(name) = item.get("name").and_then(|v| v.as_str()) {
+                    models.push(name.to_string());
+                }
+            }
+        }
+    }
+
+    models.sort();
+    models.dedup();
+
+    if models.is_empty() {
+        return Err("В ответе эндпоинта /models не найдено списка моделей".into());
+    }
+
+    Ok(models)
 }
 
 pub fn cancel_assistant_stream(session_id: &str) -> bool {
@@ -302,6 +412,12 @@ async fn stream_codex(
         cmd.args(["-m", &config.codex_model]);
     }
 
+    if let Some(effort) = &config.codex_reasoning_effort {
+        if effort != "auto" && !effort.is_empty() {
+            cmd.args(["-c", &format!("model_reasoning_effort=\"{}\"", effort)]);
+        }
+    }
+
     cmd.arg(&composed_prompt);
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
@@ -424,12 +540,18 @@ async fn stream_openrouter(
         "content": user_prompt
     }));
 
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "model": config.openrouter_model,
         "messages": messages_payload,
         "stream": true,
         "temperature": config.openrouter_temperature
     });
+
+    if let Some(effort) = &config.openrouter_reasoning_effort {
+        if effort != "auto" && !effort.is_empty() {
+            body["reasoning"] = serde_json::json!({ "effort": effort });
+        }
+    }
 
     let client = reqwest::Client::new();
     let resp = client
@@ -481,12 +603,18 @@ async fn stream_openai(
         "content": user_prompt
     }));
 
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "model": config.openai_model,
         "messages": messages_payload,
         "stream": true,
         "temperature": config.openai_temperature
     });
+
+    if let Some(effort) = &config.openai_reasoning_effort {
+        if effort != "auto" && !effort.is_empty() {
+            body["reasoning_effort"] = serde_json::json!(effort);
+        }
+    }
 
     let client = reqwest::Client::new();
     let mut req = client.post(&endpoint).header("Content-Type", "application/json");
@@ -606,8 +734,8 @@ mod tests {
     fn test_assistant_config_defaults() {
         let cfg = AssistantConfig::default();
         assert_eq!(cfg.provider, "codex");
-        assert_eq!(cfg.codex_model, "gpt-5.6-sol");
-        assert_eq!(cfg.codex_sandbox, "read-only");
+        assert_eq!(cfg.codex_model, "gpt-6.1-sol");
+        assert_eq!(cfg.codex_sandbox, "workspace-write");
         assert!(cfg.include_vault_context);
     }
 
