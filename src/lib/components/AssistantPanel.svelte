@@ -144,7 +144,7 @@
 
   <div class="input-area">
     <textarea
-      placeholder="Напишите задачу... (секреты пишите как {{secret:пароль}})"
+      placeholder={"Напишите задачу... (секреты пишите как {{secret:пароль}})"}
       bind:value={inputMessage}
       onkeydown={(e) => {
         if (e.key === "Enter" && !e.shiftKey) {
