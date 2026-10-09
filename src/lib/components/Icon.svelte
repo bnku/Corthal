@@ -44,6 +44,18 @@
   import FileEdit from "lucide-svelte/icons/file-edit";
   import Eye from "lucide-svelte/icons/eye";
   import Sliders from "lucide-svelte/icons/sliders";
+  import PanelLeft from "lucide-svelte/icons/panel-left";
+  import PanelRight from "lucide-svelte/icons/panel-right";
+  import Columns2 from "lucide-svelte/icons/columns-2";
+  import Split from "lucide-svelte/icons/split";
+  import RefreshCw from "lucide-svelte/icons/refresh-cw";
+  import FolderPlus from "lucide-svelte/icons/folder-plus";
+  import FilePlus from "lucide-svelte/icons/file-plus";
+  import ChevronsDownUp from "lucide-svelte/icons/chevrons-down-up";
+  import ChevronsUpDown from "lucide-svelte/icons/chevrons-up-down";
+  import ListFilter from "lucide-svelte/icons/list-filter";
+  import Ellipsis from "lucide-svelte/icons/ellipsis";
+  import ShieldCheck from "lucide-svelte/icons/shield-check";
 
   interface Props {
     name: string;
@@ -102,6 +114,19 @@
     "file-edit": FileEdit,
     "eye": Eye,
     "sliders": Sliders,
+    "panel-left": PanelLeft,
+    "panel-right": PanelRight,
+    "columns-2": Columns2,
+    "split": Split,
+    "refresh-cw": RefreshCw,
+    "folder-plus": FolderPlus,
+    "file-plus": FilePlus,
+    "chevrons-down-up": ChevronsDownUp,
+    "chevrons-up-down": ChevronsUpDown,
+    "list-filter": ListFilter,
+    "filter": ListFilter,
+    "ellipsis": Ellipsis,
+    "shield-check": ShieldCheck,
 
     // Legacy emoji mappings
     "🖥️": Monitor,

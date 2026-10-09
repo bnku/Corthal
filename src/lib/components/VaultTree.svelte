@@ -7,6 +7,7 @@
     node: VaultNode;
     selectedPath: string | null;
     depth?: number;
+    treeActionSignal?: { action: "collapse" | "expand"; version: number };
     onSelectNote: (path: string) => void;
     onCreateNote?: (folderPath: string) => void;
     onFolderContextMenu?: (e: MouseEvent, node: VaultNode) => void;
@@ -16,10 +17,21 @@
     node,
     selectedPath,
     depth = 0,
+    treeActionSignal = { action: "collapse", version: 0 },
     onSelectNote,
     onCreateNote,
     onFolderContextMenu,
   }: Props = $props();
+
+  $effect(() => {
+    if (treeActionSignal.version > 0 && node.relative_path !== "") {
+      if (treeActionSignal.action === "collapse") {
+        userExpanded = false;
+      } else if (treeActionSignal.action === "expand") {
+        userExpanded = depth <= 1;
+      }
+    }
+  });
 
   // Root or 1st-level directories default to expanded; subdirectories default to collapsed unless selected
   let isSelectedChild = $derived(
@@ -110,6 +122,7 @@
             node={child}
             {selectedPath}
             depth={depth + 1}
+            {treeActionSignal}
             {onSelectNote}
             {onCreateNote}
             {onFolderContextMenu}

@@ -803,8 +803,10 @@
 
   .accents-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .accent-chip {
@@ -818,6 +820,8 @@
     cursor: pointer;
     text-align: left;
     transition: all 0.15s;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .accent-chip:hover {

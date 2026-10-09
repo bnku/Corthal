@@ -1,12 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { marked } from "marked";
   import type { VaultNode, HubItem } from "$lib/types";
   import { parseFrontmatter } from "$lib/frontmatter";
   import VaultTree from "$lib/components/VaultTree.svelte";
-  import SecretPill from "$lib/components/SecretPill.svelte";
-  import PropertiesBlock from "$lib/components/PropertiesBlock.svelte";
+  import FolderFilterDropdown from "$lib/components/FolderFilterDropdown.svelte";
+  import EditorPane from "$lib/components/EditorPane.svelte";
   import InsertSecretModal from "$lib/components/InsertSecretModal.svelte";
   import NewNoteModal from "$lib/components/NewNoteModal.svelte";
   import NewFolderModal from "$lib/components/NewFolderModal.svelte";
@@ -17,25 +16,123 @@
   import Icon from "$lib/components/Icon.svelte";
   import { themeStore } from "$lib/theme/store.svelte";
 
+  // Vault & Tree State
   let vaultTree = $state<VaultNode | null>(null);
-  let selectedPath = $state<string | null>(null);
-  let activeHub = $state<string>("all");
-  let noteContent = $state("");
-  let isEditing = $state(false);
-  let isSaving = $state(false);
-  let saveFeedback = $state(false);
+  let selectedHubIds = $state<string[]>(["all"]);
   let searchQuery = $state("");
+  let areFoldersCollapsed = $state(false);
+  let treeActionSignal = $state<{ action: "collapse" | "expand"; version: number }>({
+    action: "collapse",
+    version: 0,
+  });
+
+  // Autosave engine
+  let autosaveEnabled = $state(true);
+  let autosaveTimers: Record<string, any> = {};
+
+  function triggerAutosave(path: string) {
+    if (!autosaveEnabled) return;
+    if (autosaveTimers[path]) {
+      clearTimeout(autosaveTimers[path]);
+    }
+    autosaveTimers[path] = setTimeout(() => {
+      saveNote(path, true);
+    }, 1000);
+  }
+
+  // Layout Toggles (VS Code style)
+  let showLeftSidebar = $state(true);
   let showAssistant = $state(true);
+  let isSplit = $state(false);
+  let focusedPane = $state<"left" | "right">("left");
+
+  // In-memory file cache to retain unsaved edits when switching tabs
+  interface FileCacheItem {
+    content: string;
+    originalContent: string;
+    title: string;
+    isSaving: boolean;
+    saveFeedback: boolean;
+  }
+  let fileCache = $state<Record<string, FileCacheItem>>({});
+
+  // Editor Panes State
+  let paneLeftTabs = $state<string[]>([]);
+  let paneLeftActive = $state<string | null>(null);
+  let paneLeftEditing = $state(false);
+
+  let paneRightTabs = $state<string[]>([]);
+  let paneRightActive = $state<string | null>(null);
+  let paneRightEditing = $state(false);
+
+  // Active path and active file based on focused pane
+  let activeFilePath = $derived.by<string | null>(() => {
+    if (focusedPane === "right" && isSplit) {
+      return paneRightActive || paneLeftActive;
+    }
+    return paneLeftActive || paneRightActive;
+  });
+
+  let activeFile = $derived<FileCacheItem | null>(
+    activeFilePath && fileCache[activeFilePath] ? fileCache[activeFilePath] : null
+  );
+
+  let isAnyDirty = $derived.by<boolean>(() => {
+    if (!activeFile) return false;
+    return activeFile.content !== activeFile.originalContent;
+  });
+
+  // Human-readable title and breadcrumb for center header
+  let activeFileTitle = $derived.by<string>(() => {
+    if (!activeFilePath) return "Cortex";
+    if (activeFile?.title) return activeFile.title;
+    const base = activeFilePath.split("/").pop()?.replace(/\.md$/, "");
+    return base || "Cortex";
+  });
+
+  let activeFileBreadcrumbs = $derived.by<string>(() => {
+    if (!activeFilePath) return "База знаний";
+    return activeFilePath.split("/").join("  ›  ");
+  });
+
+  // Document word/character statistics for status bar
+  let docStats = $derived.by(() => {
+    if (!activeFile || !activeFile.content) {
+      return { words: 0, chars: 0, readTime: 0 };
+    }
+    const text = activeFile.content.trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    const chars = text.length;
+    const readTime = Math.max(1, Math.ceil(words / 200));
+    return { words, chars, readTime };
+  });
+
+  // Tab definitions for Left and Right panes
+  let leftTabInfos = $derived(
+    paneLeftTabs.map((path) => {
+      const item = fileCache[path];
+      const isDirty = item ? item.content !== item.originalContent : false;
+      const title = item?.title || path.split("/").pop()?.replace(/\.md$/, "") || path;
+      return { path, title, isDirty };
+    })
+  );
+
+  let rightTabInfos = $derived(
+    paneRightTabs.map((path) => {
+      const item = fileCache[path];
+      const isDirty = item ? item.content !== item.originalContent : false;
+      const title = item?.title || path.split("/").pop()?.replace(/\.md$/, "") || path;
+      return { path, title, isDirty };
+    })
+  );
 
   // Modals state
   let isSettingsModalOpen = $state(false);
   let isSecretModalOpen = $state(false);
   let isNewNoteModalOpen = $state(false);
   let targetFolderForNewNote = $state("");
-
   let isNewFolderModalOpen = $state(false);
   let parentFolderForNew = $state("");
-
   let isFolderSettingsModalOpen = $state(false);
   let selectedFolderForSettings = $state<VaultNode | null>(null);
 
@@ -47,9 +144,9 @@
     node: VaultNode | null;
   }>({ visible: false, x: 0, y: 0, node: null });
 
-  // Dynamically derive hubs list from root children in vaultTree
+  // Dynamic hubs derived from root directories in vaultTree
   let hubs = $derived.by<HubItem[]>(() => {
-    const list: HubItem[] = [{ id: "all", name: "Всё", icon: "globe" }];
+    const list: HubItem[] = [{ id: "all", name: "Все разделы", icon: "globe" }];
     if (!vaultTree) return list;
 
     const dirChildren = vaultTree.children.filter((c) => c.is_dir);
@@ -65,75 +162,21 @@
     return list;
   });
 
-  async function loadVault() {
-    try {
-      vaultTree = await invoke<VaultNode>("vault_get_tree");
-      // If nothing selected, select the first note found
-      if (!selectedPath) {
-        selectDefaultNote(vaultTree);
-      }
-    } catch (err: any) {
-      console.error("Failed to load vault:", err);
-    }
-  }
-
-  function selectDefaultNote(node: VaultNode | null) {
-    if (!node) return;
-    for (const child of node.children) {
-      if (!child.is_dir && child.name.endsWith(".md")) {
-        openNote(child.relative_path);
-        return;
-      }
-      if (child.is_dir) {
-        selectDefaultNote(child);
-        if (selectedPath) return;
-      }
-    }
-  }
-
-  async function openNote(path: string) {
-    selectedPath = path;
-    try {
-      noteContent = await invoke<string>("vault_read_file", { relativePath: path });
-    } catch (err: any) {
-      alert("Не удалось прочитать заметку: " + err);
-    }
-  }
-
-  async function saveNote() {
-    if (!selectedPath) return;
-    isSaving = true;
-    try {
-      await invoke("vault_write_file", {
-        relativePath: selectedPath,
-        content: noteContent,
-      });
-      saveFeedback = true;
-      setTimeout(() => (saveFeedback = false), 2000);
-      loadVault();
-    } catch (err: any) {
-      alert("Ошибка сохранения: " + err);
-    } finally {
-      isSaving = false;
-    }
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-      e.preventDefault();
-      saveNote();
-    }
-  }
-
-  // Filter vault tree based on active hub and search
+  // Filter vault tree based on selected hubs and search query
   let filteredTree = $derived.by<VaultNode | null>(() => {
     if (!vaultTree) return null;
-    if (activeHub === "all" && !searchQuery.trim()) return vaultTree;
+
+    const isAll =
+      selectedHubIds.length === 0 ||
+      selectedHubIds.includes("all") ||
+      selectedHubIds.length === hubs.filter((h) => h.id !== "all").length;
+
+    if (isAll && !searchQuery.trim()) return vaultTree;
 
     let children = vaultTree.children;
 
-    if (activeHub !== "all") {
-      children = children.filter((c) => c.name === activeHub);
+    if (!isAll) {
+      children = children.filter((c) => selectedHubIds.includes(c.name));
     }
 
     if (searchQuery.trim()) {
@@ -165,62 +208,215 @@
     return res;
   }
 
-  // Parse YAML Frontmatter & Body
-  let parsedDoc = $derived(parseFrontmatter(noteContent));
-
-  // Parse markdown body into text chunks and secret tokens
-  interface ContentSlice {
-    type: "text" | "secret";
-    content: string;
+  async function loadVault() {
+    try {
+      vaultTree = await invoke<VaultNode>("vault_get_tree");
+      if (!paneLeftActive && paneLeftTabs.length === 0) {
+        selectDefaultNote(vaultTree);
+      }
+    } catch (err: any) {
+      console.error("Failed to load vault:", err);
+    }
   }
 
-  let contentSlices = $derived.by<ContentSlice[]>(() => {
-    const raw = parsedDoc.body;
-    const slices: ContentSlice[] = [];
-    const regex = /(`?🔒\[enc:v1:[A-Za-z0-9+/=]+\]`?)/g;
-    let lastIndex = 0;
-    let match;
-
-    while ((match = regex.exec(raw)) !== null) {
-      if (match.index > lastIndex) {
-        slices.push({
-          type: "text",
-          content: raw.slice(lastIndex, match.index),
-        });
+  function selectDefaultNote(node: VaultNode | null) {
+    if (!node) return;
+    for (const child of node.children) {
+      if (!child.is_dir && child.name.endsWith(".md")) {
+        openNote(child.relative_path, "left");
+        return;
       }
-      slices.push({
-        type: "secret",
-        content: match[1],
-      });
-      lastIndex = regex.lastIndex;
+      if (child.is_dir) {
+        selectDefaultNote(child);
+        if (paneLeftActive) return;
+      }
+    }
+  }
+
+  async function loadFileIntoCache(path: string): Promise<FileCacheItem> {
+    if (fileCache[path]) {
+      return fileCache[path];
+    }
+    try {
+      const raw = await invoke<string>("vault_read_file", { relativePath: path });
+      const parsed = parseFrontmatter(raw);
+      const title =
+        parsed.frontmatter?.title ||
+        path.split("/").pop()?.replace(/\.md$/, "") ||
+        path;
+
+      const item: FileCacheItem = {
+        content: raw,
+        originalContent: raw,
+        title,
+        isSaving: false,
+        saveFeedback: false,
+      };
+      fileCache[path] = item;
+      return item;
+    } catch (err: any) {
+      console.error("Failed to read note:", err);
+      const fallback: FileCacheItem = {
+        content: `# Ошибка чтения файла\n\n${err}`,
+        originalContent: "",
+        title: path.split("/").pop() || path,
+        isSaving: false,
+        saveFeedback: false,
+      };
+      fileCache[path] = fallback;
+      return fallback;
+    }
+  }
+
+  async function openNote(path: string, targetPane?: "left" | "right") {
+    const pane = targetPane || (isSplit ? focusedPane : "left");
+    await loadFileIntoCache(path);
+
+    if (pane === "left") {
+      if (!paneLeftTabs.includes(path)) {
+        paneLeftTabs.push(path);
+      }
+      paneLeftActive = path;
+      focusedPane = "left";
+    } else {
+      if (!paneRightTabs.includes(path)) {
+        paneRightTabs.push(path);
+      }
+      paneRightActive = path;
+      focusedPane = "right";
+    }
+  }
+
+  function closeTab(paneId: "left" | "right", path: string) {
+    if (paneId === "left") {
+      const idx = paneLeftTabs.indexOf(path);
+      if (idx !== -1) {
+        paneLeftTabs.splice(idx, 1);
+        if (paneLeftActive === path) {
+          paneLeftActive = paneLeftTabs[Math.max(0, idx - 1)] || null;
+        }
+      }
+    } else {
+      const idx = paneRightTabs.indexOf(path);
+      if (idx !== -1) {
+        paneRightTabs.splice(idx, 1);
+        if (paneRightActive === path) {
+          paneRightActive = paneRightTabs[Math.max(0, idx - 1)] || null;
+        }
+        if (paneRightTabs.length === 0) {
+          isSplit = false;
+          focusedPane = "left";
+        }
+      }
+    }
+  }
+
+  async function saveNote(path?: string, silent = false) {
+    const targetPath = path || activeFilePath;
+    if (!targetPath) return;
+    const file = fileCache[targetPath];
+    if (!file) return;
+
+    if (autosaveTimers[targetPath]) {
+      clearTimeout(autosaveTimers[targetPath]);
+      delete autosaveTimers[targetPath];
     }
 
-    if (lastIndex < raw.length) {
-      slices.push({
-        type: "text",
-        content: raw.slice(lastIndex),
+    file.isSaving = true;
+    try {
+      await invoke("vault_write_file", {
+        relativePath: targetPath,
+        content: file.content,
       });
+      file.originalContent = file.content;
+      // Re-parse title in case frontmatter updated
+      const parsed = parseFrontmatter(file.content);
+      if (parsed.frontmatter?.title) {
+        file.title = parsed.frontmatter.title;
+      }
+      file.saveFeedback = true;
+      setTimeout(() => {
+        if (file) file.saveFeedback = false;
+      }, 1500);
+      loadVault();
+    } catch (err: any) {
+      if (!silent) {
+        alert("Ошибка сохранения: " + err);
+      } else {
+        console.error("Autosave error:", err);
+      }
+    } finally {
+      file.isSaving = false;
     }
+  }
 
-    return slices;
-  });
+  function toggleSplit() {
+    if (!isSplit) {
+      isSplit = true;
+      // If right pane has no tabs, mirror or open current active note
+      if (paneRightTabs.length === 0 && paneLeftActive) {
+        paneRightTabs.push(paneLeftActive);
+        paneRightActive = paneLeftActive;
+      }
+      focusedPane = "right";
+    } else {
+      isSplit = false;
+      focusedPane = "left";
+    }
+  }
+
+  function closeSplit() {
+    isSplit = false;
+    focusedPane = "left";
+  }
+
+  function toggleCollapseAll() {
+    areFoldersCollapsed = !areFoldersCollapsed;
+    treeActionSignal = {
+      action: areFoldersCollapsed ? "collapse" : "expand",
+      version: treeActionSignal.version + 1,
+    };
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    // Save: Ctrl+S
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      saveNote();
+    }
+    // Toggle Split: Ctrl+\ or Ctrl+2
+    if ((e.ctrlKey || e.metaKey) && (e.key === "\\" || e.key === "2")) {
+      e.preventDefault();
+      toggleSplit();
+    }
+    // Toggle Sidebar: Ctrl+B
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+      e.preventDefault();
+      showLeftSidebar = !showLeftSidebar;
+    }
+    // Toggle Assistant: Ctrl+J
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") {
+      e.preventDefault();
+      showAssistant = !showAssistant;
+    }
+  }
 
   function handleInsertSecretToken(encryptedToken: string) {
-    if (isEditing) {
-      noteContent += `\n${encryptedToken}\n`;
-    } else {
+    if (!activeFilePath || !fileCache[activeFilePath]) {
       navigator.clipboard.writeText(encryptedToken);
       alert("Токен скопирован в буфер обмена!");
+      return;
     }
+    fileCache[activeFilePath].content += `\n${encryptedToken}\n`;
   }
 
   function handleInsertText(text: string) {
-    if (isEditing) {
-      noteContent += "\n" + text;
-    } else {
+    if (!activeFilePath || !fileCache[activeFilePath]) {
       navigator.clipboard.writeText(text);
-      alert("Токен скопирован в буфер обмена!");
+      alert("Текст скопирован в буфер обмена!");
+      return;
     }
+    fileCache[activeFilePath].content += "\n" + text;
   }
 
   function openCreateNoteDialog(folderPath = "") {
@@ -250,10 +446,14 @@
   async function handleNoteCreated(newPath: string) {
     await loadVault();
     openNote(newPath);
-    isEditing = true;
+    if (focusedPane === "left") {
+      paneLeftEditing = true;
+    } else {
+      paneRightEditing = true;
+    }
   }
 
-  async function handleFolderCreated(createdPath: string) {
+  async function handleFolderCreated() {
     await loadVault();
   }
 
@@ -282,207 +482,304 @@
   });
 </script>
 
-<div class="cortex-layout" class:hide-assistant={!showAssistant}>
-  <!-- 1. LEFT SIDEBAR: EXPLORER -->
-  <aside class="sidebar">
-    <div class="sidebar-top">
+<div class="cortex-app-root">
+  <!-- 1. UNIFIED APP TOP TITLEBAR (Across full window) -->
+  <header class="app-titlebar">
+    <!-- Left: Brand + Multi-select Folder Hubs Filter -->
+    <div class="titlebar-left">
       <div class="brand">
-        <Icon name="brain" size={20} color="#60a5fa" />
-        <h2>Cortex</h2>
+        <Icon name="brain" size={18} color="var(--cortex-accent, #38bdf8)" />
+        <h1 class="brand-title">Cortex</h1>
       </div>
 
-      <div class="sidebar-top-actions">
-        <button
-          class="sidebar-action-btn"
-          aria-label="Создать заметку"
-          onclick={() => openCreateNoteDialog(activeHub !== "all" ? activeHub : "")}
-        >
-          <Icon name="plus" size={13} />
-          <span>Заметка</span>
-        </button>
-
-        <button
-          class="sidebar-action-btn folder-btn"
-          aria-label="Создать папку"
-          onclick={() => openCreateFolderDialog(activeHub !== "all" ? activeHub : "")}
-        >
-          <Icon name="folder" size={13} />
-          <span>Папка</span>
-        </button>
-      </div>
+      <FolderFilterDropdown
+        {hubs}
+        {selectedHubIds}
+        onSelectionChange={(ids) => (selectedHubIds = ids)}
+      />
     </div>
 
-    <!-- Dynamic Hubs Bar -->
-    <div class="hubs-bar">
-      {#each hubs as hub}
-        <button
-          class="hub-btn"
-          class:active={activeHub === hub.id}
-          onclick={() => (activeHub = hub.id)}
-          aria-label={hub.name}
-        >
-          <Icon name={hub.icon} size={14} color={hub.color || (activeHub === hub.id ? "#ffffff" : "#94a3b8")} />
-          <span class="hub-label">{hub.name}</span>
-        </button>
-      {/each}
-    </div>
-
-    <!-- Search box -->
-    <div class="search-box">
-      <div class="search-input-wrap">
-        <Icon name="search" size={13} color="#64748b" class="search-icon" />
-        <input
-          type="text"
-          placeholder="Поиск заметок и тегов..."
-          bind:value={searchQuery}
-        />
-        {#if searchQuery}
-          <button class="clear-search-btn" onclick={() => (searchQuery = "")}>
-            <Icon name="x" size={12} />
-          </button>
-        {/if}
-      </div>
-    </div>
-
-    <!-- File tree -->
-    <div class="tree-container">
-      {#if filteredTree}
-        <VaultTree
-          node={filteredTree}
-          {selectedPath}
-          onSelectNote={openNote}
-          onCreateNote={openCreateNoteDialog}
-          onFolderContextMenu={handleFolderContextMenu}
-        />
+    <!-- Center: Human-readable note title & breadcrumbs path with ellipsis -->
+    <div class="titlebar-center">
+      {#if activeFilePath}
+        <div class="doc-header-info">
+          <span class="doc-title-main" title={activeFileTitle}>{activeFileTitle}</span>
+          <span class="doc-path-sub" title={activeFilePath}>{activeFileBreadcrumbs}</span>
+        </div>
       {:else}
-        <div class="loading">Загрузка базы знаний...</div>
+        <span class="titlebar-placeholder">База знаний не открыта</span>
       {/if}
     </div>
 
-    <!-- Sidebar Footer -->
-    <div class="sidebar-footer">
-      <button class="settings-trigger-btn" onclick={() => (isSettingsModalOpen = true)}>
-        <Icon name="settings" size={14} color="var(--cortex-accent)" />
-        <span>Настройки</span>
-      </button>
-      <button
-        class="theme-pill"
-        onclick={() => (isSettingsModalOpen = true)}
-        title="Оформление: {themeStore.currentPreset.name}"
-      >
-        <span class="theme-accent-indicator" style="background: var(--cortex-accent);"></span>
-        <span class="theme-pill-name">{themeStore.currentPreset.name}</span>
-      </button>
-    </div>
-  </aside>
+    <!-- Right: VS Code Layout Controls -->
+    <div class="titlebar-right">
+      <!-- Layout Toggles (VS Code style icons matching red box #1) -->
+      <div class="layout-controls">
+        <!-- Toggle Left Sidebar -->
+        <button
+          class="layout-btn"
+          class:active={showLeftSidebar}
+          onclick={() => (showLeftSidebar = !showLeftSidebar)}
+          title="Скрыть/показать проводник заметок (Ctrl+B)"
+          aria-label="Переключить боковую панель проводника"
+        >
+          <Icon name="panel-left" size={15} />
+        </button>
 
-  <!-- 2. CENTER PANEL: DOCUMENT WORKSPACE -->
-  <main class="workspace">
-    {#if selectedPath}
-      <header class="doc-header">
-        <div class="doc-meta">
-          <Icon name="file-text" size={14} color="#64748b" />
-          <span class="doc-path">{selectedPath}</span>
-        </div>
+        <!-- Toggle Split Editor Panes -->
+        <button
+          class="layout-btn"
+          class:active={isSplit}
+          onclick={toggleSplit}
+          title="Разделить экран пополам / Объединить (Ctrl+\\ или Ctrl+2)"
+          aria-label="Разделить редактор"
+        >
+          <Icon name="columns-2" size={15} />
+        </button>
 
-        <div class="doc-actions">
-          {#if isEditing}
-            <button
-              class="action-btn insert-secret-btn"
-              aria-label="Зашифровать и вставить секрет"
-              onclick={() => (isSecretModalOpen = true)}
-            >
-              <Icon name="lock" size={13} color="#f59e0b" />
-              <span>Вставить секрет</span>
-            </button>
-          {/if}
-
-          <div class="view-toggle">
-            <button class:active={!isEditing} onclick={() => (isEditing = false)}>
-              <Icon name="eye" size={13} />
-              <span>Просмотр</span>
-            </button>
-            <button class:active={isEditing} onclick={() => (isEditing = true)}>
-              <Icon name="file-edit" size={13} />
-              <span>Правка</span>
-            </button>
-          </div>
-
-          <button class="save-btn" onclick={saveNote} disabled={isSaving}>
-            <Icon name="check" size={13} />
-            <span>
-              {#if saveFeedback}
-                Сохранено!
-              {:else if isSaving}
-                Сохранение...
-              {:else}
-                Сохранить (Ctrl+S)
-              {/if}
-            </span>
-          </button>
-
-          <button
-            class="action-btn toggle-assistant-btn"
-            class:active={showAssistant}
-            onclick={() => (showAssistant = !showAssistant)}
-            aria-label="Показать или скрыть ИИ-панель"
-          >
-            <Icon name="bot" size={14} />
-            <span>{showAssistant ? "Скрыть ИИ" : "ИИ"}</span>
-          </button>
-        </div>
-      </header>
-
-      <div class="doc-body">
-        {#if isEditing}
-          <textarea
-            class="editor-area"
-            bind:value={noteContent}
-            placeholder="Пишите в формате Markdown..."
-          ></textarea>
-        {:else}
-          <div class="markdown-preview">
-            <!-- Obsidian Properties Block -->
-            {#if parsedDoc.frontmatter && Object.keys(parsedDoc.frontmatter).length > 0}
-              <PropertiesBlock
-                properties={parsedDoc.frontmatter}
-                onTagClick={(tag) => (searchQuery = tag)}
-              />
-            {/if}
-
-            <!-- Note Content Body -->
-            {#each contentSlices as slice}
-              {#if slice.type === "secret"}
-                <SecretPill token={slice.content} />
-              {:else}
-                {@html marked.parse(slice.content)}
-              {/if}
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {:else}
-      <div class="empty-state">
-        <Icon name="book-open" size={48} color="#334155" />
-        <p>Выберите заметку в панели слева или создайте новую</p>
-        <button class="create-hero-btn" onclick={() => openCreateNoteDialog("")}>
-          <Icon name="plus" size={15} />
-          <span>Создать заметку</span>
+        <!-- Toggle Right Assistant Panel -->
+        <button
+          class="layout-btn"
+          class:active={showAssistant}
+          onclick={() => (showAssistant = !showAssistant)}
+          title="Скрыть/показать панель ИИ-ассистента (Ctrl+J)"
+          aria-label="Переключить панель ассистента"
+        >
+          <Icon name="panel-right" size={15} />
         </button>
       </div>
-    {/if}
-  </main>
 
-  <!-- 3. RIGHT PANEL: ASSISTANT -->
-  <aside class="assistant-pane">
-    <AssistantPanel
-      activeNotePath={selectedPath}
-      onInsertText={handleInsertText}
-    />
-  </aside>
+      <div class="divider-v"></div>
+
+      <!-- Settings trigger -->
+      <button
+        class="layout-btn settings-btn"
+        onclick={() => (isSettingsModalOpen = true)}
+        title="Настройки темы и безопасности"
+        aria-label="Открыть настройки"
+      >
+        <Icon name="settings" size={15} />
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. MAIN 3-COLUMN WORKSPACE BODY -->
+  <div class="app-body">
+    <!-- LEFT SIDEBAR: EXPLORER -->
+    {#if showLeftSidebar}
+      <aside class="sidebar-explorer">
+        <!-- Explorer Header with compact quick action icons (VS Code red box #3) -->
+        <div class="explorer-header">
+          <div class="explorer-title">
+            <span>БАЗА ЗНАНИЙ</span>
+          </div>
+
+          <div class="explorer-actions">
+            <button
+              class="icon-action-btn"
+              onclick={() => openCreateNoteDialog("")}
+              title="Новая заметка"
+              aria-label="Новая заметка"
+            >
+              <Icon name="file-plus" size={14} />
+            </button>
+
+            <button
+              class="icon-action-btn"
+              onclick={() => openCreateFolderDialog("")}
+              title="Новая папка"
+              aria-label="Новая папка"
+            >
+              <Icon name="folder-plus" size={14} />
+            </button>
+
+            <button
+              class="icon-action-btn"
+              onclick={toggleCollapseAll}
+              title={areFoldersCollapsed ? "Развернуть папки" : "Свернуть все папки"}
+              aria-label="Свернуть / Развернуть папки"
+            >
+              <Icon name={areFoldersCollapsed ? "chevrons-up-down" : "chevrons-down-up"} size={14} />
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Box -->
+        <div class="search-box">
+          <div class="search-input-wrap">
+            <Icon name="search" size={13} color="var(--cortex-fg-muted, #64748b)" class="search-icon" />
+            <input
+              type="text"
+              placeholder="Поиск заметок и тегов..."
+              bind:value={searchQuery}
+            />
+            {#if searchQuery}
+              <button class="clear-search-btn" onclick={() => (searchQuery = "")}>
+                <Icon name="x" size={12} />
+              </button>
+            {/if}
+          </div>
+        </div>
+
+        <!-- File Tree -->
+        <div class="tree-container">
+          {#if filteredTree}
+            <VaultTree
+              node={filteredTree}
+              selectedPath={activeFilePath}
+              {treeActionSignal}
+              onSelectNote={(p) => openNote(p)}
+              onCreateNote={openCreateNoteDialog}
+              onFolderContextMenu={handleFolderContextMenu}
+            />
+          {:else}
+            <div class="loading">Загрузка базы знаний...</div>
+          {/if}
+        </div>
+      </aside>
+    {/if}
+
+    <!-- CENTER WORKSPACE: TABS & SPLIT PANES -->
+    <main class="workspace-area">
+      <div class="panes-container" class:is-split={isSplit}>
+        <!-- Pane 1 (Left) -->
+        <EditorPane
+          paneId="left"
+          isFocused={focusedPane === "left"}
+          tabs={leftTabInfos}
+          activePath={paneLeftActive}
+          content={paneLeftActive && fileCache[paneLeftActive] ? fileCache[paneLeftActive].content : ""}
+          isEditing={paneLeftEditing}
+          isSaving={paneLeftActive && fileCache[paneLeftActive] ? fileCache[paneLeftActive].isSaving : false}
+          saveFeedback={paneLeftActive && fileCache[paneLeftActive] ? fileCache[paneLeftActive].saveFeedback : false}
+          {isSplit}
+          canCloseSplit={false}
+          onFocusPane={() => (focusedPane = "left")}
+          onSelectTab={(p) => openNote(p, "left")}
+          onCloseTab={(p) => closeTab("left", p)}
+          onToggleEditing={(v) => (paneLeftEditing = v)}
+          onSaveNote={() => saveNote(paneLeftActive || undefined)}
+          onSplitToggle={toggleSplit}
+          onOpenSecretModal={() => (isSecretModalOpen = true)}
+          onContentChange={(val) => {
+            if (paneLeftActive && fileCache[paneLeftActive]) {
+              fileCache[paneLeftActive].content = val;
+              triggerAutosave(paneLeftActive);
+            }
+          }}
+          onTagClick={(tag) => (searchQuery = tag)}
+          onOpenCreateNote={() => openCreateNoteDialog("")}
+        />
+
+        <!-- Pane 2 (Right, when split enabled) -->
+        {#if isSplit}
+          <div class="split-separator"></div>
+          <EditorPane
+            paneId="right"
+            isFocused={focusedPane === "right"}
+            tabs={rightTabInfos}
+            activePath={paneRightActive}
+            content={paneRightActive && fileCache[paneRightActive] ? fileCache[paneRightActive].content : ""}
+            isEditing={paneRightEditing}
+            isSaving={paneRightActive && fileCache[paneRightActive] ? fileCache[paneRightActive].isSaving : false}
+            saveFeedback={paneRightActive && fileCache[paneRightActive] ? fileCache[paneRightActive].saveFeedback : false}
+            {isSplit}
+            canCloseSplit={true}
+            onFocusPane={() => (focusedPane = "right")}
+            onSelectTab={(p) => openNote(p, "right")}
+            onCloseTab={(p) => closeTab("right", p)}
+            onToggleEditing={(v) => (paneRightEditing = v)}
+            onSaveNote={() => saveNote(paneRightActive || undefined)}
+            onSplitToggle={toggleSplit}
+            onCloseSplit={closeSplit}
+            onOpenSecretModal={() => (isSecretModalOpen = true)}
+            onContentChange={(val) => {
+              if (paneRightActive && fileCache[paneRightActive]) {
+                fileCache[paneRightActive].content = val;
+                triggerAutosave(paneRightActive);
+              }
+            }}
+            onTagClick={(tag) => (searchQuery = tag)}
+            onOpenCreateNote={() => openCreateNoteDialog("")}
+          />
+        {/if}
+      </div>
+    </main>
+
+    <!-- RIGHT SIDEBAR: AI ASSISTANT -->
+    {#if showAssistant}
+      <aside class="sidebar-assistant">
+        <AssistantPanel
+          activeNotePath={activeFilePath}
+          onInsertText={handleInsertText}
+        />
+      </aside>
+    {/if}
+  </div>
+
+  <!-- 3. UNIFIED APP BOTTOM STATUS BAR (VS Code red box #4) -->
+  <footer class="app-statusbar">
+    <!-- Left status items -->
+    <div class="statusbar-left">
+      <span class="statusbar-item path-item">
+        <Icon name="folder" size={12} color="var(--cortex-fg-muted)" />
+        <span>~/knowledge</span>
+      </span>
+
+      <button
+        class="statusbar-item statusbar-btn security-badge"
+        onclick={() => (isSettingsModalOpen = true)}
+        title="Асимметричное шифрование SSH X25519 активно"
+      >
+        <Icon name="shield-check" size={13} color="var(--cortex-accent, #38bdf8)" />
+        <span>SSH X25519</span>
+      </button>
+
+      {#if selectedHubIds.length > 0 && !selectedHubIds.includes("all")}
+        <span class="statusbar-item filter-tag">
+          {selectedHubIds.join(", ")}
+        </span>
+      {/if}
+    </div>
+
+    <!-- Center: clean spacer -->
+    <div class="statusbar-center"></div>
+
+    <!-- Right status items -->
+    <div class="statusbar-right">
+      {#if activeFilePath && activeFile}
+        <span class="statusbar-item stat-item">
+          {docStats.words} слов
+        </span>
+        <span class="statusbar-dot">•</span>
+        <span class="statusbar-item format-item">
+          Markdown
+        </span>
+        <span class="statusbar-dot">•</span>
+        <span class="statusbar-item save-status">
+          {#if isAnyDirty}
+            <span class="dirty-badge">● Не сохранено</span>
+          {:else}
+            <span class="clean-badge">✓ Сохранено</span>
+          {/if}
+        </span>
+        <span class="statusbar-dot">•</span>
+      {/if}
+
+      <!-- Theme picker pill button -->
+      <button
+        class="statusbar-item statusbar-btn theme-btn"
+        onclick={() => (isSettingsModalOpen = true)}
+        title="Тема: {themeStore.currentPreset.name}"
+      >
+        <span class="theme-dot" style="background: var(--cortex-accent, #38bdf8);"></span>
+        <span>{themeStore.currentPreset.name}</span>
+      </button>
+    </div>
+  </footer>
 </div>
 
-<!-- Context Menu -->
+<!-- Modals -->
 {#if contextMenu.visible && contextMenu.node}
   <ContextMenu
     x={contextMenu.x}
@@ -502,7 +799,6 @@
   />
 {/if}
 
-<!-- Modals -->
 <InsertSecretModal
   isOpen={isSecretModalOpen}
   onInsert={handleInsertSecretToken}
@@ -536,6 +832,22 @@
 />
 
 <style>
+  :global(*) {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  :global(input),
+  :global(textarea),
+  :global(.editor-area),
+  :global(.markdown-preview),
+  :global(.markdown-preview *),
+  :global(code),
+  :global(pre) {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
   :global(body) {
     margin: 0;
     padding: 0;
@@ -545,37 +857,34 @@
     overflow: hidden;
   }
 
-  .cortex-layout {
-    display: grid;
-    grid-template-columns: 260px 1fr 320px;
-    height: 100vh;
-    width: 100vw;
-    transition: grid-template-columns 0.2s ease;
-  }
-
-  .cortex-layout.hide-assistant {
-    grid-template-columns: 260px 1fr 0px;
-  }
-
-  .cortex-layout.hide-assistant .assistant-pane {
-    display: none;
-  }
-
-  /* SIDEBAR */
-  .sidebar {
-    background: var(--cortex-bg-sidebar, #0f172a);
-    border-right: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.15));
+  .cortex-app-root {
     display: flex;
     flex-direction: column;
+    height: 100vh;
+    width: 100vw;
     overflow: hidden;
+    background: var(--cortex-bg-main, #090d16);
   }
 
-  .sidebar-top {
+  /* 1. TOP TITLEBAR */
+  .app-titlebar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.08));
+    height: 38px;
+    background: var(--cortex-bg-header, #080c14);
+    border-bottom: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    padding: 0 12px;
+    flex-shrink: 0;
+    user-select: none;
+    z-index: 100;
+  }
+
+  .titlebar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
   }
 
   .brand {
@@ -584,91 +893,178 @@
     gap: 8px;
   }
 
-  .brand h2 {
+  .brand-title {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    color: var(--cortex-fg-primary, #f8fafc);
+    color: var(--cortex-fg-primary, #ffffff);
     letter-spacing: -0.3px;
   }
 
-  .sidebar-top-actions {
+  .titlebar-center {
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    min-width: 0;
+    padding: 0 20px;
   }
 
-  .sidebar-action-btn {
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.7));
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
-    color: var(--cortex-fg-secondary, #cbd5e1);
-    height: 24px;
-    padding: 0 7px;
-    border-radius: 5px;
+  .doc-header-info {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 4px;
-    font-size: 0.74rem;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .sidebar-action-btn:hover {
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.2));
-    border-color: var(--cortex-accent, #3b82f6);
-    color: var(--cortex-fg-primary, #ffffff);
-  }
-
-  .sidebar-action-btn.folder-btn:hover {
-    background: rgba(245, 158, 11, 0.2);
-    border-color: #f59e0b;
-  }
-
-  .hubs-bar {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-    padding: 8px 10px;
-    background: var(--cortex-bg-header, rgba(15, 23, 42, 0.6));
-    border-bottom: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.1));
-  }
-
-  .hub-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 6px;
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.4));
-    border: 1px solid transparent;
-    color: var(--cortex-fg-secondary, #94a3b8);
-    border-radius: 5px;
-    font-size: 0.76rem;
-    cursor: pointer;
-    transition: all 0.15s;
+    text-align: center;
+    max-width: 620px;
+    min-width: 0;
     overflow: hidden;
   }
 
-  .hub-btn:hover {
-    background: var(--cortex-bg-hover, rgba(30, 41, 59, 0.8));
-    color: var(--cortex-fg-primary, #f1f5f9);
-  }
-
-  .hub-btn.active {
-    background: var(--cortex-accent, #2563eb);
-    color: var(--cortex-accent-fg, #ffffff);
-    border-color: var(--cortex-accent, #3b82f6);
-    font-weight: 500;
-  }
-
-  .hub-label {
+  .doc-title-main {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--cortex-fg-primary, #ffffff);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    width: 100%;
+    line-height: 1.2;
+  }
+
+  .doc-path-sub {
+    font-size: 0.68rem;
+    color: var(--cortex-fg-muted, #94a3b8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+    line-height: 1.2;
+    opacity: 0.85;
+  }
+
+  .titlebar-placeholder {
+    font-size: 0.8rem;
+    color: var(--cortex-fg-muted, #64748b);
+  }
+
+  .titlebar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .layout-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    border-radius: 6px;
+    padding: 2px;
+  }
+
+  .layout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 24px;
+    border-radius: 4px;
+    background: transparent;
+    border: none;
+    color: var(--cortex-fg-muted, #94a3b8);
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+
+  .layout-btn:hover {
+    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
+  }
+
+  .layout-btn.active {
+    color: var(--cortex-accent, #38bdf8);
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.14));
+  }
+
+  .settings-btn {
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.05));
+    border-radius: 6px;
+  }
+
+  .divider-v {
+    width: 1px;
+    height: 18px;
+    background: var(--cortex-border-subtle, rgba(255, 255, 255, 0.1));
+  }
+
+  /* 2. MAIN APP BODY */
+  .app-body {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* EXPLORER SIDEBAR */
+  .sidebar-explorer {
+    width: 260px;
+    min-width: 220px;
+    background: var(--cortex-bg-sidebar, #0a111a);
+    border-right: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .explorer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.05));
+  }
+
+  .explorer-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--cortex-fg-muted, #94a3b8);
+  }
+
+  .explorer-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .icon-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: transparent;
+    border: none;
+    color: var(--cortex-fg-muted, #94a3b8);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+
+  .icon-action-btn:hover {
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
   .search-box {
     padding: 8px 10px;
-    background: var(--cortex-bg-sidebar, #0f172a);
+    background: var(--cortex-bg-sidebar, #0a111a);
   }
 
   .search-input-wrap {
@@ -685,8 +1081,8 @@
 
   .search-input-wrap input {
     width: 100%;
-    background: var(--cortex-bg-input, #1e293b);
-    border: 1px solid var(--cortex-border, #334155);
+    background: var(--cortex-bg-input, rgba(0, 0, 0, 0.25));
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
     border-radius: 6px;
     padding: 5px 26px 5px 28px;
     color: var(--cortex-fg-primary, #f8fafc);
@@ -697,7 +1093,7 @@
   }
 
   .search-input-wrap input:focus {
-    border-color: var(--cortex-accent, #3b82f6);
+    border-color: var(--cortex-accent, #38bdf8);
   }
 
   .clear-search-btn {
@@ -719,70 +1115,7 @@
   .tree-container {
     flex: 1;
     overflow-y: auto;
-    padding: 6px 8px 16px;
-  }
-
-  .sidebar-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    background: var(--cortex-bg-header, #0b1120);
-    border-top: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.08));
-    gap: 8px;
-  }
-
-  .settings-trigger-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: transparent;
-    border: none;
-    color: var(--cortex-fg-secondary, #94a3b8);
-    font-size: 0.78rem;
-    font-weight: 500;
-    padding: 4px 8px;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .settings-trigger-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
-    color: var(--cortex-fg-primary, #ffffff);
-  }
-
-  .theme-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.5));
-    border: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.1));
-    border-radius: 12px;
-    padding: 3px 8px;
-    font-size: 0.72rem;
-    color: var(--cortex-fg-secondary, #cbd5e1);
-    cursor: pointer;
-    transition: all 0.15s;
-    max-width: 120px;
-  }
-
-  .theme-pill:hover {
-    border-color: var(--cortex-accent, #3b82f6);
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.15));
-  }
-
-  .theme-accent-indicator {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .theme-pill-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    padding: 4px 6px 16px;
   }
 
   .loading {
@@ -791,240 +1124,125 @@
     font-size: 0.85rem;
   }
 
-  /* WORKSPACE */
-  .workspace {
+  /* WORKSPACE AREA */
+  .workspace-area {
+    flex: 1;
     display: flex;
-    flex-direction: column;
-    height: 100%;
+    min-width: 0;
+    overflow: hidden;
     background: var(--cortex-bg-main, #090d16);
+  }
+
+  .panes-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
     overflow: hidden;
   }
 
-  .doc-header {
+  .split-separator {
+    width: 2px;
+    background: var(--cortex-border, rgba(255, 255, 255, 0.12));
+    flex-shrink: 0;
+    position: relative;
+    cursor: col-resize;
+  }
+
+  /* ASSISTANT SIDEBAR */
+  .sidebar-assistant {
+    width: 320px;
+    min-width: 280px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    overflow: hidden;
     display: flex;
+    flex-direction: column;
+  }
+
+  /* 3. BOTTOM STATUSBAR */
+  .app-statusbar {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: center;
-    padding: 10px 24px;
-    background: var(--cortex-bg-header, #0b1120);
-    border-bottom: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.12));
+    height: 24px;
+    background: var(--cortex-bg-header, #080c14);
+    border-top: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    padding: 0 10px;
+    font-size: 0.72rem;
+    color: var(--cortex-fg-muted, #94a3b8);
+    flex-shrink: 0;
+    user-select: none;
+    z-index: 100;
   }
 
-  .doc-meta {
+  .statusbar-left,
+  .statusbar-center,
+  .statusbar-right {
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  .doc-path {
-    font-size: 0.82rem;
-    color: var(--cortex-fg-secondary, #94a3b8);
-    font-family: ui-monospace, SFMono-Regular, monospace;
-  }
-
-  .doc-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .action-btn {
-    display: flex;
+  .statusbar-item {
+    display: inline-flex;
     align-items: center;
     gap: 5px;
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.7));
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
-    color: var(--cortex-fg-secondary, #cbd5e1);
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 0.76rem;
-    cursor: pointer;
-    transition: all 0.15s;
   }
 
-  .action-btn:hover {
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.2));
-    border-color: var(--cortex-accent, #3b82f6);
+  .statusbar-btn {
+    background: transparent;
+    border: none;
+    color: var(--cortex-fg-muted, #94a3b8);
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 0.72rem;
+    transition: all 0.12s;
+  }
+
+  .statusbar-btn:hover {
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
     color: var(--cortex-fg-primary, #ffffff);
   }
 
-  .view-toggle {
-    display: flex;
-    background: var(--cortex-bg-card, #1e293b);
-    border-radius: 5px;
-    padding: 2px;
+  .security-badge {
+    color: var(--cortex-accent, #38bdf8);
+    font-weight: 500;
   }
 
-  .view-toggle button {
-    display: flex;
+  .filter-tag {
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
+    color: var(--cortex-accent, #38bdf8);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.68rem;
+  }
+
+  .statusbar-dot {
+    opacity: 0.4;
+  }
+
+  .dirty-badge {
+    color: #f59e0b;
+    font-weight: 500;
+  }
+
+  .clean-badge {
+    color: #10b981;
+    font-weight: 500;
+  }
+
+  .theme-btn {
+    display: inline-flex;
     align-items: center;
     gap: 5px;
-    background: transparent;
-    border: none;
-    color: var(--cortex-fg-secondary, #94a3b8);
-    padding: 4px 10px;
-    font-size: 0.76rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s;
   }
 
-  .view-toggle button.active {
-    background: var(--cortex-accent, #3b82f6);
-    color: var(--cortex-accent-fg, #ffffff);
-  }
-
-  .save-btn {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: #10b981;
-    border: none;
-    color: #ffffff;
-    font-weight: 500;
-    padding: 5px 12px;
-    border-radius: 5px;
-    font-size: 0.76rem;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .save-btn:hover {
-    background: #059669;
-  }
-
-  .doc-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px 36px;
-  }
-
-  .editor-area {
-    width: 100%;
-    height: 100%;
-    background: transparent;
-    border: none;
-    color: var(--cortex-fg-primary, #f1f5f9);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-    font-size: 0.92rem;
-    line-height: 1.6;
-    resize: none;
-    outline: none;
-    box-sizing: border-box;
-  }
-
-  .markdown-preview {
-    max-width: 860px;
-    line-height: 1.7;
-    font-size: 0.98rem;
-    color: var(--cortex-fg-primary, #e2e8f0);
-  }
-
-  .markdown-preview :global(h1) {
-    font-size: 1.8rem;
-    color: var(--cortex-fg-primary, #f8fafc);
-    border-bottom: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
-    padding-bottom: 8px;
-    margin-top: 0;
-  }
-
-  .markdown-preview :global(h2) {
-    font-size: 1.35rem;
-    color: var(--cortex-fg-primary, #f1f5f9);
-    margin-top: 28px;
-  }
-
-  .markdown-preview :global(h3) {
-    font-size: 1.15rem;
-    color: var(--cortex-fg-secondary, #e2e8f0);
-  }
-
-  .markdown-preview :global(p) {
-    margin: 14px 0;
-  }
-
-  .markdown-preview :global(blockquote) {
-    border-left: 4px solid var(--cortex-accent, #3b82f6);
-    margin: 16px 0;
-    padding: 10px 16px;
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.35));
-    border-radius: 0 8px 8px 0;
-    color: var(--cortex-fg-secondary, #cbd5e1);
-  }
-
-  .markdown-preview :global(ul),
-  .markdown-preview :global(ol) {
-    padding-left: 24px;
-  }
-
-  .markdown-preview :global(li) {
-    margin: 6px 0;
-  }
-
-  .markdown-preview :global(table) {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 16px 0;
-  }
-
-  .markdown-preview :global(th),
-  .markdown-preview :global(td) {
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
-    padding: 8px 12px;
-    text-align: left;
-  }
-
-  .markdown-preview :global(th) {
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.6));
-  }
-
-  .markdown-preview :global(pre) {
-    background: var(--cortex-bg-input, #0f172a);
-    border: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.15));
-    border-radius: 6px;
-    padding: 14px;
-    overflow-x: auto;
-  }
-
-  .markdown-preview :global(code) {
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.6));
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.88em;
-    font-family: ui-monospace, SFMono-Regular, monospace;
-  }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--cortex-fg-muted, #64748b);
-    gap: 12px;
-  }
-
-  .create-hero-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--cortex-accent, #3b82f6);
-    border: none;
-    color: var(--cortex-accent-fg, #ffffff);
-    font-weight: 500;
-    padding: 8px 18px;
-    border-radius: 6px;
-    font-size: 0.88rem;
-    cursor: pointer;
-    transition: opacity 0.15s;
-  }
-
-  .create-hero-btn:hover {
-    opacity: 0.9;
-  }
-
-  /* ASSISTANT PANE */
-  .assistant-pane {
-    height: 100%;
-    overflow: hidden;
+  .theme-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
   }
 </style>
