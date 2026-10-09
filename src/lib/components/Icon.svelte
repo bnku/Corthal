@@ -57,6 +57,10 @@
   import Ellipsis from "lucide-svelte/icons/ellipsis";
   import ShieldCheck from "lucide-svelte/icons/shield-check";
   import FileCode from "lucide-svelte/icons/file-code";
+  import Key from "lucide-svelte/icons/key";
+  import Trash2 from "lucide-svelte/icons/trash-2";
+  import Palette from "lucide-svelte/icons/palette";
+  import FolderSync from "lucide-svelte/icons/folder-sync";
 
   interface Props {
     name: string;
@@ -129,6 +133,11 @@
     "filter": ListFilter,
     "ellipsis": Ellipsis,
     "shield-check": ShieldCheck,
+    "key": Key,
+    "trash": Trash2,
+    "trash-2": Trash2,
+    "palette": Palette,
+    "folder-sync": FolderSync,
 
     // Legacy emoji mappings
     "🖥️": Monitor,

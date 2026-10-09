@@ -26,3 +26,29 @@ export interface NoteFrontmatter {
   status?: string;
   [key: string]: any;
 }
+
+export interface VaultInfo {
+  name: string;
+  path: string;
+  display_path: string;
+  ssh_key?: string;
+  is_default: boolean;
+}
+
+export interface VaultSummary {
+  name: string;
+  path: string;
+  display_path: string;
+  last_opened: number;
+  ssh_key?: string;
+}
+
+export interface SshKeyInfo {
+  path: string;
+  filename: string;
+  key_type: string;
+  comment?: string;
+  fingerprint: string;
+  is_active: boolean;
+}
+

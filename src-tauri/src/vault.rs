@@ -29,6 +29,32 @@ pub struct MetaJson {
     pub order: Option<i32>,
     pub color: Option<String>,
     pub description: Option<String>,
+    #[serde(default)]
+    pub ssh_key: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VaultSummary {
+    pub name: String,
+    pub path: String,
+    pub display_path: String,
+    pub last_opened: i64,
+    pub ssh_key: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct VaultsConfig {
+    pub last_active_vault: Option<String>,
+    pub recent_vaults: Vec<VaultSummary>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VaultInfo {
+    pub name: String,
+    pub path: String,
+    pub display_path: String,
+    pub ssh_key: Option<String>,
+    pub is_default: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -45,21 +71,253 @@ pub struct VaultNode {
     pub description: Option<String>,
 }
 
-/// Returns the absolute path to the user's ~/knowledge vault
-pub fn get_vault_root() -> Result<PathBuf, VaultError> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| VaultError::RootError("Could not determine home directory".into()))?;
-    let vault = home.join("knowledge");
-    if !vault.exists() {
-        fs::create_dir_all(&vault)?;
+pub fn to_display_path(path: &Path) -> String {
+    if let Some(home) = dirs::home_dir() {
+        if let Ok(rel) = path.strip_prefix(&home) {
+            return format!("~/{}", rel.to_string_lossy());
+        }
     }
-    Ok(vault)
+    path.to_string_lossy().to_string()
+}
+
+pub fn expand_path(p: &str) -> PathBuf {
+    let trimmed = p.trim();
+    if let Some(rest) = trimmed.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(rest);
+        }
+    }
+    if trimmed == "~" {
+        if let Some(home) = dirs::home_dir() {
+            return home;
+        }
+    }
+    PathBuf::from(trimmed)
+}
+
+fn get_config_dir() -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    home.join(".config").join("cortex")
+}
+
+fn get_vaults_config_path() -> PathBuf {
+    get_config_dir().join("vaults.json")
+}
+
+pub fn load_vaults_config() -> VaultsConfig {
+    let p = get_vaults_config_path();
+    if p.exists() {
+        if let Ok(content) = fs::read_to_string(&p) {
+            if let Ok(cfg) = serde_json::from_str::<VaultsConfig>(&content) {
+                return cfg;
+            }
+        }
+    }
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    let default_path = home.join("knowledge");
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    VaultsConfig {
+        last_active_vault: Some(default_path.to_string_lossy().to_string()),
+        recent_vaults: vec![VaultSummary {
+            name: "knowledge".to_string(),
+            path: default_path.to_string_lossy().to_string(),
+            display_path: "~/knowledge".to_string(),
+            last_opened: now,
+            ssh_key: None,
+        }],
+    }
+}
+
+pub fn save_vaults_config(cfg: &VaultsConfig) -> Result<(), VaultError> {
+    let dir = get_config_dir();
+    if !dir.exists() {
+        fs::create_dir_all(&dir)?;
+    }
+    let p = get_vaults_config_path();
+    let content = serde_json::to_string_pretty(cfg)
+        .map_err(|e| VaultError::RootError(e.to_string()))?;
+    fs::write(p, content)?;
+    Ok(())
+}
+
+static ACTIVE_VAULT_ROOT: std::sync::LazyLock<std::sync::RwLock<PathBuf>> = std::sync::LazyLock::new(|| {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    let default_vault = home.join("knowledge");
+
+    let cfg = load_vaults_config();
+    if let Some(last) = cfg.last_active_vault {
+        let p = expand_path(&last);
+        if p.is_dir() {
+            return std::sync::RwLock::new(p);
+        }
+    }
+
+    std::sync::RwLock::new(default_vault)
+});
+
+/// Returns the absolute path to the user's active vault
+pub fn get_vault_root() -> Result<PathBuf, VaultError> {
+    let root = {
+        let guard = ACTIVE_VAULT_ROOT
+            .read()
+            .map_err(|e| VaultError::RootError(e.to_string()))?;
+        guard.clone()
+    };
+    if !root.exists() {
+        fs::create_dir_all(&root)?;
+    }
+    Ok(root)
+}
+
+/// Changes the active vault root and registers it in recent vaults
+pub fn set_active_vault_root(target_path_str: &str) -> Result<VaultInfo, VaultError> {
+    let target = expand_path(target_path_str);
+    if !target.exists() {
+        fs::create_dir_all(&target)?;
+    }
+    let canonical = target.canonicalize().unwrap_or(target);
+
+    // Update global state
+    {
+        let mut guard = ACTIVE_VAULT_ROOT
+            .write()
+            .map_err(|e| VaultError::RootError(e.to_string()))?;
+        *guard = canonical.clone();
+    }
+
+    let meta = read_dir_meta(&canonical);
+    let ssh_key = meta.as_ref().and_then(|m| m.ssh_key.clone());
+    let title = meta.as_ref().and_then(|m| m.title.clone());
+
+    let name = title.unwrap_or_else(|| {
+        canonical
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Хранилище".into())
+    });
+
+    let display_path = to_display_path(&canonical);
+    let canonical_str = canonical.to_string_lossy().to_string();
+
+    let mut cfg = load_vaults_config();
+    cfg.last_active_vault = Some(canonical_str.clone());
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+
+    cfg.recent_vaults.retain(|r| r.path != canonical_str);
+    cfg.recent_vaults.insert(
+        0,
+        VaultSummary {
+            name: name.clone(),
+            path: canonical_str.clone(),
+            display_path: display_path.clone(),
+            last_opened: now,
+            ssh_key: ssh_key.clone(),
+        },
+    );
+
+    if cfg.recent_vaults.len() > 15 {
+        cfg.recent_vaults.truncate(15);
+    }
+
+    let _ = save_vaults_config(&cfg);
+
+    let home = dirs::home_dir().unwrap_or_default();
+    let is_default = canonical == home.join("knowledge");
+
+    Ok(VaultInfo {
+        name,
+        path: canonical_str,
+        display_path,
+        ssh_key,
+        is_default,
+    })
+}
+
+/// Returns metadata info about currently active vault
+pub fn get_active_vault_info() -> Result<VaultInfo, VaultError> {
+    let root = get_vault_root()?;
+    let meta = read_dir_meta(&root);
+    let ssh_key = meta.as_ref().and_then(|m| m.ssh_key.clone());
+    let title = meta.as_ref().and_then(|m| m.title.clone());
+
+    let name = title.unwrap_or_else(|| {
+        root.file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Хранилище".into())
+    });
+
+    let display_path = to_display_path(&root);
+    let home = dirs::home_dir().unwrap_or_default();
+    let is_default = root == home.join("knowledge");
+
+    Ok(VaultInfo {
+        name,
+        path: root.to_string_lossy().to_string(),
+        display_path,
+        ssh_key,
+        is_default,
+    })
+}
+
+pub fn list_recent_vaults() -> Vec<VaultSummary> {
+    let cfg = load_vaults_config();
+    let mut recents = cfg.recent_vaults;
+    recents.sort_by(|a, b| b.last_opened.cmp(&a.last_opened));
+    recents
+}
+
+pub fn remove_recent_vault(path_str: &str) -> Result<(), VaultError> {
+    let mut cfg = load_vaults_config();
+    let expanded = expand_path(path_str).to_string_lossy().to_string();
+    cfg.recent_vaults
+        .retain(|r| r.path != path_str && r.path != expanded);
+    save_vaults_config(&cfg)
+}
+
+pub fn update_recent_vault_ssh_key(vault_path: &Path, ssh_key: &str) -> Result<(), VaultError> {
+    let mut cfg = load_vaults_config();
+    let v_str = vault_path.to_string_lossy();
+    for v in &mut cfg.recent_vaults {
+        if v.path == v_str {
+            v.ssh_key = Some(ssh_key.to_string());
+        }
+    }
+    save_vaults_config(&cfg)
+}
+
+pub fn pick_directory() -> Result<Option<String>, VaultError> {
+    let output = std::process::Command::new("zenity")
+        .args([
+            "--file-selection",
+            "--directory",
+            "--title=Выберите папку базы знаний",
+        ])
+        .output();
+
+    if let Ok(out) = output {
+        if out.status.success() {
+            let path_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !path_str.is_empty() {
+                return Ok(Some(path_str));
+            }
+        }
+    }
+    Ok(None)
 }
 
 /// Resolves a relative path safely within the vault root, preventing path traversal
 pub fn resolve_safe_path(relative_path: &str) -> Result<PathBuf, VaultError> {
     let vault_root = get_vault_root()?;
     let clean_rel = relative_path.trim_start_matches('/');
+    if clean_rel.is_empty() {
+        return Ok(vault_root);
+    }
     let target = vault_root.join(clean_rel);
 
     // Canonicalize or normalize to prevent `..` escape
@@ -71,7 +329,7 @@ pub fn resolve_safe_path(relative_path: &str) -> Result<PathBuf, VaultError> {
 }
 
 /// Reads `.meta.json` or `_meta.json` from a directory if present
-fn read_dir_meta(dir: &Path) -> Option<MetaJson> {
+pub fn read_dir_meta(dir: &Path) -> Option<MetaJson> {
     for meta_name in [".meta.json", "_meta.json"] {
         let p = dir.join(meta_name);
         if p.is_file() {
@@ -408,6 +666,7 @@ mod tests {
             order: Some(99),
             color: Some("#f59e0b".to_string()),
             description: Some("Тестовое описание".to_string()),
+            ssh_key: None,
         };
         let created = create_dir_with_meta(test_dir, Some(&meta)).expect("Should create test dir");
         assert_eq!(created, test_dir);

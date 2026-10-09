@@ -2,17 +2,39 @@
   import Icon from "./Icon.svelte";
   import { themeStore } from "$lib/theme/store.svelte";
   import { THEME_PRESETS, ACCENT_COLORS } from "$lib/theme/presets";
+  import type { VaultInfo, SshKeyInfo } from "$lib/types";
 
   interface Props {
     isOpen: boolean;
+    initialTab?: "appearance" | "security" | "about";
+    activeVault?: VaultInfo | null;
+    activeSshKey?: SshKeyInfo | null;
+    sshKeys?: SshKeyInfo[];
     onClose: () => void;
+    onRequestChangeSshKey?: (key: SshKeyInfo) => void;
   }
 
-  let { isOpen, onClose }: Props = $props();
+  let {
+    isOpen,
+    initialTab = "appearance",
+    activeVault = null,
+    activeSshKey = null,
+    sshKeys = [],
+    onClose,
+    onRequestChangeSshKey,
+  }: Props = $props();
 
   let activeTab = $state<"appearance" | "security" | "about">("appearance");
   let customGtkInput = $state("");
   let selectedGtkPath = $state("");
+  let selectedKeyPath = $state("");
+
+  $effect(() => {
+    if (isOpen) {
+      if (initialTab) activeTab = initialTab;
+      if (activeSshKey) selectedKeyPath = activeSshKey.path;
+    }
+  });
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Escape" && isOpen) {
@@ -366,20 +388,61 @@
             <section class="settings-section">
               <h3 class="section-title">Асимметричное шифрование SSH / AGE</h3>
               <p class="section-desc">
-                Cortex защищает конфиденциальные заметки пользователя с помощью локального шифрования по алгоритму X25519 (AGE).
+                Cortex защищает конфиденциальные заметки с помощью локального шифрования по алгоритму X25519 (AGE). Привязка ключа сохраняется в <code>.meta.json</code> активной базы знаний.
               </p>
+
               <div class="security-card">
                 <div class="sec-item">
-                  <span class="sec-label">Публичный ключ пользователя:</span>
-                  <code class="sec-code">~/.ssh/id_ed25519.pub</code>
+                  <span class="sec-label">Текущая база знаний:</span>
+                  <div class="vault-sec-badge">
+                    <span class="vault-sec-name">📁 {activeVault?.name || "knowledge"}</span>
+                    <span class="vault-sec-path">({activeVault?.display_path || "~/knowledge"})</span>
+                  </div>
                 </div>
+
+                <div class="sec-item">
+                  <span class="sec-label">Активный SSH-ключ для этой базы:</span>
+                  <div class="current-key-row">
+                    <span class="key-badge">{activeSshKey?.key_type || "ED25519"}</span>
+                    <code class="sec-code">{activeSshKey?.filename || "id_ed25519.pub"}</code>
+                    {#if activeSshKey?.comment}
+                      <span class="key-comment-tag">{activeSshKey.comment}</span>
+                    {/if}
+                  </div>
+                </div>
+
+                <div class="sec-item">
+                  <span class="sec-label">Сменить SSH-ключ для текущей базы:</span>
+                  <div class="ssh-selector-row">
+                    <select bind:value={selectedKeyPath} class="ssh-select">
+                      {#each sshKeys as key}
+                        <option value={key.path}>
+                          {key.filename} ({key.key_type}) {key.comment ? `— ${key.comment}` : ""}
+                        </option>
+                      {/each}
+                    </select>
+                    <button
+                      class="apply-key-btn"
+                      disabled={!selectedKeyPath || selectedKeyPath === activeSshKey?.path}
+                      onclick={() => {
+                        const targetKey = sshKeys.find(k => k.path === selectedKeyPath);
+                        if (targetKey) onRequestChangeSshKey?.(targetKey);
+                      }}
+                    >
+                      Применить
+                    </button>
+                  </div>
+                  <span class="sec-note">При смене ключа будет запрошено подтверждение, а файл .meta.json обновится.</span>
+                </div>
+
                 <div class="sec-item">
                   <span class="sec-label">Формат токенов шифрования:</span>
                   <code class="sec-code">🔒[enc:v1:AGE-ENCRYPTED-DATA]</code>
                 </div>
+
                 <div class="sec-item">
                   <span class="sec-label">Статус хранилища:</span>
-                  <span class="sec-badge ok">Защищено локальным ключом</span>
+                  <span class="sec-badge ok">✓ Защищено локальным ключом пользователя</span>
                 </div>
               </div>
             </section>
@@ -1099,6 +1162,89 @@
     font-size: 0.82rem;
     color: var(--cortex-accent, #3b82f6);
     width: fit-content;
+  }
+
+  .vault-sec-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    font-size: 0.82rem;
+  }
+
+  .vault-sec-name {
+    font-weight: 600;
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .vault-sec-path {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    color: var(--cortex-fg-muted, #94a3b8);
+    font-size: 0.78rem;
+  }
+
+  .current-key-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .key-badge {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--cortex-accent, #38bdf8);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .key-comment-tag {
+    font-size: 0.76rem;
+    color: var(--cortex-fg-muted, #94a3b8);
+    font-family: ui-monospace, SFMono-Regular, monospace;
+  }
+
+  .ssh-selector-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .ssh-select {
+    flex: 1;
+    background: var(--cortex-bg-main, #13161c);
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    border-radius: 6px;
+    color: var(--cortex-fg-primary, #ffffff);
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    outline: none;
+  }
+
+  .apply-key-btn {
+    background: var(--cortex-accent, #3b82f6);
+    border: none;
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 0 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+
+  .apply-key-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .sec-note {
+    font-size: 0.72rem;
+    color: var(--cortex-fg-muted, #64748b);
   }
 
   .sec-badge.ok {

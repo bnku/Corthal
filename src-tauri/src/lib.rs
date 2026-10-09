@@ -64,6 +64,46 @@ fn theme_parse_gtk_theme(theme_path: String) -> Result<theme::ParsedGtkColors, S
     theme::parse_gtk_theme_colors(&theme_path)
 }
 
+#[tauri::command]
+fn vault_get_active() -> Result<vault::VaultInfo, String> {
+    vault::get_active_vault_info().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn vault_switch(path: String) -> Result<vault::VaultInfo, String> {
+    vault::set_active_vault_root(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn vault_list_recents() -> Result<Vec<vault::VaultSummary>, String> {
+    Ok(vault::list_recent_vaults())
+}
+
+#[tauri::command]
+fn vault_remove_recent(path: String) -> Result<(), String> {
+    vault::remove_recent_vault(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn vault_pick_directory() -> Result<Option<String>, String> {
+    vault::pick_directory().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn crypto_list_ssh_keys() -> Result<Vec<crypto::SshKeyInfo>, String> {
+    crypto::list_system_ssh_keys().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn crypto_get_vault_key() -> Result<crypto::SshKeyInfo, String> {
+    crypto::get_vault_key_info().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn crypto_set_vault_key(key_path: String) -> Result<crypto::SshKeyInfo, String> {
+    crypto::set_vault_ssh_key(&key_path).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -76,8 +116,16 @@ pub fn run() {
             vault_create_dir,
             vault_save_dir_meta,
             vault_create_dir_with_meta,
+            vault_get_active,
+            vault_switch,
+            vault_list_recents,
+            vault_remove_recent,
+            vault_pick_directory,
             crypto_encrypt_secret,
             crypto_decrypt_secret,
+            crypto_list_ssh_keys,
+            crypto_get_vault_key,
+            crypto_set_vault_key,
             theme_detect_system,
             theme_list_gtk_themes,
             theme_parse_gtk_theme,

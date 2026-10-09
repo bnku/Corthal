@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import type { VaultNode, HubItem } from "$lib/types";
+  import type { VaultNode, HubItem, VaultInfo, VaultSummary, SshKeyInfo } from "$lib/types";
   import { parseFrontmatter } from "$lib/frontmatter";
   import VaultTree from "$lib/components/VaultTree.svelte";
   import FolderFilterDropdown from "$lib/components/FolderFilterDropdown.svelte";
@@ -13,11 +13,33 @@
   import ContextMenu from "$lib/components/ContextMenu.svelte";
   import AssistantPanel from "$lib/components/AssistantPanel.svelte";
   import SettingsModal from "$lib/components/SettingsModal.svelte";
+  import VaultSwitcherDropdown from "$lib/components/VaultSwitcherDropdown.svelte";
+  import VaultOpenModal from "$lib/components/VaultOpenModal.svelte";
+  import SshKeyDropdown from "$lib/components/SshKeyDropdown.svelte";
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
+  import ThemeQuickDropdown from "$lib/components/ThemeQuickDropdown.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { themeStore } from "$lib/theme/store.svelte";
 
   // Vault & Tree State
   let vaultTree = $state<VaultNode | null>(null);
+  let activeVault = $state<VaultInfo | null>(null);
+  let recentVaults = $state<VaultSummary[]>([]);
+  let isVaultDropdownOpen = $state(false);
+  let isVaultOpenModalOpen = $state(false);
+
+  // SSH Key state
+  let systemSshKeys = $state<SshKeyInfo[]>([]);
+  let activeSshKey = $state<SshKeyInfo | null>(null);
+  let isSshDropdownOpen = $state(false);
+  let isConfirmKeyModalOpen = $state(false);
+  let pendingSshKey = $state<SshKeyInfo | null>(null);
+  let confirmKeyMessage = $state("");
+
+  // Theme dropdown & settings modal state
+  let isThemeDropdownOpen = $state(false);
+  let settingsInitialTab = $state<"appearance" | "security" | "about">("appearance");
+
   let selectedHubIds = $state<string[]>(["all"]);
   let searchQuery = $state("");
   let areFoldersCollapsed = $state(false);
@@ -310,6 +332,7 @@
 
   async function loadVault() {
     try {
+      activeVault = await invoke<VaultInfo>("vault_get_active");
       vaultTree = await invoke<VaultNode>("vault_get_tree");
       if (expandedFolders.size === 0 && vaultTree) {
         const initial = new Set<string>();
@@ -325,6 +348,76 @@
       }
     } catch (err: any) {
       console.error("Failed to load vault:", err);
+    }
+  }
+
+  async function loadRecentVaults() {
+    try {
+      recentVaults = await invoke<VaultSummary[]>("vault_list_recents");
+    } catch (e) {
+      console.error("Failed to load recent vaults:", e);
+    }
+  }
+
+  async function loadSshKeys() {
+    try {
+      systemSshKeys = await invoke<SshKeyInfo[]>("crypto_list_ssh_keys");
+      activeSshKey = await invoke<SshKeyInfo>("crypto_get_vault_key");
+    } catch (e) {
+      console.error("Failed to load ssh keys:", e);
+    }
+  }
+
+  async function handleSwitchVault(newPath: string) {
+    try {
+      const info = await invoke<VaultInfo>("vault_switch", { path: newPath });
+      activeVault = info;
+
+      // Reset panes for clean vault switch
+      paneLeftTabs = [];
+      paneLeftActive = null;
+      paneRightTabs = [];
+      paneRightActive = null;
+      fileCache = {};
+      expandedFolders = new Set();
+
+      await loadVault();
+      await loadRecentVaults();
+      await loadSshKeys();
+    } catch (err: any) {
+      console.error("Failed to switch vault:", err);
+    }
+  }
+
+  async function handleRemoveRecentVault(path: string) {
+    try {
+      await invoke("vault_remove_recent", { path });
+      await loadRecentVaults();
+    } catch (e) {
+      console.error("Failed to remove recent vault:", e);
+    }
+  }
+
+  function handleRequestChangeSshKey(key: SshKeyInfo) {
+    pendingSshKey = key;
+    confirmKeyMessage = `Вы действительно хотите привязать SSH-ключ «${key.filename}» (${key.key_type}) к базе знаний «${activeVault?.name || "knowledge"}»?\n\nСекреты, зашифрованные старым ключом, нельзя будет расшифровать новым без повторного локального шифрования. Настройка сохранится в .meta.json текущей базы.`;
+    isConfirmKeyModalOpen = true;
+  }
+
+  async function handleConfirmChangeSshKey() {
+    if (!pendingSshKey) return;
+    try {
+      const updated = await invoke<SshKeyInfo>("crypto_set_vault_key", { keyPath: pendingSshKey.path });
+      activeSshKey = updated;
+      await loadSshKeys();
+      if (activeVault) {
+        activeVault.ssh_key = pendingSshKey.path;
+      }
+    } catch (e: any) {
+      console.error("Failed to set vault ssh key:", e);
+    } finally {
+      isConfirmKeyModalOpen = false;
+      pendingSshKey = null;
     }
   }
 
@@ -607,6 +700,8 @@
   onMount(() => {
     themeStore.init();
     loadVault();
+    loadRecentVaults();
+    loadSshKeys();
     window.addEventListener("keydown", handleKeydown);
 
     function preventDefaultMenu(e: MouseEvent) {
@@ -650,7 +745,9 @@
           <span class="doc-path-sub" title={activeFilePath}>{activeFileBreadcrumbs}</span>
         </div>
       {:else}
-        <span class="titlebar-placeholder">База знаний не открыта</span>
+        <span class="titlebar-placeholder">
+          {activeVault ? `${activeVault.name} (${activeVault.display_path})` : "База знаний не открыта"}
+        </span>
       {/if}
     </div>
 
@@ -871,23 +968,64 @@
     {/if}
   </div>
 
-  <!-- 3. UNIFIED APP BOTTOM STATUS BAR (VS Code red box #4) -->
+  <!-- 3. UNIFIED APP BOTTOM STATUS BAR -->
   <footer class="app-statusbar">
     <!-- Left status items -->
     <div class="statusbar-left">
-      <span class="statusbar-item path-item">
-        <Icon name="folder" size={12} color="var(--cortex-fg-muted)" />
-        <span>~/knowledge</span>
-      </span>
+      <div class="statusbar-popover-wrap">
+        <button
+          class="statusbar-item statusbar-btn vault-btn"
+          onclick={(e) => {
+            e.stopPropagation();
+            isVaultDropdownOpen = !isVaultDropdownOpen;
+            isSshDropdownOpen = false;
+            isThemeDropdownOpen = false;
+          }}
+          aria-label="Смена базы знаний"
+        >
+          <Icon name="folder" size={13} color="var(--cortex-accent, #38bdf8)" />
+          <span class="vault-label">{activeVault?.display_path || "~/knowledge"}</span>
+        </button>
 
-      <button
-        class="statusbar-item statusbar-btn security-badge"
-        onclick={() => (isSettingsModalOpen = true)}
-        title="Асимметричное шифрование SSH X25519 активно"
-      >
-        <Icon name="shield-check" size={13} color="var(--cortex-accent, #38bdf8)" />
-        <span>SSH X25519</span>
-      </button>
+        <VaultSwitcherDropdown
+          isOpen={isVaultDropdownOpen}
+          {activeVault}
+          recents={recentVaults}
+          onClose={() => (isVaultDropdownOpen = false)}
+          onSelectVault={handleSwitchVault}
+          onRemoveRecent={handleRemoveRecentVault}
+          onOpenOther={() => (isVaultOpenModalOpen = true)}
+        />
+      </div>
+
+      <div class="statusbar-popover-wrap">
+        <button
+          class="statusbar-item statusbar-btn security-badge"
+          onclick={(e) => {
+            e.stopPropagation();
+            isSshDropdownOpen = !isSshDropdownOpen;
+            isVaultDropdownOpen = false;
+            isThemeDropdownOpen = false;
+          }}
+          aria-label="Выбор SSH-ключа базы"
+        >
+          <Icon name="shield-check" size={13} color="var(--cortex-accent, #38bdf8)" />
+          <span>{activeSshKey ? activeSshKey.filename.replace(/\.pub$/, '') : 'SSH X25519'}</span>
+        </button>
+
+        <SshKeyDropdown
+          isOpen={isSshDropdownOpen}
+          activeKey={activeSshKey}
+          keys={systemSshKeys}
+          vaultName={activeVault?.name || "knowledge"}
+          onClose={() => (isSshDropdownOpen = false)}
+          onRequestChangeKey={handleRequestChangeSshKey}
+          onOpenSettings={() => {
+            settingsInitialTab = "security";
+            isSettingsModalOpen = true;
+          }}
+        />
+      </div>
 
       {#if selectedHubIds.length > 0 && !selectedHubIds.includes("all")}
         <span class="statusbar-item filter-tag">
@@ -927,14 +1065,32 @@
       {/if}
 
       <!-- Theme picker pill button -->
-      <button
-        class="statusbar-item statusbar-btn theme-btn"
-        onclick={() => (isSettingsModalOpen = true)}
-        title="Тема: {themeStore.currentPreset.name}"
-      >
-        <span class="theme-dot" style="background: var(--cortex-accent, #38bdf8);"></span>
-        <span>{themeStore.currentPreset.name}</span>
-      </button>
+      <div class="statusbar-popover-wrap">
+        <button
+          class="statusbar-item statusbar-btn theme-btn"
+          onclick={(e) => {
+            e.stopPropagation();
+            isThemeDropdownOpen = !isThemeDropdownOpen;
+            isVaultDropdownOpen = false;
+            isSshDropdownOpen = false;
+          }}
+          aria-label="Смена цветовой темы"
+        >
+          <span class="theme-dot" style="background: var(--cortex-accent, #38bdf8);"></span>
+          <span>{themeStore.currentPreset.name}</span>
+        </button>
+
+        <ThemeQuickDropdown
+          isOpen={isThemeDropdownOpen}
+          activeThemeId={themeStore.config.presetId}
+          onClose={() => (isThemeDropdownOpen = false)}
+          onSelectTheme={(id) => themeStore.setPreset(id)}
+          onOpenSettings={() => {
+            settingsInitialTab = "appearance";
+            isSettingsModalOpen = true;
+          }}
+        />
+      </div>
     </div>
   </footer>
 </div>
@@ -986,9 +1142,34 @@
   onClose={() => (isFolderSettingsModalOpen = false)}
 />
 
+<VaultOpenModal
+  isOpen={isVaultOpenModalOpen}
+  onClose={() => (isVaultOpenModalOpen = false)}
+  onVaultSelected={handleSwitchVault}
+/>
+
+<ConfirmModal
+  isOpen={isConfirmKeyModalOpen}
+  title="Изменение SSH-ключа базы знаний"
+  message={confirmKeyMessage}
+  confirmText="Изменить ключ"
+  cancelText="Отмена"
+  danger={true}
+  onConfirm={handleConfirmChangeSshKey}
+  onCancel={() => {
+    isConfirmKeyModalOpen = false;
+    pendingSshKey = null;
+  }}
+/>
+
 <SettingsModal
   isOpen={isSettingsModalOpen}
+  initialTab={settingsInitialTab}
+  {activeVault}
+  {activeSshKey}
+  sshKeys={systemSshKeys}
   onClose={() => (isSettingsModalOpen = false)}
+  onRequestChangeSshKey={handleRequestChangeSshKey}
 />
 
 <style>
@@ -1323,6 +1504,8 @@
 
   /* 3. BOTTOM STATUSBAR */
   .app-statusbar {
+    position: relative;
+    overflow: visible;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1335,6 +1518,22 @@
     flex-shrink: 0;
     user-select: none;
     z-index: 100;
+  }
+
+  .statusbar-popover-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .vault-btn {
+    font-weight: 500;
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .vault-label {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.72rem;
   }
 
   .statusbar-left,

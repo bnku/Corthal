@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub const TOKEN_PREFIX: &str = "`🔒[enc:v1:";
@@ -32,6 +33,16 @@ pub enum CryptoError {
 
     #[error("Key file not found: {0}")]
     KeyNotFound(String),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SshKeyInfo {
+    pub path: String,
+    pub filename: String,
+    pub key_type: String,
+    pub comment: Option<String>,
+    pub fingerprint: String,
+    pub is_active: bool,
 }
 
 #[derive(Clone)]
@@ -91,12 +102,153 @@ pub fn get_default_ssh_privkey_path() -> Result<PathBuf, CryptoError> {
     Err(CryptoError::KeyNotFound("No SSH private key found in ~/.ssh/ (tried id_ed25519, id_rsa)".into()))
 }
 
+/// Returns the active vault's configured SSH public key, or the default system SSH key
+pub fn get_vault_ssh_pubkey_path() -> Result<PathBuf, CryptoError> {
+    if let Ok(vault_root) = crate::vault::get_vault_root() {
+        if let Some(meta) = crate::vault::read_dir_meta(&vault_root) {
+            if let Some(key_path_str) = meta.ssh_key {
+                let resolved = crate::vault::expand_path(&key_path_str);
+                if resolved.exists() {
+                    return Ok(resolved);
+                }
+            }
+        }
+    }
+    get_default_ssh_pubkey_path()
+}
+
+/// Returns the active vault's configured SSH private key, or the default system SSH private key
+pub fn get_vault_ssh_privkey_path() -> Result<PathBuf, CryptoError> {
+    if let Ok(pubkey_path) = get_vault_ssh_pubkey_path() {
+        let pubkey_str = pubkey_path.to_string_lossy();
+        if let Some(priv_str) = pubkey_str.strip_suffix(".pub") {
+            let priv_path = PathBuf::from(priv_str);
+            if priv_path.exists() {
+                return Ok(priv_path);
+            }
+        }
+    }
+    get_default_ssh_privkey_path()
+}
+
+/// Lists all detected SSH public keys in ~/.ssh/
+pub fn list_system_ssh_keys() -> Result<Vec<SshKeyInfo>, CryptoError> {
+    let home = dirs::home_dir()
+        .ok_or_else(|| CryptoError::KeyNotFound("Could not determine home directory".into()))?;
+    let ssh_dir = home.join(".ssh");
+    if !ssh_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let active_key_path = get_vault_ssh_pubkey_path().ok();
+
+    let mut keys = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&ssh_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("pub") {
+                let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    let trimmed = content.trim();
+                    let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                    if !parts.is_empty() {
+                        let raw_type = parts[0];
+                        let key_type = match raw_type {
+                            "ssh-ed25519" => "ED25519",
+                            "ssh-rsa" => "RSA",
+                            "ecdsa-sha2-nistp256" | "ecdsa-sha2-nistp384" | "ecdsa-sha2-nistp521" => "ECDSA",
+                            "sk-ssh-ed25519@openssh.com" => "ED25519-SK",
+                            other => other,
+                        }.to_string();
+
+                        let comment = if parts.len() >= 3 {
+                            Some(parts[2..].join(" "))
+                        } else {
+                            None
+                        };
+
+                        let fingerprint = if parts.len() >= 2 {
+                            let key_b64 = parts[1];
+                            if key_b64.len() > 16 {
+                                format!("{}...", &key_b64[..16])
+                            } else {
+                                key_b64.to_string()
+                            }
+                        } else {
+                            "SHA256".to_string()
+                        };
+
+                        let is_active = active_key_path.as_ref().map(|p| p == &path).unwrap_or(false);
+
+                        keys.push(SshKeyInfo {
+                            path: path.to_string_lossy().to_string(),
+                            filename,
+                            key_type,
+                            comment,
+                            fingerprint,
+                            is_active,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    keys.sort_by(|a, b| {
+        b.is_active.cmp(&a.is_active)
+            .then_with(|| (a.filename != "id_ed25519.pub").cmp(&(b.filename != "id_ed25519.pub")))
+            .then_with(|| a.filename.cmp(&b.filename))
+    });
+
+    Ok(keys)
+}
+
+/// Returns the currently active SshKeyInfo for the vault
+pub fn get_vault_key_info() -> Result<SshKeyInfo, CryptoError> {
+    let active_path = get_vault_ssh_pubkey_path()?;
+    let keys = list_system_ssh_keys()?;
+    if let Some(found) = keys.into_iter().find(|k| k.path == active_path.to_string_lossy()) {
+        Ok(found)
+    } else {
+        let filename = active_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        Ok(SshKeyInfo {
+            path: active_path.to_string_lossy().to_string(),
+            filename,
+            key_type: "SSH".to_string(),
+            comment: None,
+            fingerprint: "SSH".to_string(),
+            is_active: true,
+        })
+    }
+}
+
+/// Sets the SSH key for the active vault in its root .meta.json
+pub fn set_vault_ssh_key(key_path_str: &str) -> Result<SshKeyInfo, CryptoError> {
+    let key_path = crate::vault::expand_path(key_path_str);
+    if !key_path.exists() {
+        return Err(CryptoError::KeyNotFound(format!("SSH key file does not exist: {}", key_path.display())));
+    }
+
+    let vault_root = crate::vault::get_vault_root()
+        .map_err(|e| CryptoError::KeyNotFound(e.to_string()))?;
+
+    let mut meta = crate::vault::read_dir_meta(&vault_root).unwrap_or_default();
+    meta.ssh_key = Some(key_path.to_string_lossy().to_string());
+
+    crate::vault::save_dir_meta("", &meta)
+        .map_err(|e| CryptoError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+
+    let _ = crate::vault::update_recent_vault_ssh_key(&vault_root, &key_path.to_string_lossy());
+
+    get_vault_key_info()
+}
+
 /// Encrypts plaintext using an SSH public key and wraps into `🔒[enc:v1:...]`
 pub fn encrypt_secret(plaintext: &str, pubkey_content: Option<&str>) -> Result<String, CryptoError> {
     let pubkey_str = match pubkey_content {
         Some(content) => content.to_string(),
         None => {
-            let path = get_default_ssh_pubkey_path()?;
+            let path = get_vault_ssh_pubkey_path()?;
             std::fs::read_to_string(&path)
                 .map_err(|e| CryptoError::KeyNotFound(format!("Failed to read {}: {}", path.display(), e)))?
         }
@@ -156,7 +308,7 @@ pub fn decrypt_secret(
     let path = match privkey_path {
         Some(p) => p,
         None => {
-            path_buf = get_default_ssh_privkey_path()?;
+            path_buf = get_vault_ssh_privkey_path()?;
             &path_buf
         }
     };
