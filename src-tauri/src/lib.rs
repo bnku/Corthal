@@ -1,8 +1,40 @@
+pub mod assistant;
 pub mod crypto;
 pub mod theme;
 pub mod vault;
 
 use vault::VaultNode;
+
+#[tauri::command]
+fn assistant_get_config() -> assistant::AssistantConfig {
+    assistant::load_assistant_config()
+}
+
+#[tauri::command]
+fn assistant_save_config(config: assistant::AssistantConfig) -> Result<(), String> {
+    assistant::save_assistant_config(&config)
+}
+
+#[tauri::command]
+async fn assistant_check_codex_status() -> assistant::CodexStatus {
+    assistant::check_codex_status().await
+}
+
+#[tauri::command]
+async fn assistant_send_message(
+    app: tauri::AppHandle,
+    session_id: String,
+    prompt: String,
+    messages: Vec<assistant::ChatMessage>,
+    active_note_context: Option<String>,
+) -> Result<(), String> {
+    assistant::send_assistant_message(app, session_id, prompt, messages, active_note_context).await
+}
+
+#[tauri::command]
+fn assistant_cancel_stream(session_id: String) -> bool {
+    assistant::cancel_assistant_stream(&session_id)
+}
 
 #[tauri::command]
 fn vault_get_tree() -> Result<VaultNode, String> {
@@ -109,6 +141,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            assistant_get_config,
+            assistant_save_config,
+            assistant_check_codex_status,
+            assistant_send_message,
+            assistant_cancel_stream,
             vault_get_tree,
             vault_read_file,
             vault_write_file,

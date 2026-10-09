@@ -61,6 +61,12 @@
   import Trash2 from "lucide-svelte/icons/trash-2";
   import Palette from "lucide-svelte/icons/palette";
   import FolderSync from "lucide-svelte/icons/folder-sync";
+  import Sparkles from "lucide-svelte/icons/sparkles";
+  import Activity from "lucide-svelte/icons/activity";
+  import Server from "lucide-svelte/icons/server";
+  import EyeOff from "lucide-svelte/icons/eye-off";
+  import Send from "lucide-svelte/icons/send";
+  import CircleX from "lucide-svelte/icons/circle-x";
 
   interface Props {
     name: string;
@@ -138,6 +144,13 @@
     "trash-2": Trash2,
     "palette": Palette,
     "folder-sync": FolderSync,
+    "sparkles": Sparkles,
+    "activity": Activity,
+    "server": Server,
+    "eye-off": EyeOff,
+    "send": Send,
+    "circle-x": CircleX,
+    "x-circle": CircleX,
 
     // Legacy emoji mappings
     "🖥️": Monitor,

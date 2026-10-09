@@ -52,3 +52,48 @@ export interface SshKeyInfo {
   is_active: boolean;
 }
 
+export type AssistantProvider = "codex" | "openrouter" | "openai";
+
+export interface AssistantConfig {
+  provider: AssistantProvider;
+  codex_model: string;
+  codex_sandbox: "read-only" | "workspace-write";
+  openrouter_key: string | null;
+  openrouter_model: string;
+  openrouter_temperature: number;
+  openai_base_url: string;
+  openai_key: string | null;
+  openai_model: string;
+  openai_temperature: number;
+  system_prompt: string;
+  include_vault_context: boolean;
+  include_active_note: boolean;
+}
+
+export interface CodexStatus {
+  installed: boolean;
+  binary_path: string;
+  login_status: string;
+  is_logged_in: boolean;
+  available_models: string[];
+}
+
+export interface AssistantStreamChunk {
+  session_id: string;
+  delta: string;
+  full_text: string;
+  done: boolean;
+  error: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  text: string;
+  timestamp: number;
+  model?: string;
+  provider?: string;
+  isStreaming?: boolean;
+}
+
+

@@ -962,6 +962,7 @@
       <aside class="sidebar-assistant">
         <AssistantPanel
           activeNotePath={activeFilePath}
+          activeNoteContent={activeFile?.content || null}
           onInsertText={handleInsertText}
         />
       </aside>
