@@ -52,6 +52,20 @@ export interface SshKeyInfo {
   is_active: boolean;
 }
 
+export type PassphrasePolicy = "session" | "timeout" | "always";
+
+export interface SecurityConfig {
+  passphrase_policy: PassphrasePolicy;
+  passphrase_timeout_minutes: number;
+}
+
+export interface SessionStatus {
+  is_unlocked: boolean;
+  policy: PassphrasePolicy;
+  remaining_seconds: number | null;
+  timeout_minutes: number;
+}
+
 export type AssistantProvider = "codex" | "openrouter" | "openai";
 
 export interface AssistantConfig {

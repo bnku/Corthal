@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import type { SshKeyInfo } from "$lib/types";
+  import type { SshKeyInfo, SessionStatus } from "$lib/types";
   import Icon from "./Icon.svelte";
 
   interface Props {
@@ -23,16 +23,16 @@
     onOpenSettings,
   }: Props = $props();
 
-  let isUnlocked = $state(false);
+  let sessionStatus = $state<SessionStatus | null>(null);
 
   $effect(() => {
     if (isOpen) {
-      invoke<boolean>("crypto_is_session_unlocked")
-        .then((unlocked) => {
-          isUnlocked = unlocked;
+      invoke<SessionStatus>("crypto_get_session_status")
+        .then((status) => {
+          sessionStatus = status;
         })
         .catch(() => {
-          isUnlocked = false;
+          sessionStatus = null;
         });
 
       function handleClickOutside() {
@@ -108,18 +108,23 @@
       {/if}
     </div>
 
-    {#if isUnlocked}
+    {#if sessionStatus?.is_unlocked}
       <button
         class="action-btn lock-btn"
         onclick={async () => {
           await invoke("crypto_clear_session_passphrase");
-          isUnlocked = false;
+          sessionStatus = null;
           onClose();
         }}
         title="Очистить пароль из памяти сессии"
       >
         <Icon name="lock" size={14} color="#f87171" />
-        <span style="color: #f87171;">Заблокировать (сбросить пароль из памяти)</span>
+        <span style="color: #f87171;">
+          Заблокировать (сбросить пароль из памяти)
+          {#if sessionStatus.remaining_seconds != null}
+            ({Math.ceil(sessionStatus.remaining_seconds / 60)} мин)
+          {/if}
+        </span>
       </button>
       <div class="dropdown-divider"></div>
     {/if}

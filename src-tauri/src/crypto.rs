@@ -13,17 +13,109 @@ pub const TOKEN_SUFFIX: &str = "]`";
 pub const RAW_TOKEN_PREFIX: &str = "🔒[enc:v1:";
 pub const RAW_TOKEN_SUFFIX: &str = "]";
 
-static SESSION_PASSPHRASE: LazyLock<Arc<RwLock<Option<String>>>> =
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SecurityConfig {
+    /// "session" | "timeout" | "always"
+    pub passphrase_policy: String,
+    /// Timeout in minutes (used when passphrase_policy == "timeout"), default: 15
+    pub passphrase_timeout_minutes: u32,
+}
+
+impl Default for SecurityConfig {
+    fn default() -> Self {
+        Self {
+            passphrase_policy: "session".to_string(),
+            passphrase_timeout_minutes: 15,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SessionStatus {
+    pub is_unlocked: bool,
+    pub policy: String,
+    pub remaining_seconds: Option<u64>,
+    pub timeout_minutes: u32,
+}
+
+#[derive(Clone)]
+struct CachedPassphraseEntry {
+    passphrase: String,
+    _cached_at: std::time::Instant,
+    last_used_at: std::time::Instant,
+}
+
+static SESSION_PASSPHRASE: LazyLock<Arc<RwLock<Option<CachedPassphraseEntry>>>> =
     LazyLock::new(|| Arc::new(RwLock::new(None)));
 
+fn get_security_config_path() -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    home.join(".config").join("cortex").join("security_config.json")
+}
+
+pub fn load_security_config() -> SecurityConfig {
+    let p = get_security_config_path();
+    if let Ok(content) = std::fs::read_to_string(&p) {
+        if let Ok(cfg) = serde_json::from_str::<SecurityConfig>(&content) {
+            return cfg;
+        }
+    }
+    SecurityConfig::default()
+}
+
+pub fn save_security_config(cfg: &SecurityConfig) -> Result<(), String> {
+    let p = get_security_config_path();
+    if let Some(parent) = p.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let data = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
+    std::fs::write(&p, data).map_err(|e| e.to_string())?;
+
+    if cfg.passphrase_policy == "always" {
+        clear_session_passphrase();
+    }
+    Ok(())
+}
+
 pub fn set_session_passphrase(passphrase: &str) {
+    let cfg = load_security_config();
+    if cfg.passphrase_policy == "always" {
+        clear_session_passphrase();
+        return;
+    }
+
+    let now = std::time::Instant::now();
     if let Ok(mut lock) = SESSION_PASSPHRASE.write() {
-        *lock = Some(passphrase.to_string());
+        *lock = Some(CachedPassphraseEntry {
+            passphrase: passphrase.to_string(),
+            _cached_at: now,
+            last_used_at: now,
+        });
     }
 }
 
 pub fn get_session_passphrase() -> Option<String> {
-    SESSION_PASSPHRASE.read().ok().and_then(|lock| lock.clone())
+    let cfg = load_security_config();
+    if cfg.passphrase_policy == "always" {
+        clear_session_passphrase();
+        return None;
+    }
+
+    let mut lock = SESSION_PASSPHRASE.write().ok()?;
+    if let Some(ref mut entry) = *lock {
+        let now = std::time::Instant::now();
+        if cfg.passphrase_policy == "timeout" {
+            let timeout_secs = (cfg.passphrase_timeout_minutes.max(1) as u64) * 60;
+            if now.duration_since(entry.last_used_at).as_secs() >= timeout_secs {
+                *lock = None;
+                return None;
+            }
+        }
+        entry.last_used_at = now;
+        Some(entry.passphrase.clone())
+    } else {
+        None
+    }
 }
 
 pub fn clear_session_passphrase() {
@@ -33,7 +125,58 @@ pub fn clear_session_passphrase() {
 }
 
 pub fn is_session_unlocked() -> bool {
-    SESSION_PASSPHRASE.read().ok().map(|l| l.is_some()).unwrap_or(false)
+    get_session_passphrase().is_some()
+}
+
+pub fn get_session_status() -> SessionStatus {
+    let cfg = load_security_config();
+    if cfg.passphrase_policy == "always" {
+        return SessionStatus {
+            is_unlocked: false,
+            policy: cfg.passphrase_policy,
+            remaining_seconds: None,
+            timeout_minutes: cfg.passphrase_timeout_minutes,
+        };
+    }
+
+    let lock = SESSION_PASSPHRASE.read().ok();
+    if let Some(Some(ref entry)) = lock.as_deref() {
+        let now = std::time::Instant::now();
+        if cfg.passphrase_policy == "timeout" {
+            let timeout_secs = (cfg.passphrase_timeout_minutes.max(1) as u64) * 60;
+            let elapsed = now.duration_since(entry.last_used_at).as_secs();
+            if elapsed >= timeout_secs {
+                drop(lock);
+                clear_session_passphrase();
+                return SessionStatus {
+                    is_unlocked: false,
+                    policy: cfg.passphrase_policy,
+                    remaining_seconds: None,
+                    timeout_minutes: cfg.passphrase_timeout_minutes,
+                };
+            } else {
+                return SessionStatus {
+                    is_unlocked: true,
+                    policy: cfg.passphrase_policy,
+                    remaining_seconds: Some(timeout_secs - elapsed),
+                    timeout_minutes: cfg.passphrase_timeout_minutes,
+                };
+            }
+        }
+        SessionStatus {
+            is_unlocked: true,
+            policy: cfg.passphrase_policy,
+            remaining_seconds: None,
+            timeout_minutes: cfg.passphrase_timeout_minutes,
+        }
+    } else {
+        SessionStatus {
+            is_unlocked: false,
+            policy: cfg.passphrase_policy,
+            remaining_seconds: None,
+            timeout_minutes: cfg.passphrase_timeout_minutes,
+        }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -386,17 +529,30 @@ mod tests {
     }
 
     #[test]
-    fn test_session_passphrase_cache() {
+    fn test_security_config_defaults() {
+        let cfg = SecurityConfig::default();
+        assert_eq!(cfg.passphrase_policy, "session");
+        assert_eq!(cfg.passphrase_timeout_minutes, 15);
+    }
+
+    #[test]
+    fn test_session_passphrase_lifecycle() {
         clear_session_passphrase();
         assert!(!is_session_unlocked());
         assert_eq!(get_session_passphrase(), None);
+        let status = get_session_status();
+        assert!(!status.is_unlocked);
 
         set_session_passphrase("test_pass");
         assert!(is_session_unlocked());
         assert_eq!(get_session_passphrase(), Some("test_pass".to_string()));
+        let status2 = get_session_status();
+        assert!(status2.is_unlocked);
 
         clear_session_passphrase();
         assert!(!is_session_unlocked());
         assert_eq!(get_session_passphrase(), None);
+        let status3 = get_session_status();
+        assert!(!status3.is_unlocked);
     }
 }

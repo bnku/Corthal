@@ -71,7 +71,9 @@ fn crypto_decrypt_secret(app: tauri::AppHandle, token: String, passphrase: Optio
     if let Some(ref p) = passphrase {
         let res = crypto::decrypt_secret(&token, None, Some(p)).map_err(|e| e.to_string())?;
         crypto::set_session_passphrase(p);
-        let _ = app.emit("crypto:session-unlocked", ());
+        if crypto::is_session_unlocked() {
+            let _ = app.emit("crypto:session-unlocked", ());
+        }
         return Ok(res);
     }
 
@@ -96,6 +98,26 @@ fn crypto_clear_session_passphrase(app: tauri::AppHandle) -> Result<(), String> 
     crypto::clear_session_passphrase();
     let _ = app.emit("crypto:session-locked", ());
     Ok(())
+}
+
+#[tauri::command]
+fn crypto_get_security_config() -> crypto::SecurityConfig {
+    crypto::load_security_config()
+}
+
+#[tauri::command]
+fn crypto_save_security_config(app: tauri::AppHandle, config: crypto::SecurityConfig) -> Result<(), String> {
+    crypto::save_security_config(&config)?;
+    let _ = app.emit("crypto:security-config-changed", &config);
+    if !crypto::is_session_unlocked() {
+        let _ = app.emit("crypto:session-locked", ());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn crypto_get_session_status() -> crypto::SessionStatus {
+    crypto::get_session_status()
 }
 
 #[tauri::command]
@@ -202,6 +224,21 @@ pub fn run() {
             if let Ok(root) = vault::get_vault_root() {
                 let _ = watcher::start_vault_watcher(app_handle, &root);
             }
+
+            // Background session timeout monitor
+            let timer_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let mut was_unlocked = false;
+                loop {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                    let status = crypto::get_session_status();
+                    if was_unlocked && !status.is_unlocked {
+                        let _ = timer_handle.emit("crypto:session-locked", ());
+                    }
+                    was_unlocked = status.is_unlocked;
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -229,6 +266,9 @@ pub fn run() {
             crypto_decrypt_secret,
             crypto_is_session_unlocked,
             crypto_clear_session_passphrase,
+            crypto_get_security_config,
+            crypto_save_security_config,
+            crypto_get_session_status,
             crypto_list_ssh_keys,
             crypto_get_vault_key,
             crypto_set_vault_key,

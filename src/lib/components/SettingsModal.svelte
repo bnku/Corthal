@@ -1,9 +1,18 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import Icon from "./Icon.svelte";
   import { themeStore } from "$lib/theme/store.svelte";
   import { THEME_PRESETS, ACCENT_COLORS } from "$lib/theme/presets";
-  import type { VaultInfo, SshKeyInfo, AssistantConfig, CodexStatus, AssistantProvider } from "$lib/types";
+  import type {
+    VaultInfo,
+    SshKeyInfo,
+    AssistantConfig,
+    CodexStatus,
+    AssistantProvider,
+    SecurityConfig,
+    SessionStatus,
+  } from "$lib/types";
 
   interface Props {
     isOpen: boolean;
@@ -29,6 +38,64 @@
   let customGtkInput = $state("");
   let selectedGtkPath = $state("");
   let selectedKeyPath = $state("");
+
+  // Security config & session status
+  let securityConfig = $state<SecurityConfig>({
+    passphrase_policy: "session",
+    passphrase_timeout_minutes: 15,
+  });
+  let sessionStatus = $state<SessionStatus | null>(null);
+
+  function formatRemainingTime(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    if (m > 0) {
+      return `${m} мин ${s} сек`;
+    }
+    return `${s} сек`;
+  }
+
+  async function loadSecuritySettings() {
+    try {
+      const cfg = await invoke<SecurityConfig>("crypto_get_security_config");
+      securityConfig = cfg;
+    } catch (e) {
+      console.error("Failed to load security config:", e);
+    }
+    await refreshSessionStatus();
+  }
+
+  async function refreshSessionStatus() {
+    try {
+      const status = await invoke<SessionStatus>("crypto_get_session_status");
+      sessionStatus = status;
+    } catch (e) {
+      console.error("Failed to get session status:", e);
+    }
+  }
+
+  async function saveSecuritySettings() {
+    try {
+      await invoke("crypto_save_security_config", { config: $state.snapshot(securityConfig) });
+      await refreshSessionStatus();
+    } catch (e) {
+      console.error("Failed to save security config:", e);
+    }
+  }
+
+  function setPolicy(policy: PassphrasePolicy) {
+    securityConfig.passphrase_policy = policy;
+    saveSecuritySettings();
+  }
+
+  async function handleLockSession() {
+    try {
+      await invoke("crypto_clear_session_passphrase");
+      await refreshSessionStatus();
+    } catch (e) {
+      console.error("Failed to clear session passphrase:", e);
+    }
+  }
 
   // AI Assistant state
   let assistantConfig = $state<AssistantConfig>({
@@ -68,6 +135,35 @@
       if (initialTab) activeTab = initialTab;
       if (activeSshKey) selectedKeyPath = activeSshKey.path;
       loadAssistantSettings();
+      loadSecuritySettings();
+
+      let unlistenUnlocked: UnlistenFn | null = null;
+      let unlistenLocked: UnlistenFn | null = null;
+      let pollInterval: any = null;
+
+      listen("crypto:session-unlocked", () => {
+        refreshSessionStatus();
+      }).then((fn) => {
+        unlistenUnlocked = fn;
+      });
+
+      listen("crypto:session-locked", () => {
+        refreshSessionStatus();
+      }).then((fn) => {
+        unlistenLocked = fn;
+      });
+
+      pollInterval = setInterval(() => {
+        if (activeTab === "security") {
+          refreshSessionStatus();
+        }
+      }, 2000);
+
+      return () => {
+        if (unlistenUnlocked) unlistenUnlocked();
+        if (unlistenLocked) unlistenLocked();
+        if (pollInterval) clearInterval(pollInterval);
+      };
     }
   });
 
@@ -133,6 +229,7 @@
 
   function handleDone() {
     saveAssistantSettings();
+    saveSecuritySettings();
     onClose();
   }
 
@@ -551,6 +648,130 @@
                 <div class="sec-item">
                   <span class="sec-label">Статус хранилища:</span>
                   <span class="sec-badge ok">✓ Защищено локальным ключом пользователя</span>
+                </div>
+              </div>
+
+              <!-- Passphrase Cache Policy Section -->
+              <h3 class="section-title" style="margin-top: 24px;">Запрос пароля SSH-ключа и сессия</h3>
+              <p class="section-desc">
+                Определяет, как долго Cortex удерживает расшифрованный SSH-ключ в оперативной памяти (Zero-Knowledge). Пароли никогда не сохраняются на диск.
+              </p>
+
+              <div class="security-card">
+                <!-- Policy Option: Once per session -->
+                <label
+                  class="policy-option-row"
+                  class:selected={securityConfig.passphrase_policy === "session"}
+                >
+                  <div class="policy-radio-label">
+                    <input
+                      type="radio"
+                      name="passphrase_policy"
+                      value="session"
+                      bind:group={securityConfig.passphrase_policy}
+                      onchange={saveSecuritySettings}
+                    />
+                    <div class="policy-option-info">
+                      <span class="policy-title">Один раз за сессию (Рекомендуется)</span>
+                      <span class="policy-desc">
+                        Пароль запрашивается один раз при первой расшифровке секрета и сохраняется в памяти до закрытия Cortex или ручной блокировки.
+                      </span>
+                    </div>
+                  </div>
+                </label>
+
+                <!-- Policy Option: Timeout in minutes -->
+                <label
+                  class="policy-option-row"
+                  class:selected={securityConfig.passphrase_policy === "timeout"}
+                >
+                  <div class="policy-radio-label">
+                    <input
+                      type="radio"
+                      name="passphrase_policy"
+                      value="timeout"
+                      bind:group={securityConfig.passphrase_policy}
+                      onchange={saveSecuritySettings}
+                    />
+                    <div class="policy-option-info">
+                      <span class="policy-title">Раз в N минут (по тайм-ауту)</span>
+                      <span class="policy-desc">
+                        Пароль автоматически сбрасывается из оперативной памяти при отсутствии активности через заданное время.
+                      </span>
+                    </div>
+                  </div>
+
+                  {#if securityConfig.passphrase_policy === "timeout"}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div class="timeout-config-row" onclick={(e) => e.stopPropagation()} role="presentation">
+                      <label for="timeout-select" class="timeout-label">Сбрасывать через:</label>
+                      <select
+                        id="timeout-select"
+                        class="cortex-select timeout-select"
+                        bind:value={securityConfig.passphrase_timeout_minutes}
+                        onchange={saveSecuritySettings}
+                        onclick={(e) => e.stopPropagation()}
+                      >
+                        <option value={5}>5 минут</option>
+                        <option value={10}>10 минут</option>
+                        <option value={15}>15 минут (по умолчанию)</option>
+                        <option value={30}>30 минут</option>
+                        <option value={60}>1 час</option>
+                        <option value={120}>2 часа</option>
+                      </select>
+                    </div>
+                  {/if}
+                </label>
+
+                <!-- Policy Option: Always prompt -->
+                <label
+                  class="policy-option-row"
+                  class:selected={securityConfig.passphrase_policy === "always"}
+                >
+                  <div class="policy-radio-label">
+                    <input
+                      type="radio"
+                      name="passphrase_policy"
+                      value="always"
+                      bind:group={securityConfig.passphrase_policy}
+                      onchange={saveSecuritySettings}
+                    />
+                    <div class="policy-option-info">
+                      <span class="policy-title">Запрашивать каждый раз</span>
+                      <span class="policy-desc">
+                        Пароль не сохраняется в памяти вовсе. Каждый просмотр или копирование любого секрета требует повторного ввода пасс-фразы.
+                      </span>
+                    </div>
+                  </div>
+                </label>
+
+                <!-- Current Session Lock Status -->
+                <div class="sec-item session-status-row">
+                  <span class="sec-label">Текущее состояние оперативной памяти:</span>
+                  <div class="session-status-controls">
+                    {#if sessionStatus?.is_unlocked}
+                      <span class="sec-badge ok">
+                        🔓 Разблокировано
+                        {#if sessionStatus.remaining_seconds != null}
+                          (до автоблокировки: {formatRemainingTime(sessionStatus.remaining_seconds)})
+                        {/if}
+                      </span>
+                      <button
+                        type="button"
+                        class="action-lock-btn"
+                        onclick={handleLockSession}
+                        title="Немедленно стереть пароль из оперативной памяти"
+                      >
+                        <Icon name="lock" size={13} color="#fca5a5" />
+                        <span>Заблокировать сейчас</span>
+                      </button>
+                    {:else}
+                      <span class="sec-badge locked">
+                        🔒 Память заблокирована (пароль не хранится)
+                      </span>
+                    {/if}
+                  </div>
                 </div>
               </div>
             </section>
@@ -1812,6 +2033,114 @@
     color: #10b981;
     font-size: 0.82rem;
     font-weight: 500;
+  }
+
+  .sec-badge.locked {
+    color: #f87171;
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+
+  .policy-option-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .policy-option-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--cortex-border-hover, rgba(255, 255, 255, 0.15));
+  }
+
+  .policy-option-row.selected {
+    border-color: var(--cortex-accent, #3b82f6);
+    background: rgba(59, 130, 246, 0.05);
+  }
+
+  .policy-radio-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .policy-option-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .policy-title {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .policy-desc {
+    font-size: 0.76rem;
+    color: var(--cortex-fg-muted, #94a3b8);
+    line-height: 1.35;
+  }
+
+  .timeout-config-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 26px;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+  }
+
+  .timeout-label {
+    font-size: 0.78rem;
+    color: var(--cortex-fg-secondary, #cbd5e1);
+  }
+
+  .timeout-select {
+    width: auto;
+    min-width: 140px;
+    padding: 5px 8px;
+    font-size: 0.8rem;
+  }
+
+  .session-status-row {
+    padding-top: 8px;
+    border-top: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+  }
+
+  .session-status-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .action-lock-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .action-lock-btn:hover {
+    background: rgba(239, 68, 68, 0.22);
+    color: #ffffff;
   }
 
   .about-card p {
