@@ -547,6 +547,73 @@
     }
   }
 
+  function findNoteInTree(node: VaultNode, target: string): string | null {
+    const cleanTarget = target.trim().replace(/^\/+/, "");
+    if (node.relative_path === cleanTarget || node.relative_path === `${cleanTarget}.md`) {
+      return node.relative_path;
+    }
+    const nameNoExt = node.name.replace(/\.md$/, "");
+    const targetNoExt = cleanTarget.replace(/\.md$/, "");
+    if (node.name === cleanTarget || node.name === `${cleanTarget}.md` || nameNoExt === targetNoExt) {
+      return node.relative_path;
+    }
+    if (node.children) {
+      for (const child of node.children) {
+        const found = findNoteInTree(child, cleanTarget);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  async function handleOpenNoteFromLink(linkPath: string) {
+    let target = linkPath.trim();
+    if (!target) return;
+
+    // Strip anchor (#...) or query (?...)
+    target = target.split("#")[0].split("?")[0];
+    if (!target) return;
+
+    // Strip file:// protocol if present
+    if (target.startsWith("file://")) {
+      target = target.replace(/^file:\/\//, "");
+    }
+
+    try {
+      target = decodeURIComponent(target);
+    } catch {}
+
+    // If absolute path matching active vault root, convert to relative
+    if (activeVault?.path && target.startsWith(activeVault.path)) {
+      target = target.slice(activeVault.path.length).replace(/^\/+/, "");
+    } else if (target.startsWith("/")) {
+      target = target.replace(/^\/+/, "");
+    }
+
+    // Try direct open
+    try {
+      await openNote(target);
+      return;
+    } catch {
+      // Try with .md
+      if (!target.endsWith(".md")) {
+        try {
+          await openNote(`${target}.md`);
+          return;
+        } catch {}
+      }
+    }
+
+    // Look up note in vault tree
+    if (vaultTree) {
+      const found = findNoteInTree(vaultTree, target);
+      if (found) {
+        await openNote(found);
+        return;
+      }
+    }
+  }
+
   function closeTab(paneId: "left" | "right", path: string) {
     if (paneId === "left") {
       const idx = paneLeftTabs.indexOf(path);
@@ -1005,6 +1072,7 @@
             settingsInitialTab = "appearance";
             isSettingsModalOpen = true;
           }}
+          onOpenNote={handleOpenNoteFromLink}
           onPassphraseNeeded={requestPassphrase}
         />
 
@@ -1046,6 +1114,7 @@
               settingsInitialTab = "appearance";
               isSettingsModalOpen = true;
             }}
+            onOpenNote={handleOpenNoteFromLink}
             onPassphraseNeeded={requestPassphrase}
           />
         {/if}
@@ -1064,6 +1133,8 @@
             settingsInitialTab = tab || "assistant";
             isSettingsModalOpen = true;
           }}
+          onOpenNote={handleOpenNoteFromLink}
+          onPassphraseNeeded={requestPassphrase}
         />
       </aside>
     {/if}

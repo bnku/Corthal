@@ -66,8 +66,36 @@ fn crypto_encrypt_secret(plaintext: String, pubkey_content: Option<String>) -> R
 }
 
 #[tauri::command]
-fn crypto_decrypt_secret(token: String, passphrase: Option<String>) -> Result<String, String> {
-    crypto::decrypt_secret(&token, None, passphrase.as_deref()).map_err(|e| e.to_string())
+fn crypto_decrypt_secret(app: tauri::AppHandle, token: String, passphrase: Option<String>) -> Result<String, String> {
+    // 1. If explicit passphrase was given, try decrypting and cache it if successful
+    if let Some(ref p) = passphrase {
+        let res = crypto::decrypt_secret(&token, None, Some(p)).map_err(|e| e.to_string())?;
+        crypto::set_session_passphrase(p);
+        let _ = app.emit("crypto:session-unlocked", ());
+        return Ok(res);
+    }
+
+    // 2. If no passphrase provided, try cached session passphrase
+    if let Some(cached) = crypto::get_session_passphrase() {
+        if let Ok(res) = crypto::decrypt_secret(&token, None, Some(&cached)) {
+            return Ok(res);
+        }
+    }
+
+    // 3. Fallback to unencrypted SSH key attempt
+    crypto::decrypt_secret(&token, None, None).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn crypto_is_session_unlocked() -> bool {
+    crypto::is_session_unlocked()
+}
+
+#[tauri::command]
+fn crypto_clear_session_passphrase(app: tauri::AppHandle) -> Result<(), String> {
+    crypto::clear_session_passphrase();
+    let _ = app.emit("crypto:session-locked", ());
+    Ok(())
 }
 
 #[tauri::command]
@@ -114,7 +142,9 @@ fn vault_get_active() -> Result<vault::VaultInfo, String> {
 fn vault_switch(app: tauri::AppHandle, path: String) -> Result<vault::VaultInfo, String> {
     let info = vault::set_active_vault_root(&path).map_err(|e| e.to_string())?;
     let target = vault::expand_path(&path);
-    let _ = watcher::start_vault_watcher(app, &target);
+    let _ = watcher::start_vault_watcher(app.clone(), &target);
+    crypto::clear_session_passphrase();
+    let _ = app.emit("crypto:session-locked", ());
     Ok(info)
 }
 
@@ -197,6 +227,8 @@ pub fn run() {
             vault_pick_directory,
             crypto_encrypt_secret,
             crypto_decrypt_secret,
+            crypto_is_session_unlocked,
+            crypto_clear_session_passphrase,
             crypto_list_ssh_keys,
             crypto_get_vault_key,
             crypto_set_vault_key,

@@ -3,6 +3,7 @@
   import { Marked } from "marked";
   import hljs from "highlight.js";
   import "highlight.js/styles/github-dark.css";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import { parseFrontmatter } from "$lib/frontmatter";
   import Icon from "./Icon.svelte";
   import SecretPill from "./SecretPill.svelte";
@@ -41,6 +42,7 @@
     onToggleSidebar?: () => void;
     onToggleAssistant?: () => void;
     onOpenSettings?: () => void;
+    onOpenNote?: (path: string) => void;
     onPassphraseNeeded?: () => Promise<string | null>;
   }
 
@@ -71,6 +73,7 @@
     onToggleSidebar,
     onToggleAssistant,
     onOpenSettings,
+    onOpenNote,
     onPassphraseNeeded,
   }: Props = $props();
 
@@ -262,13 +265,39 @@
 
   let parsedMarkdownHtml = $derived.by<string>(() => {
     if (!parsedDoc.body) return "";
-    let html = customMarked.parse(parsedDoc.body) as string;
+    let body = parsedDoc.body.replace(/\[\[([^|\]]+)(?:\|([^\]]+))?\]\]/g, (_m, target, title) => {
+      return `[${title ? title.trim() : target.trim()}](${target.trim()})`;
+    });
+    let html = customMarked.parse(body) as string;
     // Replace secrets inside code or text with inline secret mount point
     const regex = /(?:<code>\s*)?(🔒\[enc:v1:[^\]]+\])(?:\s*<\/code>)?/g;
     return html.replace(regex, (_match, token) => {
       return `<span class="cortex-secret-mount" data-token="${token}"></span>`;
     });
   });
+
+  async function handleContentClick(e: MouseEvent) {
+    const target = (e.target as HTMLElement).closest("a");
+    if (!target) return;
+
+    const href = target.getAttribute("href");
+    if (!href) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:")) {
+      try {
+        await openUrl(href);
+      } catch (err) {
+        console.warn("Failed to open URL via plugin-opener:", err);
+        window.open(href, "_blank");
+      }
+      return;
+    }
+
+    onOpenNote?.(href);
+  }
 
   function mountSecrets(node: HTMLElement, passphraseCallback?: () => Promise<string | null>) {
     let instances: any[] = [];
@@ -508,7 +537,11 @@
             {/if}
 
             {#key parsedMarkdownHtml}
-              <div class="markdown-preview-content" use:mountSecrets={onPassphraseNeeded}>
+              <div
+                class="markdown-preview-content"
+                use:mountSecrets={onPassphraseNeeded}
+                onclick={handleContentClick}
+              >
                 {@html parsedMarkdownHtml}
               </div>
             {/key}
@@ -1019,6 +1052,17 @@
     font-size: 0.95rem;
     user-select: text;
     -webkit-user-select: text;
+  }
+
+  .markdown-preview-content :global(a) {
+    color: var(--cortex-accent, #38bdf8);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
+  .markdown-preview-content :global(a:hover) {
+    filter: brightness(1.2);
   }
 
   .markdown-preview-content :global(h1),

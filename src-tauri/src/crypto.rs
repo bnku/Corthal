@@ -6,10 +6,35 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use std::sync::{Arc, LazyLock, RwLock};
+
 pub const TOKEN_PREFIX: &str = "`🔒[enc:v1:";
 pub const TOKEN_SUFFIX: &str = "]`";
 pub const RAW_TOKEN_PREFIX: &str = "🔒[enc:v1:";
 pub const RAW_TOKEN_SUFFIX: &str = "]";
+
+static SESSION_PASSPHRASE: LazyLock<Arc<RwLock<Option<String>>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(None)));
+
+pub fn set_session_passphrase(passphrase: &str) {
+    if let Ok(mut lock) = SESSION_PASSPHRASE.write() {
+        *lock = Some(passphrase.to_string());
+    }
+}
+
+pub fn get_session_passphrase() -> Option<String> {
+    SESSION_PASSPHRASE.read().ok().and_then(|lock| lock.clone())
+}
+
+pub fn clear_session_passphrase() {
+    if let Ok(mut lock) = SESSION_PASSPHRASE.write() {
+        *lock = None;
+    }
+}
+
+pub fn is_session_unlocked() -> bool {
+    SESSION_PASSPHRASE.read().ok().map(|l| l.is_some()).unwrap_or(false)
+}
 
 #[derive(Error, Debug)]
 pub enum CryptoError {
@@ -358,5 +383,20 @@ mod tests {
         assert!(token.starts_with(TOKEN_PREFIX));
         assert!(token.ends_with(TOKEN_SUFFIX));
         println!("Encrypted token: {}", token);
+    }
+
+    #[test]
+    fn test_session_passphrase_cache() {
+        clear_session_passphrase();
+        assert!(!is_session_unlocked());
+        assert_eq!(get_session_passphrase(), None);
+
+        set_session_passphrase("test_pass");
+        assert!(is_session_unlocked());
+        assert_eq!(get_session_passphrase(), Some("test_pass".to_string()));
+
+        clear_session_passphrase();
+        assert!(!is_session_unlocked());
+        assert_eq!(get_session_passphrase(), None);
     }
 }

@@ -1,18 +1,77 @@
 <script lang="ts">
+  import { onMount, onDestroy } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
   interface Props {
     token: string;
+    autoReveal?: boolean;
     onPassphraseNeeded?: () => Promise<string | null>;
   }
 
-  let { token, onPassphraseNeeded }: Props = $props();
+  let { token, autoReveal = false, onPassphraseNeeded }: Props = $props();
 
   let isRevealed = $state(false);
   let decryptedValue = $state<string | null>(null);
   let isLoading = $state(false);
   let copyFeedback = $state(false);
   let errorMessage = $state<string | null>(null);
+
+  let unlistenUnlocked: UnlistenFn | null = null;
+  let unlistenLocked: UnlistenFn | null = null;
+
+  onMount(async () => {
+    // Check if session is already unlocked, and if so or if autoReveal requested, decrypt silently
+    try {
+      const isUnlocked = await invoke<boolean>("crypto_is_session_unlocked");
+      if (isUnlocked || autoReveal) {
+        const plain = await invoke<string>("crypto_decrypt_secret", {
+          token,
+          passphrase: null,
+        });
+        if (plain) {
+          decryptedValue = plain;
+          if (isUnlocked || autoReveal) {
+            isRevealed = true;
+          }
+        }
+      }
+    } catch {
+      // Session not yet unlocked, will prompt on manual reveal click
+    }
+
+    // Listen for session unlock events across the app
+    try {
+      unlistenUnlocked = await listen("crypto:session-unlocked", async () => {
+        if (!decryptedValue) {
+          try {
+            const plain = await invoke<string>("crypto_decrypt_secret", {
+              token,
+              passphrase: null,
+            });
+            if (plain) {
+              decryptedValue = plain;
+              if (autoReveal) {
+                isRevealed = true;
+              }
+            }
+          } catch {}
+        }
+      });
+
+      unlistenLocked = await listen("crypto:session-locked", () => {
+        decryptedValue = null;
+        isRevealed = false;
+      });
+    } catch (e) {
+      console.warn("Failed to register crypto event listener:", e);
+    }
+  });
+
+  onDestroy(() => {
+    if (unlistenUnlocked) unlistenUnlocked();
+    if (unlistenLocked) unlistenLocked();
+  });
 
   async function getDecrypted(): Promise<string | null> {
     if (decryptedValue) return decryptedValue;
@@ -21,7 +80,7 @@
     errorMessage = null;
 
     try {
-      // First try with no passphrase
+      // First try with no passphrase (or cached session passphrase)
       let plain = await invoke<string>("crypto_decrypt_secret", {
         token,
         passphrase: null,
@@ -29,7 +88,7 @@
       decryptedValue = plain;
       return plain;
     } catch (err: any) {
-      // If error mentions passphrase, ask user for passphrase
+      // If cached passphrase not available, ask user via passphrase modal
       let passphrase: string | null = null;
       if (onPassphraseNeeded) {
         passphrase = await onPassphraseNeeded();

@@ -1,9 +1,12 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, mount, unmount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+  import { openUrl } from "@tauri-apps/plugin-opener";
+  import { Marked } from "marked";
   import type { AssistantConfig, CodexStatus, AssistantStreamChunk, ChatMessage, AssistantProvider } from "$lib/types";
   import Icon from "./Icon.svelte";
+  import SecretPill from "./SecretPill.svelte";
 
   interface Props {
     activeNotePath: string | null;
@@ -11,9 +14,108 @@
     onInsertText?: (text: string) => void;
     onVaultRefresh?: () => void;
     onOpenSettings?: (tab?: "appearance" | "security" | "assistant" | "about") => void;
+    onOpenNote?: (path: string) => void;
+    onPassphraseNeeded?: () => Promise<string | null>;
   }
 
-  let { activeNotePath, activeNoteContent = null, onInsertText, onVaultRefresh, onOpenSettings }: Props = $props();
+  let {
+    activeNotePath,
+    activeNoteContent = null,
+    onInsertText,
+    onVaultRefresh,
+    onOpenSettings,
+    onOpenNote,
+    onPassphraseNeeded,
+  }: Props = $props();
+
+  const customMarked = new Marked();
+
+  function formatMessageHtml(text: string): string {
+    if (!text) return "";
+
+    // 1. Transform [[target|title]] or [[target]] into Markdown links
+    let content = text.replace(/\[\[([^|\]]+)(?:\|([^\]]+))?\]\]/g, (_m, target, title) => {
+      return `[${title ? title.trim() : target.trim()}](${target.trim()})`;
+    });
+
+    // 2. Parse Markdown
+    let html = customMarked.parse(content) as string;
+
+    // 3. Replace secret tokens `🔒[enc:v1:...]` or 🔒[enc:v1:...] (even inside code tags) with mount points
+    const regex = /(?:<code>\s*)?(🔒\[enc:v1:[^\]]+\])(?:\s*<\/code>)?/g;
+    return html.replace(regex, (_match, token) => {
+      return `<span class="cortex-secret-mount" data-token="${token}"></span>`;
+    });
+  }
+
+  function mountSecrets(node: HTMLElement, passphraseCallback?: () => Promise<string | null>) {
+    let instances: any[] = [];
+    let currentCallback = passphraseCallback;
+
+    function renderWidgets() {
+      for (const inst of instances) {
+        unmount(inst);
+      }
+      instances = [];
+
+      const placeholders = node.querySelectorAll<HTMLElement>(".cortex-secret-mount");
+      for (const el of placeholders) {
+        const token = el.getAttribute("data-token");
+        if (token) {
+          try {
+            const inst = mount(SecretPill, {
+              target: el,
+              props: {
+                token,
+                autoReveal: true,
+                onPassphraseNeeded: () => (currentCallback ? currentCallback() : Promise.resolve(null)),
+              },
+            });
+            instances.push(inst);
+          } catch (e) {
+            console.error("Failed to mount SecretPill in assistant:", e);
+          }
+        }
+      }
+    }
+
+    renderWidgets();
+
+    return {
+      update(newCallback?: () => Promise<string | null>) {
+        currentCallback = newCallback;
+      },
+      destroy() {
+        for (const inst of instances) {
+          unmount(inst);
+        }
+        instances = [];
+      },
+    };
+  }
+
+  async function handleContentClick(e: MouseEvent) {
+    const target = (e.target as HTMLElement).closest("a");
+    if (!target) return;
+
+    const href = target.getAttribute("href");
+    if (!href) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:")) {
+      try {
+        await openUrl(href);
+      } catch (err) {
+        console.warn("Failed to open URL via plugin-opener:", err);
+        window.open(href, "_blank");
+      }
+      return;
+    }
+
+    onOpenNote?.(href);
+  }
 
   let inputMessage = $state("");
   let quickSecretInput = $state("");
@@ -471,9 +573,22 @@
           </div>
 
           <div class="bubble-content">
-            {msg.text}
-            {#if msg.isStreaming}
-              <span class="streaming-cursor">▋</span>
+            {#if msg.role === "assistant"}
+              {#if msg.isStreaming}
+                <div class="streaming-text">{msg.text}<span class="streaming-cursor">▋</span></div>
+              {:else}
+                {#key msg.text}
+                  <div
+                    class="bubble-markdown"
+                    use:mountSecrets={onPassphraseNeeded}
+                    onclick={handleContentClick}
+                  >
+                    {@html formatMessageHtml(msg.text)}
+                  </div>
+                {/key}
+              {/if}
+            {:else}
+              <div class="user-text">{msg.text}</div>
             {/if}
           </div>
 
@@ -949,8 +1064,81 @@
   }
 
   .bubble-content {
+    word-break: break-word;
+  }
+
+  .user-text {
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  .streaming-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .bubble-markdown {
+    line-height: 1.55;
+    font-size: 0.85rem;
+    color: var(--text-primary, #f8fafc);
+  }
+
+  .bubble-markdown :global(p) {
+    margin: 0 0 6px 0;
+  }
+
+  .bubble-markdown :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .bubble-markdown :global(a) {
+    color: var(--accent-color, #38bdf8);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
+  .bubble-markdown :global(a:hover) {
+    filter: brightness(1.2);
+  }
+
+  .bubble-markdown :global(code) {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.84em;
+    color: var(--accent-color, #38bdf8);
+  }
+
+  .bubble-markdown :global(pre) {
+    background: rgba(0, 0, 0, 0.35);
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #334155);
+    overflow-x: auto;
+    margin: 6px 0;
+  }
+
+  .bubble-markdown :global(pre code) {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+  }
+
+  .bubble-markdown :global(ul),
+  .bubble-markdown :global(ol) {
+    margin: 4px 0 6px 0;
+    padding-left: 18px;
+  }
+
+  .bubble-markdown :global(li) {
+    margin-bottom: 3px;
+  }
+
+  .bubble-markdown :global(.cortex-secret-mount) {
+    display: inline-flex;
+    vertical-align: middle;
   }
 
   .streaming-cursor {
