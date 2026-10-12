@@ -139,6 +139,93 @@
   let isSplit = $state(false);
   let focusedPane = $state<"left" | "right">("left");
 
+  // Vertical Panels Resizing State
+  let explorerWidth = $state(260);
+  let assistantWidth = $state(340);
+  let splitRatio = $state(0.5);
+  let resizingTarget = $state<"explorer" | "split" | "assistant" | null>(null);
+  let panesContainerEl = $state<HTMLDivElement | null>(null);
+
+  let resizeStartX = 0;
+  let resizeStartWidth = 0;
+  let resizeContainerRect: DOMRect | null = null;
+
+  function startResizing(target: "explorer" | "split" | "assistant", e: PointerEvent) {
+    e.preventDefault();
+    resizingTarget = target;
+    resizeStartX = e.clientX;
+
+    if (target === "explorer") {
+      resizeStartWidth = explorerWidth;
+    } else if (target === "assistant") {
+      resizeStartWidth = assistantWidth;
+    } else if (target === "split" && panesContainerEl) {
+      resizeContainerRect = panesContainerEl.getBoundingClientRect();
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResizing);
+    window.addEventListener("pointercancel", stopResizing);
+  }
+
+  function handlePointerMove(e: PointerEvent) {
+    if (!resizingTarget) return;
+
+    if (resizingTarget === "explorer") {
+      const deltaX = e.clientX - resizeStartX;
+      const windowWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
+      const maxExpWidth = Math.min(650, windowWidth - (showAssistant ? assistantWidth : 0) - 350);
+      explorerWidth = Math.min(Math.max(resizeStartWidth + deltaX, 180), Math.max(260, maxExpWidth));
+    } else if (resizingTarget === "assistant") {
+      const deltaX = resizeStartX - e.clientX; // dragging left increases right sidebar width
+      const windowWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
+      const maxAstWidth = Math.min(800, windowWidth - (showLeftSidebar ? explorerWidth : 0) - 350);
+      assistantWidth = Math.min(Math.max(resizeStartWidth + deltaX, 260), Math.max(340, maxAstWidth));
+    } else if (resizingTarget === "split" && panesContainerEl) {
+      const rect = resizeContainerRect || panesContainerEl.getBoundingClientRect();
+      if (rect.width > 0) {
+        const relX = e.clientX - rect.left;
+        let newRatio = relX / rect.width;
+        const minRatio = Math.min(0.2, 180 / rect.width);
+        const maxRatio = Math.max(0.8, 1 - (180 / rect.width));
+        splitRatio = Math.min(Math.max(newRatio, minRatio), maxRatio);
+      }
+    }
+  }
+
+  function stopResizing() {
+    if (!resizingTarget) return;
+    const target = resizingTarget;
+    resizingTarget = null;
+    resizeContainerRect = null;
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", stopResizing);
+    window.removeEventListener("pointercancel", stopResizing);
+
+    try {
+      if (target === "explorer") {
+        localStorage.setItem("cortex_explorer_width", String(explorerWidth));
+      } else if (target === "assistant") {
+        localStorage.setItem("cortex_assistant_width", String(assistantWidth));
+      } else if (target === "split") {
+        localStorage.setItem("cortex_split_ratio", String(splitRatio));
+      }
+    } catch (_) {}
+  }
+
+  function resetWidth(target: "explorer" | "split" | "assistant") {
+    if (target === "explorer") {
+      explorerWidth = 260;
+      try { localStorage.setItem("cortex_explorer_width", "260"); } catch (_) {}
+    } else if (target === "assistant") {
+      assistantWidth = 340;
+      try { localStorage.setItem("cortex_assistant_width", "340"); } catch (_) {}
+    } else if (target === "split") {
+      splitRatio = 0.5;
+      try { localStorage.setItem("cortex_split_ratio", "0.5"); } catch (_) {}
+    }
+  }
+
   // In-memory file cache to retain unsaved edits when switching tabs
   interface FileCacheItem {
     content: string;
@@ -845,6 +932,25 @@
     loadSshKeys();
     window.addEventListener("keydown", handleKeydown);
 
+    // Restore saved panel dimensions
+    try {
+      const savedExp = localStorage.getItem("cortex_explorer_width");
+      if (savedExp) {
+        const n = parseInt(savedExp, 10);
+        if (!isNaN(n) && n >= 180 && n <= 700) explorerWidth = n;
+      }
+      const savedAst = localStorage.getItem("cortex_assistant_width");
+      if (savedAst) {
+        const n = parseInt(savedAst, 10);
+        if (!isNaN(n) && n >= 240 && n <= 850) assistantWidth = n;
+      }
+      const savedSplit = localStorage.getItem("cortex_split_ratio");
+      if (savedSplit) {
+        const f = parseFloat(savedSplit);
+        if (!isNaN(f) && f >= 0.15 && f <= 0.85) splitRatio = f;
+      }
+    } catch (_) {}
+
     let unlistenFs: UnlistenFn | null = null;
     listen("vault:fs-change", () => {
       loadVault();
@@ -871,11 +977,14 @@
       window.removeEventListener("focus", handleWindowFocus);
       window.removeEventListener("keydown", handleKeydown);
       window.removeEventListener("contextmenu", preventDefaultMenu);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResizing);
+      window.removeEventListener("pointercancel", stopResizing);
     };
   });
 </script>
 
-<div class="cortex-app-root" class:modal-open={isAnyModalOpen}>
+<div class="cortex-app-root" class:modal-open={isAnyModalOpen} class:is-resizing={resizingTarget !== null}>
   <!-- 1. UNIFIED APP TOP TITLEBAR (Across full window) -->
   <header class="app-titlebar">
     <!-- Left: Brand + Multi-select Folder Hubs Filter -->
@@ -962,7 +1071,10 @@
   <div class="app-body">
     <!-- LEFT SIDEBAR: EXPLORER -->
     {#if showLeftSidebar}
-      <aside class="sidebar-explorer">
+      <aside
+        class="sidebar-explorer"
+        style="width: {explorerWidth}px; min-width: {explorerWidth}px; max-width: {explorerWidth}px;"
+      >
         <!-- Explorer Header with compact quick action icons (VS Code red box #3) -->
         <div class="explorer-header">
           <div class="explorer-title">
@@ -1043,11 +1155,28 @@
           {/if}
         </div>
       </aside>
+
+      <!-- Resizer Handle 1: Explorer to Workspace (Arrow 1) -->
+      <div
+        class="resizer-handle resizer-left"
+        class:active={resizingTarget === "explorer"}
+        onpointerdown={(e) => startResizing("explorer", e)}
+        ondblclick={() => resetWidth("explorer")}
+        title="Потяните для изменения ширины проводника (двойной клик для сброса)"
+        role="separator"
+        aria-orientation="vertical"
+        aria-valuenow={explorerWidth}
+      ></div>
     {/if}
 
     <!-- CENTER WORKSPACE: TABS & SPLIT PANES -->
     <main class="workspace-area">
-      <div class="panes-container" class:is-split={isSplit}>
+      <div
+        class="panes-container"
+        class:is-split={isSplit}
+        bind:this={panesContainerEl}
+        style={isSplit ? `--split-left: ${(splitRatio * 100).toFixed(2)}%;` : ""}
+      >
         <!-- Pane 1 (Left) -->
         <EditorPane
           paneId="left"
@@ -1089,7 +1218,16 @@
 
         <!-- Pane 2 (Right, when split enabled) -->
         {#if isSplit}
-          <div class="split-separator"></div>
+          <!-- Resizer Handle 2: Split Separator between Editor Panes (Arrow 2) -->
+          <div
+            class="resizer-handle split-separator"
+            class:active={resizingTarget === "split"}
+            onpointerdown={(e) => startResizing("split", e)}
+            ondblclick={() => resetWidth("split")}
+            title="Потяните для изменения соотношения разделов (двойной клик для сброса 50/50)"
+            role="separator"
+            aria-orientation="vertical"
+          ></div>
           <EditorPane
             paneId="right"
             isFocused={focusedPane === "right"}
@@ -1134,7 +1272,21 @@
 
     <!-- RIGHT SIDEBAR: AI ASSISTANT -->
     {#if showAssistant}
-      <aside class="sidebar-assistant">
+      <!-- Resizer Handle 3: Workspace to Assistant (Arrow 3) -->
+      <div
+        class="resizer-handle resizer-right"
+        class:active={resizingTarget === "assistant"}
+        onpointerdown={(e) => startResizing("assistant", e)}
+        ondblclick={() => resetWidth("assistant")}
+        title="Потяните для изменения ширины ассистента (двойной клик для сброса)"
+        role="separator"
+        aria-orientation="vertical"
+        aria-valuenow={assistantWidth}
+      ></div>
+      <aside
+        class="sidebar-assistant"
+        style="width: {assistantWidth}px; min-width: {assistantWidth}px; max-width: {assistantWidth}px;"
+      >
         <AssistantPanel
           activeNotePath={activeFilePath}
           activeNoteContent={activeFile?.content || null}
@@ -1584,10 +1736,7 @@
 
   /* EXPLORER SIDEBAR */
   .sidebar-explorer {
-    width: 260px;
-    min-width: 220px;
     background: var(--cortex-bg-sidebar, #0a111a);
-    border-right: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1727,20 +1876,78 @@
     overflow: hidden;
   }
 
+  .panes-container.is-split > :global(.editor-pane:first-of-type) {
+    flex: 0 0 calc(var(--split-left, 50%) - 1px) !important;
+    width: calc(var(--split-left, 50%) - 1px) !important;
+    min-width: 180px;
+    max-width: calc(100% - 182px);
+  }
+
+  .panes-container.is-split > :global(.editor-pane:last-of-type) {
+    flex: 1 1 0 !important;
+    min-width: 180px;
+  }
+
+  /* RESIZABLE DIVIDERS */
+  .resizer-handle {
+    position: relative;
+    width: 2px;
+    background: var(--cortex-border, rgba(255, 255, 255, 0.08));
+    cursor: col-resize;
+    user-select: none;
+    touch-action: none;
+    flex-shrink: 0;
+    z-index: 20;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* Extended invisible hit area for easy mouse grabbing (12px) */
+  .resizer-handle::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -5px;
+    width: 12px;
+    z-index: 21;
+  }
+
+  .resizer-handle:hover,
+  .resizer-handle.active {
+    background: var(--cortex-accent, #38bdf8);
+    box-shadow: 0 0 6px var(--cortex-accent-subtle, rgba(56, 189, 248, 0.4));
+  }
+
+  .resizer-handle.resizer-left {
+    margin-right: -1px;
+  }
+
+  .resizer-handle.resizer-right {
+    margin-left: -1px;
+  }
+
   .split-separator {
     width: 2px;
-    background: var(--cortex-border, rgba(255, 255, 255, 0.12));
-    flex-shrink: 0;
-    position: relative;
-    cursor: col-resize;
+  }
+
+  .cortex-app-root.is-resizing {
+    cursor: col-resize !important;
+    user-select: none !important;
+  }
+
+  .cortex-app-root.is-resizing * {
+    user-select: none !important;
+    pointer-events: none !important;
+  }
+
+  .cortex-app-root.is-resizing .resizer-handle {
+    pointer-events: auto !important;
   }
 
   /* ASSISTANT SIDEBAR */
   .sidebar-assistant {
-    width: 320px;
-    min-width: 280px;
+    background: var(--cortex-bg-sidebar, #0a111a);
     flex-shrink: 0;
-    border-left: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
     overflow: hidden;
     display: flex;
     flex-direction: column;
