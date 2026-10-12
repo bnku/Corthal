@@ -6,7 +6,7 @@ import {
   type ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { RangeSetBuilder, type Range, type Extension, StateField } from "@codemirror/state";
+import { RangeSetBuilder, type Range, type Extension, StateField, EditorState } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { mount, unmount } from "svelte";
 import SecretPill from "$lib/components/SecretPill.svelte";
@@ -82,16 +82,48 @@ class BulletWidget extends WidgetType {
   }
 }
 
-// 2c. Table Divider Widget for markdown table header delimiter
-class TableDividerWidget extends WidgetType {
-  toDOM(): HTMLElement {
-    const el = document.createElement("div");
-    el.className = "cm-live-table-divider";
-    return el;
+// 2c. Helpers for Code Copying
+async function doCopyCode(codeContent: string, copyBtn: HTMLButtonElement) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(codeContent);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = codeContent;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span style="color:#22c55e">Скопировано</span>`;
+    setTimeout(() => {
+      copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Копировать</span>`;
+    }, 1500);
+  } catch (err) {
+    console.error("Failed to copy code:", err);
   }
 }
 
-// 2d. Code Header Widget for fenced code blocks
+function createCopyButton(codeContent: string): HTMLButtonElement {
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "cm-live-code-copy-btn";
+  copyBtn.type = "button";
+  copyBtn.title = "Копировать код";
+  copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Копировать</span>`;
+
+  copyBtn.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+  });
+  copyBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    doCopyCode(codeContent, copyBtn);
+  });
+  return copyBtn;
+}
+
+// 2d. Code Header Widget for fenced code blocks (inactive line)
 class CodeHeaderWidget extends WidgetType {
   constructor(readonly lang: string, readonly codeContent: string) {
     super();
@@ -118,40 +150,7 @@ class CodeHeaderWidget extends WidgetType {
     left.appendChild(badge);
 
     bar.appendChild(left);
-
-    const copyBtn = document.createElement("button");
-    copyBtn.className = "cm-live-code-copy-btn";
-    copyBtn.type = "button";
-    copyBtn.title = "Копировать код";
-    copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Копировать</span>`;
-    const doCopy = async (e: Event) => {
-      e.stopPropagation();
-      e.preventDefault();
-      try {
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(this.codeContent);
-        } else {
-          const textarea = document.createElement("textarea");
-          textarea.value = this.codeContent;
-          document.body.appendChild(textarea);
-          textarea.select();
-          document.execCommand("copy");
-          document.body.removeChild(textarea);
-        }
-        copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span style="color:#22c55e">Скопировано</span>`;
-        setTimeout(() => {
-          copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Копировать</span>`;
-        }, 1500);
-      } catch (err) {
-        console.error("Failed to copy code:", err);
-      }
-    };
-    copyBtn.addEventListener("mousedown", (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-    });
-    copyBtn.addEventListener("click", doCopy);
-    bar.appendChild(copyBtn);
+    bar.appendChild(createCopyButton(this.codeContent));
 
     return bar;
   }
@@ -164,13 +163,324 @@ class CodeHeaderWidget extends WidgetType {
   }
 }
 
-// 2e. Code Footer Widget for fenced code blocks
-class CodeFooterWidget extends WidgetType {
-  toDOM(): HTMLElement {
-    const bar = document.createElement("div");
-    bar.className = "cm-live-code-footer-bar";
-    return bar;
+// 2e. Code Copy Button Widget (for active header line)
+class CodeCopyBtnWidget extends WidgetType {
+  constructor(readonly codeContent: string) {
+    super();
   }
+
+  eq(other: CodeCopyBtnWidget) {
+    return this.codeContent === other.codeContent;
+  }
+
+  toDOM(): HTMLElement {
+    return createCopyButton(this.codeContent);
+  }
+
+  ignoreEvent(event: Event) {
+    if ((event.target as HTMLElement)?.closest(".cm-live-code-copy-btn")) {
+      return true;
+    }
+    return false;
+  }
+}
+
+// 2f. Table Parsing & Real HTML Table Widget
+interface TableColumn {
+  title: string;
+  align: "left" | "center" | "right";
+}
+
+interface ParsedTable {
+  columns: TableColumn[];
+  rows: string[][];
+  rowLineOffsets: number[];
+}
+
+function escapeHTML(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatCellHTML(raw: string): string {
+  let escaped = escapeHTML(raw);
+
+  // Secrets: 🔒[enc:v1:...]
+  escaped = escaped.replace(
+    /🔒\[enc:v1:[^\]]+\]/g,
+    `<span class="cm-live-secret-pill" title="Зашифрованные данные"><span class="cm-live-secret-icon">🔒</span> Секрет</span>`
+  );
+
+  // Inline code: `code`
+  escaped = escaped.replace(/`([^`]+)`/g, `<code class="cm-live-inline-code">$1</code>`);
+
+  // Wikilinks: [[target|label]] or [[target]]
+  escaped = escaped.replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, `<span class="cm-live-wikilink" data-target="$1" title="Открыть: $1">$2</span>`);
+  escaped = escaped.replace(/\[\[([^\]]+)\]\]/g, `<span class="cm-live-wikilink" data-target="$1" title="Открыть: $1">$1</span>`);
+
+  // Markdown links: [label](url)
+  escaped = escaped.replace(/\[([^\]]+)\]\(([^)]+)\)/g, `<a href="$2" class="cm-live-link" target="_blank" rel="noopener">$1</a>`);
+
+  // Bold: **text**
+  escaped = escaped.replace(/\*\*([^*]+)\*\*/g, `<strong>$1</strong>`);
+
+  // Italic: *text*
+  escaped = escaped.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, `<em>$1</em>`);
+
+  // Strikethrough: ~~text~~
+  escaped = escaped.replace(/~~([^~]+)~~/g, `<del>$1</del>`);
+
+  return escaped;
+}
+
+function splitTableRow(line: string): string[] {
+  let trimmed = line.trim();
+  if (trimmed.startsWith("|")) trimmed = trimmed.slice(1);
+  if (trimmed.endsWith("|")) trimmed = trimmed.slice(0, -1);
+
+  const cells: string[] = [];
+  let current = "";
+  let inCode = false;
+
+  for (let i = 0; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (ch === "\\" && i + 1 < trimmed.length && trimmed[i + 1] === "|") {
+      current += "|";
+      i++;
+    } else if (ch === "`") {
+      inCode = !inCode;
+      current += ch;
+    } else if (ch === "|" && !inCode) {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function parseMarkdownTable(raw: string): ParsedTable {
+  const lines = raw.split(/\r?\n/);
+  const rows: string[][] = [];
+  const lineOffsets: number[] = [];
+
+  let headerLineIndex = -1;
+  let delimLineIndex = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed.startsWith("|") || trimmed.includes("|")) {
+      if (headerLineIndex === -1) {
+        headerLineIndex = i;
+      } else if (delimLineIndex === -1) {
+        if (/^\|?[\s\-:|]+\|?$/.test(trimmed) && trimmed.includes("-")) {
+          delimLineIndex = i;
+        }
+      }
+    }
+  }
+
+  if (headerLineIndex === -1 || delimLineIndex === -1) {
+    return { columns: [], rows: [], rowLineOffsets: [] };
+  }
+
+  const headerCells = splitTableRow(lines[headerLineIndex]);
+  const delimCells = splitTableRow(lines[delimLineIndex]);
+
+  const columns: TableColumn[] = headerCells.map((title, idx) => {
+    const delim = (delimCells[idx] || "").trim();
+    let align: "left" | "center" | "right" = "left";
+    if (delim.startsWith(":") && delim.endsWith(":")) {
+      align = "center";
+    } else if (delim.endsWith(":")) {
+      align = "right";
+    }
+    return { title, align };
+  });
+
+  let curOffset = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (i > delimLineIndex) {
+      const trimmed = lines[i].trim();
+      if (trimmed.startsWith("|") || trimmed.includes("|")) {
+        const cells = splitTableRow(lines[i]);
+        while (cells.length < columns.length) cells.push("");
+        rows.push(cells.slice(0, columns.length));
+        lineOffsets.push(curOffset);
+      }
+    }
+    curOffset += lines[i].length + 1;
+  }
+
+  return { columns, rows, rowLineOffsets: lineOffsets };
+}
+
+class LiveTableWidget extends WidgetType {
+  constructor(
+    readonly rawMarkdown: string,
+    readonly tableFrom: number,
+    readonly parsed: ParsedTable,
+    readonly options: LivePreviewOptions
+  ) {
+    super();
+  }
+
+  eq(other: LiveTableWidget) {
+    return this.rawMarkdown === other.rawMarkdown && this.tableFrom === other.tableFrom;
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const container = document.createElement("div");
+    container.className = "cm-live-table-container";
+
+    // Toolbar
+    const toolbar = document.createElement("div");
+    toolbar.className = "cm-live-table-toolbar";
+
+    const badge = document.createElement("div");
+    badge.className = "cm-live-table-badge";
+    badge.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg><span>ТАБЛИЦА (${this.parsed.rows.length} строк)</span>`;
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "cm-live-table-edit-btn";
+    editBtn.type = "button";
+    editBtn.title = "Редактировать разметку таблицы";
+    editBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Редактировать</span>`;
+
+    toolbar.appendChild(badge);
+    toolbar.appendChild(editBtn);
+    container.appendChild(toolbar);
+
+    // Scroll wrapper & Table
+    const scrollWrap = document.createElement("div");
+    scrollWrap.className = "cm-live-table-scroll-wrapper";
+
+    const table = document.createElement("table");
+    table.className = "cm-live-table";
+
+    const thead = document.createElement("thead");
+    const headerTr = document.createElement("tr");
+    for (const col of this.parsed.columns) {
+      const th = document.createElement("th");
+      th.style.textAlign = col.align;
+      th.innerHTML = formatCellHTML(col.title);
+      headerTr.appendChild(th);
+    }
+    thead.appendChild(headerTr);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    for (let rIdx = 0; rIdx < this.parsed.rows.length; rIdx++) {
+      const row = this.parsed.rows[rIdx];
+      const tr = document.createElement("tr");
+      tr.dataset.rowIdx = String(rIdx);
+
+      for (let cIdx = 0; cIdx < this.parsed.columns.length; cIdx++) {
+        const td = document.createElement("td");
+        const col = this.parsed.columns[cIdx];
+        td.style.textAlign = col.align;
+        const cellText = row[cIdx] || "";
+        td.innerHTML = formatCellHTML(cellText);
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    scrollWrap.appendChild(table);
+    container.appendChild(scrollWrap);
+
+    // Interactive click: wikilinks or edit mode jump
+    container.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement | null;
+
+      const wikilink = target?.closest(".cm-live-wikilink") as HTMLElement | null;
+      if (wikilink && wikilink.dataset.target) {
+        e.stopPropagation();
+        e.preventDefault();
+        this.options.onOpenNote?.(wikilink.dataset.target);
+        return;
+      }
+
+      const link = target?.closest("a") as HTMLAnchorElement | null;
+      if (link) {
+        return;
+      }
+
+      e.stopPropagation();
+      e.preventDefault();
+
+      let targetPos = this.tableFrom;
+      const tr = target?.closest("tr") as HTMLElement | null;
+      if (tr && tr.dataset.rowIdx !== undefined) {
+        const rowIdx = parseInt(tr.dataset.rowIdx, 10);
+        if (this.parsed.rowLineOffsets[rowIdx] !== undefined) {
+          targetPos = Math.min(this.tableFrom + this.parsed.rowLineOffsets[rowIdx], view.state.doc.length);
+        }
+      }
+
+      view.dispatch({
+        selection: { anchor: targetPos },
+        scrollIntoView: true,
+      });
+      view.focus();
+    });
+
+    return container;
+  }
+
+  ignoreEvent(event: Event): boolean {
+    return true;
+  }
+}
+
+function buildTableDecos(state: EditorState, options: LivePreviewOptions): DecorationSet {
+  const decos: Range<Decoration>[] = [];
+  const sel = state.selection.main;
+
+  syntaxTree(state).iterate({
+    enter(node) {
+      if (node.name === "Table") {
+        const isCursorInTable = selectionIntersects(sel.from, sel.to, node.from, node.to);
+        if (!isCursorInTable) {
+          const rawMarkdown = state.sliceDoc(node.from, node.to);
+          const parsed = parseMarkdownTable(rawMarkdown);
+          if (parsed.columns.length > 0) {
+            const lineFrom = state.doc.lineAt(node.from);
+            const lineTo = state.doc.lineAt(node.to);
+            decos.push(
+              Decoration.replace({
+                widget: new LiveTableWidget(rawMarkdown, lineFrom.from, parsed, options),
+                block: true,
+              }).range(lineFrom.from, lineTo.to)
+            );
+          }
+        }
+        return false;
+      }
+    },
+  });
+
+  return Decoration.set(decos);
+}
+
+export function createLiveTableField(options: LivePreviewOptions) {
+  return StateField.define<DecorationSet>({
+    create(state) {
+      return buildTableDecos(state, options);
+    },
+    update(decos, tr) {
+      if (tr.docChanged || tr.selection) {
+        return buildTableDecos(tr.state, options);
+      }
+      return decos;
+    },
+    provide: (f) => EditorView.decorations.from(f),
+  });
 }
 
 // 3. Secret Pill Widget for 🔒[enc:v1:...]
@@ -286,6 +596,7 @@ export const hideFrontmatterField = StateField.define<DecorationSet>({
 export function createLivePreviewPlugin(options: LivePreviewOptions): Extension {
   return [
     hideFrontmatterField,
+    createLiveTableField(options),
     ViewPlugin.fromClass(
       class {
         decorations: DecorationSet;
@@ -387,13 +698,13 @@ export function createLivePreviewPlugin(options: LivePreviewOptions): Extension 
                 const codeContent = codeTextNode ? state.sliceDoc(codeTextNode.from, codeTextNode.to) : "";
 
                 if (firstLine.number === lastLine.number) {
-                  addLineClass(firstLine.from, "cm-live-code-line");
+                  addLineClass(firstLine.from, "cm-live-code-line cm-live-code-single");
                   return false;
                 }
 
                 // 2a. Opening Header line
                 if (curLine === firstLine.number) {
-                  addLineClass(firstLine.from, "cm-live-code-header-active");
+                  addLineClass(firstLine.from, "cm-live-code-line cm-live-code-first cm-live-code-header-active");
                   const openMark = node.node.firstChild;
                   if (openMark && openMark.name === "CodeMark") {
                     allDecos.push({
@@ -406,11 +717,19 @@ export function createLivePreviewPlugin(options: LivePreviewOptions): Extension 
                     allDecos.push({
                       from: langNode.from,
                       to: langNode.to,
-                      deco: Decoration.mark({ class: "cm-live-code-badge" }),
+                      deco: Decoration.mark({ class: "cm-live-code-badge-inline" }),
                     });
                   }
+                  allDecos.push({
+                    from: firstLine.to,
+                    to: firstLine.to,
+                    deco: Decoration.widget({
+                      widget: new CodeCopyBtnWidget(codeContent),
+                      side: 1,
+                    }),
+                  });
                 } else {
-                  addLineClass(firstLine.from, "cm-live-code-header");
+                  addLineClass(firstLine.from, "cm-live-code-line cm-live-code-first");
                   allDecos.push({
                     from: firstLine.from,
                     to: firstLine.to,
@@ -428,7 +747,7 @@ export function createLivePreviewPlugin(options: LivePreviewOptions): Extension 
 
                 // 2c. Footer line
                 if (curLine === lastLine.number) {
-                  addLineClass(lastLine.from, "cm-live-code-footer-active");
+                  addLineClass(lastLine.from, "cm-live-code-line cm-live-code-last-active");
                   const closeMark = node.node.lastChild;
                   if (closeMark && closeMark.name === "CodeMark") {
                     allDecos.push({
@@ -438,13 +757,11 @@ export function createLivePreviewPlugin(options: LivePreviewOptions): Extension 
                     });
                   }
                 } else {
-                  addLineClass(lastLine.from, "cm-live-code-footer");
+                  addLineClass(lastLine.from, "cm-live-code-line cm-live-code-last");
                   allDecos.push({
                     from: lastLine.from,
                     to: lastLine.to,
-                    deco: Decoration.replace({
-                      widget: new CodeFooterWidget(),
-                    }),
+                    deco: Decoration.replace({}),
                   });
                 }
 
@@ -453,68 +770,26 @@ export function createLivePreviewPlugin(options: LivePreviewOptions): Extension 
 
               // 3. Tables
               else if (name === "Table") {
-                // descend into rows
-              }
-              else if (name === "TableHeader") {
-                const line = state.doc.lineAt(nFrom);
-                addLineClass(line.from, "cm-live-table-header");
-              }
-              else if (name === "TableRow") {
-                const line = state.doc.lineAt(nFrom);
-                const isLastRow = node.node.nextSibling === null || node.node.nextSibling.name !== "TableRow";
-                if (isLastRow) {
-                  addLineClass(line.from, "cm-live-table-row cm-live-table-row-last");
-                } else {
-                  addLineClass(line.from, "cm-live-table-row");
+                const isCursorInTable = selectionIntersects(sel.from, sel.to, nFrom, nTo);
+                if (!isCursorInTable) {
+                  // Rendered as HTML Table widget via createLiveTableField
+                  return false;
                 }
+                const firstLine = state.doc.lineAt(nFrom);
+                const lastLine = state.doc.lineAt(nTo);
+                for (let l = firstLine.number; l <= lastLine.number; l++) {
+                  addLineClass(state.doc.line(l).from, "cm-live-table-raw-line");
+                }
+              }
+              else if (name === "TableHeader" || name === "TableRow") {
+                // Descend into TableDelimiter / TableCell
               }
               else if (name === "TableDelimiter") {
-                const parentName = node.node.parent?.name;
-                if (parentName === "Table") {
-                  // Delimiter row (| --- | --- |)
-                  const line = state.doc.lineAt(nFrom);
-                  const isCursorOnDelim = line.number === curLine;
-                  if (!isCursorOnDelim) {
-                    addLineClass(line.from, "cm-live-table-delimiter-line");
-                    allDecos.push({
-                      from: nFrom,
-                      to: nTo,
-                      deco: Decoration.replace({
-                        widget: new TableDividerWidget(),
-                      }),
-                    });
-                  } else {
-                    addLineClass(line.from, "cm-live-table-delimiter-active");
-                    allDecos.push({
-                      from: nFrom,
-                      to: nTo,
-                      deco: Decoration.mark({ class: "cm-live-syntax-mark" }),
-                    });
-                  }
-                  return false;
-                } else if (parentName === "TableHeader" || parentName === "TableRow") {
-                  allDecos.push({
-                    from: nFrom,
-                    to: nTo,
-                    deco: Decoration.mark({ class: "cm-live-table-pipe" }),
-                  });
-                }
-              }
-              else if (name === "TableCell") {
-                const parentName = node.node.parent?.name;
-                if (parentName === "TableHeader") {
-                  allDecos.push({
-                    from: nFrom,
-                    to: nTo,
-                    deco: Decoration.mark({ class: "cm-live-table-header-cell" }),
-                  });
-                } else {
-                  allDecos.push({
-                    from: nFrom,
-                    to: nTo,
-                    deco: Decoration.mark({ class: "cm-live-table-cell" }),
-                  });
-                }
+                allDecos.push({
+                  from: nFrom,
+                  to: nTo,
+                  deco: Decoration.mark({ class: "cm-live-table-pipe" }),
+                });
               }
 
               // 4. Lists (Bullet, Ordered, and Task lists)
