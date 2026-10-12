@@ -289,6 +289,17 @@
   let isFolderSettingsModalOpen = $state(false);
   let selectedFolderForSettings = $state<VaultNode | null>(null);
 
+  let isAnyModalOpen = $derived(
+    isSettingsModalOpen ||
+    isSecretModalOpen ||
+    isNewNoteModalOpen ||
+    isNewFolderModalOpen ||
+    isFolderSettingsModalOpen ||
+    isVaultOpenModalOpen ||
+    isConfirmKeyModalOpen ||
+    isPassphraseModalOpen
+  );
+
   // Context Menu state
   let contextMenu = $state<{
     visible: boolean;
@@ -864,7 +875,7 @@
   });
 </script>
 
-<div class="cortex-app-root">
+<div class="cortex-app-root" class:modal-open={isAnyModalOpen}>
   <!-- 1. UNIFIED APP TOP TITLEBAR (Across full window) -->
   <header class="app-titlebar">
     <!-- Left: Brand + Multi-select Folder Hubs Filter -->
@@ -1377,6 +1388,39 @@
     overflow: hidden;
   }
 
+  /* GLOBAL CUSTOM SCROLLBARS FOR WEBKITGTK / WEBCORE (Fixes z-index bleed-through) */
+  :global(::-webkit-scrollbar),
+  :global(*::-webkit-scrollbar) {
+    width: 6px;
+    height: 6px;
+  }
+
+  :global(::-webkit-scrollbar-track),
+  :global(*::-webkit-scrollbar-track) {
+    background: transparent;
+  }
+
+  :global(::-webkit-scrollbar-thumb),
+  :global(*::-webkit-scrollbar-thumb) {
+    background: var(--cortex-border, rgba(255, 255, 255, 0.18));
+    border-radius: 3px;
+  }
+
+  :global(::-webkit-scrollbar-thumb:hover),
+  :global(*::-webkit-scrollbar-thumb:hover) {
+    background: var(--cortex-border-hover, rgba(255, 255, 255, 0.32));
+  }
+
+  :global(::-webkit-scrollbar-corner),
+  :global(*::-webkit-scrollbar-corner) {
+    background: transparent;
+  }
+
+  :global(*) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cortex-border, rgba(255, 255, 255, 0.18)) transparent;
+  }
+
   .cortex-app-root {
     display: flex;
     flex-direction: column;
@@ -1384,6 +1428,11 @@
     width: 100vw;
     overflow: hidden;
     background: var(--cortex-bg-main, #090d16);
+  }
+
+  .cortex-app-root.modal-open {
+    pointer-events: none;
+    user-select: none;
   }
 
   /* 1. TOP TITLEBAR */
@@ -1397,7 +1446,7 @@
     padding: 0 12px;
     flex-shrink: 0;
     user-select: none;
-    z-index: 100;
+    z-index: 500;
   }
 
   .titlebar-left {

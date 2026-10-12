@@ -374,7 +374,7 @@
   .select-dropdown-menu {
     position: absolute;
     left: 0;
-    z-index: 1000;
+    z-index: 10000;
     background: var(--cortex-bg-card, #1a1d26);
     border: 1px solid var(--cortex-border-hover, rgba(255, 255, 255, 0.16));
     border-radius: 8px;
@@ -383,6 +383,7 @@
     overflow-x: hidden;
     padding: 4px;
     box-sizing: border-box;
+    isolation: isolate;
   }
 
   .select-dropdown-menu.placement-down {

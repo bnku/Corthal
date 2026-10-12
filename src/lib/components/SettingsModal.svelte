@@ -1308,12 +1308,16 @@
     inset: 0;
     background: rgba(0, 0, 0, 0.72);
     backdrop-filter: blur(4px);
-    z-index: 2000;
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
     animation: fadeIn 0.15s ease-out;
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    isolation: isolate;
   }
 
   .modal-window {
@@ -1328,6 +1332,8 @@
     flex-direction: column;
     box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
     overflow: hidden;
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
   }
 
   .modal-header {

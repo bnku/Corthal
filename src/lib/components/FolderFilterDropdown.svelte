@@ -281,11 +281,14 @@
     border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
     border-radius: 8px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
-    z-index: 1000;
+    z-index: 10000;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     animation: fadeIn 0.15s ease-out;
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    isolation: isolate;
   }
 
   @keyframes fadeIn {
