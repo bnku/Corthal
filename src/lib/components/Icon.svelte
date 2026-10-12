@@ -67,6 +67,8 @@
   import EyeOff from "lucide-svelte/icons/eye-off";
   import Send from "lucide-svelte/icons/send";
   import CircleX from "lucide-svelte/icons/circle-x";
+  import FileDown from "lucide-svelte/icons/file-down";
+  import Square from "lucide-svelte/icons/square";
 
   interface Props {
     name: string;
@@ -151,6 +153,8 @@
     "send": Send,
     "circle-x": CircleX,
     "x-circle": CircleX,
+    "file-down": FileDown,
+    "square": Square,
 
     // Legacy emoji mappings
     "🖥️": Monitor,

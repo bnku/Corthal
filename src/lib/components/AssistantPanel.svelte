@@ -28,7 +28,10 @@
     onPassphraseNeeded,
   }: Props = $props();
 
-  const customMarked = new Marked();
+  const customMarked = new Marked({
+    gfm: true,
+    breaks: true,
+  });
 
   function formatMessageHtml(text: string): string {
     if (!text) return "";
@@ -118,11 +121,16 @@
   }
 
   let inputMessage = $state("");
+  let textareaEl = $state<HTMLTextAreaElement | null>(null);
   let quickSecretInput = $state("");
   let encryptedResult = $state("");
   let isEncrypting = $state(false);
   let showEncryptTool = $state(false);
   let isProviderDropdownOpen = $state(false);
+  let copiedId = $state<string | null>(null);
+
+  // User decides whether to attach the open note to the current prompt (opt-in, default false)
+  let includeActiveNote = $state(false);
 
   let isGenerating = $state(false);
   let currentSessionId = $state<string | null>(null);
@@ -149,14 +157,14 @@
     {
       id: "initial",
       role: "assistant",
-      text: "Привет! Я твой ассистент Cortex. Я могу анализировать заметки, структурировать информацию и помогать с архитектурой.\n\nЛюбые пароли и конфиденциальные данные, оформленные как `{{secret:пароль}}`, будут локально зашифрованы твоим SSH-ключом до отправки в ИИ!",
+      text: "Привет! Чем могу помочь? Могу разобрать заметки, ответить на вопросы или помочь с кодом.",
       timestamp: Date.now(),
     },
   ]);
 
   let unlistenChunk: UnlistenFn | null = null;
   let unlistenConfig: UnlistenFn | null = null;
-  let messagesContainer: HTMLDivElement | null = null;
+  let messagesContainer = $state<HTMLDivElement | null>(null);
 
   onMount(async () => {
     await loadConfig();
@@ -193,15 +201,23 @@
       config = event.payload;
       checkCodex();
     });
+
+    window.addEventListener("click", handleGlobalClick);
   });
 
+  function handleGlobalClick(e: MouseEvent) {
+    if (isProviderDropdownOpen) {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest(".provider-pill-wrap")) {
+        isProviderDropdownOpen = false;
+      }
+    }
+  }
+
   onDestroy(() => {
-    if (unlistenChunk) {
-      unlistenChunk();
-    }
-    if (unlistenConfig) {
-      unlistenConfig();
-    }
+    window.removeEventListener("click", handleGlobalClick);
+    if (unlistenChunk) unlistenChunk();
+    if (unlistenConfig) unlistenConfig();
   });
 
   async function loadConfig() {
@@ -243,6 +259,30 @@
     }, 10);
   }
 
+  function adjustTextareaHeight() {
+    if (!textareaEl) return;
+    textareaEl.style.height = "auto";
+    textareaEl.style.height = `${Math.min(Math.max(textareaEl.scrollHeight, 38), 160)}px`;
+  }
+
+  async function copyMessage(id: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      copiedId = id;
+      setTimeout(() => {
+        if (copiedId === id) copiedId = null;
+      }, 1800);
+    } catch (e) {
+      console.warn("Failed to copy message:", e);
+    }
+  }
+
+  function insertMessage(text: string) {
+    if (onInsertText) {
+      onInsertText(text);
+    }
+  }
+
   async function handleQuickEncrypt() {
     if (!quickSecretInput.trim()) return;
     isEncrypting = true;
@@ -265,10 +305,9 @@
 
     let sanitized = inputMessage;
 
-    // Pre-send interception: match {{secret:...}} and encrypt with user's vault SSH key
+    // Optional pre-send interception if user specifically typed {{secret:...}}
     const secretRegex = /\{\{secret:(.*?)\}\}/g;
     const matches = [...inputMessage.matchAll(secretRegex)];
-
     if (matches.length > 0) {
       for (const match of matches) {
         const rawPlaintext = match[1];
@@ -287,6 +326,9 @@
 
     const userText = sanitized;
     inputMessage = "";
+    if (textareaEl) {
+      textareaEl.style.height = "auto";
+    }
 
     // Add user message
     messages.push({
@@ -319,9 +361,9 @@
 
     scrollToBottom();
 
-    // Prepare note context
+    // Prepare note context only if explicitly requested by user
     let noteContext: string | null = null;
-    if (config.include_active_note && activeNotePath) {
+    if (includeActiveNote && activeNotePath) {
       noteContext = `Файл: ${activeNotePath}\n`;
       if (activeNoteContent) {
         noteContext += `Содержимое:\n${activeNoteContent.slice(0, 8000)}`;
@@ -365,7 +407,7 @@
       {
         id: "initial",
         role: "assistant",
-        text: "Диалог очищен. Чем я могу помочь?",
+        text: "Диалог очищен. Чем могу помочь?",
         timestamp: Date.now(),
       },
     ];
@@ -374,11 +416,11 @@
   function getProviderLabel(p: AssistantProvider): string {
     switch (p) {
       case "codex":
-        return "Codex (ChatGPT)";
+        return "Codex";
       case "openrouter":
         return "OpenRouter";
       case "openai":
-        return "OpenAI / Local";
+        return "OpenAI API";
     }
   }
 
@@ -392,18 +434,20 @@
         return config.openai_model || "llama3";
     }
   }
+
+  let activeFileName = $derived(activeNotePath ? activeNotePath.split("/").pop() || "" : "");
 </script>
 
 <div class="assistant-container">
-  <!-- Header with Provider Selector, Encrypt Tool, Clear Chat & Settings -->
+  <!-- Top Header with Provider, Model Pill, and Action Icons -->
   <div class="header">
-    <div class="header-main">
+    <div class="header-left">
       <div class="title-block">
-        <span class="bot-icon">🤖</span>
-        <h3 class="panel-heading">Ассистент</h3>
+        <Icon name="bot" size={16} color="var(--cortex-accent, #38bdf8)" />
+        <span class="panel-heading">Ассистент</span>
       </div>
 
-      <!-- Quick Provider Selector Dropdown Trigger -->
+      <!-- Provider / Model Pill -->
       <div class="provider-pill-wrap">
         <button
           type="button"
@@ -414,10 +458,13 @@
           }}
           title="Сменить активного провайдера"
         >
-          <span class="provider-dot" class:online={config.provider === 'codex' ? codexStatus?.is_logged_in : true}></span>
+          <span
+            class="provider-dot"
+            class:online={config.provider === "codex" ? codexStatus?.is_logged_in : true}
+          ></span>
           <span class="provider-name">{getProviderLabel(config.provider)}</span>
           <span class="model-badge">{getActiveModelBadge()}</span>
-          <Icon name="chevron-down" size={11} />
+          <Icon name="chevron-down" size={11} class="chevron-icon" />
         </button>
 
         {#if isProviderDropdownOpen}
@@ -484,34 +531,37 @@
       </div>
     </div>
 
-    <!-- Header Actions -->
+    <!-- Header Quick Actions -->
     <div class="header-actions">
       <button
+        type="button"
         class="action-icon-btn"
         class:active={showEncryptTool}
         onclick={() => (showEncryptTool = !showEncryptTool)}
-        title="Шифрование секрета в токен Age"
+        title="Шифрование секрета"
         aria-label="Шифрование"
       >
-        <Icon name="lock" size={14} />
+        <Icon name="lock" size={13} />
       </button>
 
       <button
+        type="button"
         class="action-icon-btn"
         onclick={handleClearChat}
         title="Очистить диалог"
         aria-label="Очистить диалог"
       >
-        <Icon name="trash" size={14} />
+        <Icon name="trash" size={13} />
       </button>
 
       <button
+        type="button"
         class="action-icon-btn"
         onclick={() => onOpenSettings?.("assistant")}
-        title="Параметры ИИ-ассистента"
-        aria-label="Настройки"
+        title="Параметры"
+        aria-label="Параметры"
       >
-        <Icon name="settings" size={14} />
+        <Icon name="settings" size={13} />
       </button>
     </div>
   </div>
@@ -519,15 +569,15 @@
   <!-- Quick Encrypt Dropdown Panel -->
   {#if showEncryptTool}
     <div class="quick-encrypt-box">
-      <div class="box-title">Шифрование через SSH-ключ базы данных</div>
+      <div class="box-title">Шифрование секрета публичным SSH-ключом:</div>
       <div class="input-row">
         <input
           type="password"
-          placeholder="Введите секрет/пароль..."
+          placeholder="Введите секрет..."
           bind:value={quickSecretInput}
           onkeydown={(e) => e.key === "Enter" && handleQuickEncrypt()}
         />
-        <button class="encrypt-btn" onclick={handleQuickEncrypt} disabled={isEncrypting}>
+        <button type="button" class="encrypt-btn" onclick={handleQuickEncrypt} disabled={isEncrypting}>
           {isEncrypting ? "..." : "Зашифровать"}
         </button>
       </div>
@@ -536,12 +586,14 @@
         <div class="result-box">
           <code class="token-code">{encryptedResult}</code>
           <div class="result-actions">
-            <button class="res-btn" onclick={() => navigator.clipboard.writeText(encryptedResult)}>
-              📋 Копировать
+            <button type="button" class="res-btn" onclick={() => navigator.clipboard.writeText(encryptedResult)}>
+              <Icon name="copy" size={11} />
+              <span>Копировать</span>
             </button>
             {#if onInsertText}
-              <button class="res-btn" onclick={() => onInsertText?.(encryptedResult)}>
-                ✍️ В заметку
+              <button type="button" class="res-btn" onclick={() => onInsertText?.(encryptedResult)}>
+                <Icon name="file-down" size={11} />
+                <span>Вставить</span>
               </button>
             {/if}
           </div>
@@ -550,28 +602,11 @@
     </div>
   {/if}
 
-  <!-- Active Note Context Ribbon -->
-  {#if activeNotePath && config.include_active_note}
-    <div class="context-ribbon">
-      <Icon name="file-text" size={12} color="var(--accent-color, #0284c7)" />
-      <span class="context-label">Контекст:</span>
-      <span class="context-path">{activeNotePath.split('/').pop()}</span>
-      <span class="context-active-badge">В запросе</span>
-    </div>
-  {/if}
-
   <!-- Messages Scroll Area -->
-  <div class="messages-area custom-scroll" bind:this={messagesContainer}>
+  <div class="messages-area" bind:this={messagesContainer}>
     {#each messages as msg (msg.id)}
-      <div class="message {msg.role}">
-        <div class="bubble">
-          <div class="bubble-header">
-            <span class="bubble-author">{msg.role === "user" ? "Вы" : "Cortex"}</span>
-            {#if msg.model}
-              <span class="bubble-model-tag">{msg.model}</span>
-            {/if}
-          </div>
-
+      <div class="message-row {msg.role}">
+        <div class="bubble {msg.role}">
           <div class="bubble-content">
             {#if msg.role === "assistant"}
               {#if msg.isStreaming}
@@ -592,22 +627,29 @@
             {/if}
           </div>
 
+          <!-- Subtle Hover Action Toolbar on Assistant Messages -->
           {#if msg.role === "assistant" && msg.text && !msg.isStreaming}
-            <div class="message-footer-actions">
+            <div class="hover-toolbar">
               <button
-                class="msg-action-btn"
-                onclick={() => navigator.clipboard.writeText(msg.text)}
-                title="Скопировать ответ"
+                type="button"
+                class="hover-icon-btn"
+                onclick={() => copyMessage(msg.id, msg.text)}
+                title={copiedId === msg.id ? "Скопировано!" : "Копировать"}
               >
-                📋 Копировать
+                <Icon
+                  name={copiedId === msg.id ? "check" : "copy"}
+                  size={12}
+                  color={copiedId === msg.id ? "var(--cortex-accent, #38bdf8)" : "currentColor"}
+                />
               </button>
               {#if onInsertText}
                 <button
-                  class="msg-action-btn"
-                  onclick={() => onInsertText?.(msg.text)}
-                  title="Вставить ответ в заметку"
+                  type="button"
+                  class="hover-icon-btn"
+                  onclick={() => insertMessage(msg.text)}
+                  title="Вставить в открытую заметку"
                 >
-                  ✍️ Вставить в заметку
+                  <Icon name="file-down" size={12} />
                 </button>
               {/if}
             </div>
@@ -617,38 +659,72 @@
     {/each}
   </div>
 
-  <!-- Input Area -->
-  <div class="input-area">
-    <div class="input-wrapper">
+  <!-- Bottom Context Bar & Input Area -->
+  <div class="input-container">
+    <!-- Non-intrusive Context Chip: shown only when a note is open -->
+    {#if activeNotePath}
+      <div class="context-bar">
+        {#if includeActiveNote}
+          <div class="context-chip attached">
+            <Icon name="file-text" size={11} color="var(--cortex-accent, #38bdf8)" />
+            <span class="context-name" title={activeNotePath}>{activeFileName}</span>
+            <span class="context-tag">в контексте</span>
+            <button
+              type="button"
+              class="chip-close-btn"
+              onclick={() => (includeActiveNote = false)}
+              title="Исключить файл из контекста"
+            >
+              <Icon name="x" size={11} />
+            </button>
+          </div>
+        {:else}
+          <button
+            type="button"
+            class="context-attach-btn"
+            onclick={() => (includeActiveNote = true)}
+            title="Прикрепить содержимое открытого файла к вопросу"
+          >
+            <Icon name="plus" size={11} />
+            <span>Прикрепить <strong>{activeFileName}</strong></span>
+          </button>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Input Box -->
+    <div class="input-card">
       <textarea
-        placeholder="Напишите задачу... (секреты пишите как &#123;&#123;secret:пароль&#125;&#125;)"
+        bind:this={textareaEl}
+        placeholder="Сообщение ассистенту..."
         bind:value={inputMessage}
+        oninput={adjustTextareaHeight}
         onkeydown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             handleSendMessage();
           }
         }}
-        rows="2"
+        rows="1"
       ></textarea>
 
-      <div class="input-actions-bar">
-        <span class="input-hint">Enter — отправить, Shift+Enter — перенос строки</span>
+      <div class="input-footer">
+        <span class="input-hint">Enter — отправить, Shift+Enter — новая строка</span>
 
-        <div class="input-buttons">
+        <div class="input-action-buttons">
           {#if isGenerating}
-            <button class="btn-stop" onclick={handleStopGeneration} title="Остановить генерацию">
-              <Icon name="x-circle" size={14} />
+            <button type="button" class="stop-btn" onclick={handleStopGeneration} title="Остановить ответ">
+              <Icon name="square" size={11} />
               <span>Стоп</span>
             </button>
           {:else}
             <button
-              class="btn-send"
+              type="button"
+              class="send-btn"
               onclick={handleSendMessage}
               disabled={!inputMessage.trim()}
-              title="Отправить запрос"
+              title="Отправить (Enter)"
             >
-              <span>Отправить</span>
               <Icon name="send" size={13} />
             </button>
           {/if}
@@ -658,106 +734,128 @@
   </div>
 </div>
 
-
-
 <style>
   .assistant-container {
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--bg-sidebar, #0f172a);
-    border-left: 1px solid var(--border-color, #334155);
+    background: var(--cortex-bg-sidebar, #0a111a);
     user-select: text;
     -webkit-user-select: text;
+    min-width: 0;
+    overflow: hidden;
   }
 
+  /* 1. HEADER */
   .header {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 10px 14px;
-    background: var(--bg-card, #1e293b);
-    border-bottom: 1px solid var(--border-color, #334155);
-  }
-
-  .header-main {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    height: 38px;
+    padding: 0 10px 0 12px;
+    background: var(--cortex-bg-header, #080c14);
+    border-bottom: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    flex-shrink: 0;
+    user-select: none;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
   }
 
   .title-block {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-shrink: 0;
   }
 
   .panel-heading {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 0.82rem;
     font-weight: 600;
-    color: var(--text-primary, #f8fafc);
+    color: var(--cortex-fg-primary, #ffffff);
+    letter-spacing: -0.2px;
   }
 
+  /* Provider Pill Trigger */
   .provider-pill-wrap {
     position: relative;
+    min-width: 0;
   }
 
   .provider-pill {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border-color, #334155);
-    border-radius: 20px;
-    padding: 3px 10px;
-    font-size: 0.75rem;
-    color: var(--text-secondary, #cbd5e1);
+    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    border-radius: 14px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    color: var(--cortex-fg-secondary, #cbd5e1);
     cursor: pointer;
     transition: all 0.12s ease;
+    max-width: 170px;
   }
 
   .provider-pill:hover {
-    border-color: var(--accent-color, #0284c7);
-    color: var(--text-primary, #f8fafc);
-    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--cortex-accent, #38bdf8);
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
   .provider-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #64748b;
+    background: var(--cortex-fg-muted, #64748b);
+    flex-shrink: 0;
   }
 
   .provider-dot.online {
     background: #10b981;
-    box-shadow: 0 0 5px #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+  }
+
+  .provider-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .model-badge {
-    background: rgba(2, 132, 199, 0.2);
-    color: var(--accent-color, #38bdf8);
-    padding: 1px 6px;
-    border-radius: 10px;
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
+    color: var(--cortex-accent, #38bdf8);
+    padding: 1px 5px;
+    border-radius: 6px;
     font-size: 0.65rem;
     font-family: monospace;
-    max-width: 90px;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 75px;
   }
 
+  .provider-pill :global(.chevron-icon) {
+    color: var(--cortex-fg-muted, #64748b);
+    flex-shrink: 0;
+  }
+
+  /* Provider Dropdown */
   .provider-dropdown {
     position: absolute;
     top: calc(100% + 6px);
-    right: 0;
-    width: 260px;
-    background: var(--bg-card, #1e293b);
-    border: 1px solid var(--border-color, #334155);
+    left: 0;
+    width: 250px;
+    background: var(--cortex-bg-card, #0f172a);
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
     border-radius: 8px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
     z-index: 1000;
     display: flex;
     flex-direction: column;
@@ -767,10 +865,10 @@
   }
 
   .p-drop-header {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 600;
-    color: var(--text-muted, #94a3b8);
-    padding: 6px 10px;
+    color: var(--cortex-fg-muted, #94a3b8);
+    padding: 5px 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -779,59 +877,61 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 10px;
-    border-radius: 6px;
+    padding: 6px 8px;
+    border-radius: 5px;
     background: transparent;
     border: none;
     cursor: pointer;
     text-align: left;
-    transition: all 0.12s ease;
+    transition: background 0.1s ease;
   }
 
   .p-drop-item:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
   }
 
   .p-drop-item.active {
-    background: rgba(2, 132, 199, 0.12);
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
   }
 
   .p-item-left {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
+    min-width: 0;
   }
 
   .p-item-title {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
-    color: var(--text-primary, #f8fafc);
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
   .p-item-sub {
-    font-size: 0.7rem;
-    color: var(--text-muted, #94a3b8);
-    max-width: 170px;
+    font-size: 0.68rem;
+    color: var(--cortex-fg-muted, #94a3b8);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    max-width: 170px;
   }
 
   .p-tag {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     padding: 1px 5px;
-    border-radius: 4px;
-    font-weight: 500;
+    border-radius: 3px;
+    font-weight: 600;
+    flex-shrink: 0;
   }
 
   .p-tag.ok {
     background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
+    color: #10b981;
   }
 
   .p-tag.blue {
-    background: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.15));
+    color: var(--cortex-accent, #38bdf8);
   }
 
   .p-tag.purple {
@@ -841,41 +941,44 @@
 
   .p-drop-divider {
     height: 1px;
-    background: var(--border-color, #334155);
+    background: var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
     margin: 4px 0;
   }
 
   .p-drop-settings-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 7px 10px;
-    border-radius: 6px;
+    gap: 7px;
+    padding: 6px 8px;
+    border-radius: 5px;
     background: transparent;
     border: none;
-    color: var(--text-secondary, #cbd5e1);
-    font-size: 0.75rem;
+    color: var(--cortex-fg-secondary, #cbd5e1);
+    font-size: 0.74rem;
     cursor: pointer;
+    transition: all 0.1s ease;
   }
 
   .p-drop-settings-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-primary, #f8fafc);
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
+  /* Header action buttons */
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-left: auto;
+    gap: 2px;
+    flex-shrink: 0;
   }
 
   .action-icon-btn {
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 5px;
-    color: var(--text-muted, #94a3b8);
-    padding: 5px 7px;
+    border-radius: 4px;
+    color: var(--cortex-fg-muted, #94a3b8);
+    width: 26px;
+    height: 26px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -884,187 +987,148 @@
   }
 
   .action-icon-btn:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-primary, #f8fafc);
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--cortex-fg-primary, #ffffff);
   }
 
   .action-icon-btn.active {
-    background: rgba(2, 132, 199, 0.15);
-    color: var(--accent-color, #38bdf8);
-    border-color: rgba(2, 132, 199, 0.35);
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.15));
+    color: var(--cortex-accent, #38bdf8);
+    border-color: var(--cortex-accent, #38bdf8);
   }
 
-  .context-ribbon {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    background: rgba(2, 132, 199, 0.07);
-    border-bottom: 1px solid rgba(2, 132, 199, 0.15);
-    font-size: 0.72rem;
-  }
-
-  .context-label {
-    color: var(--text-muted, #94a3b8);
-  }
-
-  .context-path {
-    color: var(--text-primary, #f8fafc);
-    font-weight: 500;
-    max-width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .context-active-badge {
-    margin-left: auto;
-    font-size: 0.65rem;
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.12);
-    padding: 1px 5px;
-    border-radius: 4px;
-  }
-
+  /* 2. QUICK ENCRYPT PANEL */
   .quick-encrypt-box {
-    padding: 10px 14px;
-    background: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid var(--border-color, #334155);
+    padding: 8px 12px;
+    background: var(--cortex-bg-card, rgba(0, 0, 0, 0.2));
+    border-bottom: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .box-title {
-    font-size: 0.75rem;
-    color: var(--text-muted, #94a3b8);
+    font-size: 0.72rem;
+    color: var(--cortex-fg-muted, #94a3b8);
   }
 
   .input-row {
     display: flex;
-    gap: 8px;
+    gap: 6px;
   }
 
   .input-row input {
     flex: 1;
-    background: var(--bg-input, #0f172a);
-    border: 1px solid var(--border-color, #334155);
+    background: var(--cortex-bg-input, rgba(0, 0, 0, 0.25));
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
     border-radius: 5px;
-    padding: 6px 10px;
-    color: var(--text-primary, #f8fafc);
-    font-size: 0.8rem;
+    padding: 5px 8px;
+    color: var(--cortex-fg-primary, #ffffff);
+    font-size: 0.76rem;
     outline: none;
   }
 
+  .input-row input:focus {
+    border-color: var(--cortex-accent, #38bdf8);
+  }
+
   .encrypt-btn {
-    background: var(--accent-color, #0284c7);
+    background: var(--cortex-accent, #38bdf8);
     border: none;
     border-radius: 5px;
     color: #ffffff;
-    font-size: 0.75rem;
-    padding: 0 12px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 0 10px;
     cursor: pointer;
   }
 
   .result-box {
-    background: rgba(0, 0, 0, 0.3);
-    padding: 8px;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 6px 8px;
     border-radius: 5px;
-    border: 1px solid var(--border-color, #334155);
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }
 
   .token-code {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     word-break: break-all;
-    color: #38bdf8;
+    color: var(--cortex-accent, #38bdf8);
     user-select: all;
   }
 
   .result-actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
   }
 
   .res-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border-color, #334155);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
     border-radius: 4px;
-    color: var(--text-secondary, #cbd5e1);
-    font-size: 0.7rem;
-    padding: 3px 8px;
+    color: var(--cortex-fg-secondary, #cbd5e1);
+    font-size: 0.68rem;
+    padding: 2px 7px;
     cursor: pointer;
   }
 
+  .res-btn:hover {
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.12));
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  /* 3. MESSAGES AREA */
   .messages-area {
     flex: 1;
-    padding: 14px;
+    padding: 12px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
   }
 
-  .message {
+  .message-row {
     display: flex;
     flex-direction: column;
-    max-width: 92%;
+    width: 100%;
   }
 
-  .message.user {
-    align-self: flex-end;
+  .message-row.user {
+    align-items: flex-end;
   }
 
-  .message.assistant {
-    align-self: flex-start;
+  .message-row.assistant {
+    align-items: flex-start;
   }
 
   .bubble {
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 0.85rem;
+    position: relative;
+    max-width: 88%;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 0.82rem;
     line-height: 1.5;
+    word-break: break-word;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
 
-  .message.user .bubble {
-    background: var(--accent-color, #0284c7);
+  .bubble.user {
+    background: var(--cortex-accent, #38bdf8);
     color: #ffffff;
     border-bottom-right-radius: 2px;
   }
 
-  .message.assistant .bubble {
-    background: var(--bg-card, #1e293b);
-    color: var(--text-primary, #f8fafc);
-    border: 1px solid var(--border-color, #334155);
+  .bubble.assistant {
+    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.09));
+    color: var(--cortex-fg-primary, #ffffff);
     border-bottom-left-radius: 2px;
-  }
-
-  .bubble-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 4px;
-  }
-
-  .bubble-author {
-    font-size: 0.7rem;
-    font-weight: 600;
-    opacity: 0.8;
-  }
-
-  .bubble-model-tag {
-    font-size: 0.65rem;
-    padding: 0 4px;
-    border-radius: 3px;
-    background: rgba(255, 255, 255, 0.08);
-    opacity: 0.7;
-    font-family: monospace;
-  }
-
-  .bubble-content {
-    word-break: break-word;
   }
 
   .user-text {
@@ -1077,10 +1141,62 @@
     word-break: break-word;
   }
 
+  .streaming-cursor {
+    display: inline-block;
+    color: var(--cortex-accent, #38bdf8);
+    animation: blink 0.8s infinite;
+    margin-left: 2px;
+  }
+
+  /* Hover Action Toolbar on Assistant Messages */
+  .hover-toolbar {
+    position: absolute;
+    bottom: -10px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--cortex-bg-header, #080c14);
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    border-radius: 6px;
+    padding: 2px 4px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    transform: translateY(2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+    z-index: 10;
+  }
+
+  .message-row:hover .hover-toolbar {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .hover-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: transparent;
+    border: none;
+    color: var(--cortex-fg-muted, #94a3b8);
+    cursor: pointer;
+    transition: all 0.1s ease;
+  }
+
+  .hover-icon-btn:hover {
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.1));
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  /* Markdown Typography inside Assistant Messages */
   .bubble-markdown {
-    line-height: 1.55;
-    font-size: 0.85rem;
-    color: var(--text-primary, #f8fafc);
+    line-height: 1.5;
+    font-size: 0.82rem;
   }
 
   .bubble-markdown :global(p) {
@@ -1091,31 +1207,52 @@
     margin-bottom: 0;
   }
 
+  .bubble-markdown :global(h1) {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 8px 0 4px;
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .bubble-markdown :global(h2) {
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin: 6px 0 3px;
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .bubble-markdown :global(h3) {
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin: 5px 0 2px;
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
   .bubble-markdown :global(a) {
-    color: var(--accent-color, #38bdf8);
+    color: var(--cortex-accent, #38bdf8);
     text-decoration: underline;
     text-underline-offset: 2px;
     cursor: pointer;
   }
 
   .bubble-markdown :global(a:hover) {
-    filter: brightness(1.2);
+    filter: brightness(1.15);
   }
 
   .bubble-markdown :global(code) {
     background: rgba(255, 255, 255, 0.08);
     padding: 1px 4px;
-    border-radius: 4px;
+    border-radius: 3px;
     font-family: monospace;
     font-size: 0.84em;
-    color: var(--accent-color, #38bdf8);
+    color: var(--cortex-accent, #38bdf8);
   }
 
   .bubble-markdown :global(pre) {
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--cortex-bg-main, #090d16);
     padding: 8px 10px;
     border-radius: 6px;
-    border: 1px solid var(--border-color, #334155);
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
     overflow-x: auto;
     margin: 6px 0;
   }
@@ -1123,7 +1260,8 @@
   .bubble-markdown :global(pre code) {
     background: transparent;
     padding: 0;
-    color: inherit;
+    color: var(--cortex-fg-primary, #e2e8f0);
+    font-size: 0.78rem;
   }
 
   .bubble-markdown :global(ul),
@@ -1133,7 +1271,15 @@
   }
 
   .bubble-markdown :global(li) {
-    margin-bottom: 3px;
+    margin-bottom: 2px;
+  }
+
+  .bubble-markdown :global(blockquote) {
+    margin: 6px 0;
+    padding: 4px 10px;
+    border-left: 2px solid var(--cortex-accent, #38bdf8);
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.06));
+    color: var(--cortex-fg-secondary, #cbd5e1);
   }
 
   .bubble-markdown :global(.cortex-secret-mount) {
@@ -1141,115 +1287,183 @@
     vertical-align: middle;
   }
 
-  .streaming-cursor {
-    display: inline-block;
-    color: var(--accent-color, #38bdf8);
-    animation: blink 0.8s infinite;
-  }
-
-  .message-footer-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
-    padding-top: 6px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .msg-action-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border-color, #334155);
-    border-radius: 4px;
-    color: var(--text-muted, #94a3b8);
-    font-size: 0.7rem;
-    padding: 2px 7px;
-    cursor: pointer;
-  }
-
-  .msg-action-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary, #f8fafc);
-  }
-
-  .input-area {
-    padding: 12px;
-    background: var(--bg-card, #1e293b);
-    border-top: 1px solid var(--border-color, #334155);
-  }
-
-  .input-wrapper {
+  /* 4. INPUT AREA & CONTEXT CHIP */
+  .input-container {
+    padding: 8px 10px 10px;
+    background: var(--cortex-bg-header, #080c14);
+    border-top: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
     display: flex;
     flex-direction: column;
     gap: 6px;
-    background: var(--bg-input, #0f172a);
-    border: 1px solid var(--border-color, #334155);
+    flex-shrink: 0;
+  }
+
+  .context-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .context-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    border-radius: 12px;
+    padding: 2px 7px;
+    font-size: 0.68rem;
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .context-name {
+    font-weight: 500;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .context-tag {
+    font-size: 0.6rem;
+    color: var(--cortex-accent, #38bdf8);
+    background: rgba(56, 189, 248, 0.15);
+    padding: 0 4px;
+    border-radius: 3px;
+  }
+
+  .chip-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--cortex-fg-muted, #94a3b8);
+    cursor: pointer;
+    padding: 1px;
+    border-radius: 50%;
+  }
+
+  .chip-close-btn:hover {
+    color: #ef4444;
+  }
+
+  .context-attach-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    border: 1px dashed var(--cortex-border, rgba(255, 255, 255, 0.15));
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.68rem;
+    color: var(--cortex-fg-muted, #94a3b8);
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+
+  .context-attach-btn:hover {
+    border-color: var(--cortex-accent, #38bdf8);
+    color: var(--cortex-accent, #38bdf8);
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.08));
+  }
+
+  .context-attach-btn strong {
+    font-weight: 500;
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  /* Input Card */
+  .input-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--cortex-bg-input, rgba(0, 0, 0, 0.25));
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
     border-radius: 8px;
-    padding: 8px 10px;
-    transition: border-color 0.12s ease;
+    padding: 7px 9px 6px;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
   }
 
-  .input-wrapper:focus-within {
-    border-color: var(--accent-color, #0284c7);
+  .input-card:focus-within {
+    border-color: var(--cortex-accent, #38bdf8);
+    box-shadow: 0 0 0 1px var(--cortex-accent-subtle, rgba(56, 189, 248, 0.2));
   }
 
-  .input-wrapper textarea {
+  .input-card textarea {
     width: 100%;
     background: transparent;
     border: none;
-    color: var(--text-primary, #f8fafc);
-    font-size: 0.85rem;
-    line-height: 1.4;
+    color: var(--cortex-fg-primary, #ffffff);
+    font-size: 0.82rem;
+    line-height: 1.45;
     resize: none;
     outline: none;
     box-sizing: border-box;
+    font-family: inherit;
+    min-height: 36px;
+    max-height: 160px;
   }
 
-  .input-actions-bar {
+  .input-card textarea::placeholder {
+    color: var(--cortex-fg-muted, #64748b);
+  }
+
+  .input-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-top: 4px;
+    padding-top: 2px;
   }
 
   .input-hint {
-    font-size: 0.68rem;
-    color: var(--text-muted, #64748b);
+    font-size: 0.65rem;
+    color: var(--cortex-fg-muted, #64748b);
+    user-select: none;
   }
 
-  .btn-send {
+  .input-action-buttons {
     display: flex;
     align-items: center;
-    gap: 6px;
-    background: var(--accent-color, #0284c7);
+    gap: 4px;
+  }
+
+  .send-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: var(--cortex-accent, #38bdf8);
     border: none;
     border-radius: 6px;
     color: #ffffff;
-    font-size: 0.75rem;
-    font-weight: 500;
-    padding: 5px 12px;
     cursor: pointer;
-    transition: filter 0.12s ease;
+    transition: all 0.12s ease;
   }
 
-  .btn-send:hover:not(:disabled) {
-    filter: brightness(1.1);
+  .send-btn:hover:not(:disabled) {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
   }
 
-  .btn-send:disabled {
-    opacity: 0.5;
+  .send-btn:disabled {
+    opacity: 0.35;
     cursor: not-allowed;
+    background: var(--cortex-fg-muted, #64748b);
   }
 
-  .btn-stop {
+  .stop-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     background: #ef4444;
     border: none;
     border-radius: 6px;
     color: #ffffff;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 500;
-    padding: 5px 12px;
+    padding: 3px 8px;
     cursor: pointer;
     animation: pulse 1.5s infinite;
   }
