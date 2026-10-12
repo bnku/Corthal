@@ -5,6 +5,7 @@
   import "highlight.js/styles/github-dark.css";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { parseFrontmatter } from "$lib/frontmatter";
+  import { invoke } from "@tauri-apps/api/core";
   import Icon from "./Icon.svelte";
   import SecretPill from "./SecretPill.svelte";
   import PropertiesBlock from "./PropertiesBlock.svelte";
@@ -200,6 +201,7 @@
   });
 
   // Editor cursor & scroll synchronization
+  let workspaceEl = $state<HTMLDivElement | null>(null);
   let gutterEl = $state<HTMLElement | null>(null);
   let textareaEl = $state<HTMLTextAreaElement | null>(null);
   let codeGutterEl = $state<HTMLElement | null>(null);
@@ -208,6 +210,126 @@
   let currentCursorLine = $state(1);
   let currentCursorCol = $state(1);
   let copiedCode = $state(false);
+
+  // Floating Encrypt on selection in editor
+  let floatingEncrypt = $state({
+    visible: false,
+    x: 0,
+    y: 0,
+    text: "",
+    start: 0,
+    end: 0,
+    isEncrypting: false,
+  });
+
+  function getCaretCoordinates(element: HTMLTextAreaElement, position: number) {
+    const div = document.createElement("div");
+    const style = window.getComputedStyle(element);
+    const properties = [
+      "direction", "boxSizing", "width", "height", "overflowX", "overflowY",
+      "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+      "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+      "fontStyle", "fontVariant", "fontWeight", "fontStretch", "fontSize",
+      "fontSizeAdjust", "lineHeight", "fontFamily", "textAlign", "textTransform",
+      "textIndent", "textDecoration", "letterSpacing", "wordSpacing", "tabSize"
+    ];
+    for (const prop of properties) {
+      (div.style as any)[prop] = (style as any)[prop];
+    }
+    div.style.position = "absolute";
+    div.style.visibility = "hidden";
+    div.style.whiteSpace = "pre-wrap";
+    div.style.wordWrap = "break-word";
+    div.style.top = "0";
+    div.style.left = "0";
+    div.textContent = element.value.substring(0, position);
+    const span = document.createElement("span");
+    span.textContent = element.value.substring(position) || ".";
+    div.appendChild(span);
+    document.body.appendChild(div);
+    const coordinates = {
+      left: span.offsetLeft - element.scrollLeft,
+      top: span.offsetTop - element.scrollTop,
+    };
+    document.body.removeChild(div);
+    return coordinates;
+  }
+
+  function checkEditorSelection(e?: MouseEvent) {
+    if (!textareaEl || !isEditing) {
+      floatingEncrypt.visible = false;
+      return;
+    }
+    const start = textareaEl.selectionStart;
+    const end = textareaEl.selectionEnd;
+    if (start === end) {
+      floatingEncrypt.visible = false;
+      return;
+    }
+
+    const text = textareaEl.value.slice(start, end).trim();
+    if (!text) {
+      floatingEncrypt.visible = false;
+      return;
+    }
+
+    floatingEncrypt.text = text;
+    floatingEncrypt.start = start;
+    floatingEncrypt.end = end;
+
+    if (workspaceEl) {
+      const wsRect = workspaceEl.getBoundingClientRect();
+      if (e) {
+        const x = Math.max(12, Math.min(wsRect.width - 130, e.clientX - wsRect.left - 45));
+        const y = Math.max(8, e.clientY - wsRect.top - 40);
+        floatingEncrypt.x = x;
+        floatingEncrypt.y = y;
+        floatingEncrypt.visible = true;
+      } else {
+        const caret = getCaretCoordinates(textareaEl, start);
+        const gutterW = gutterEl?.offsetWidth || 0;
+        const x = Math.max(12, Math.min(wsRect.width - 130, caret.left + gutterW - 20));
+        const y = Math.max(8, caret.top - 38);
+        floatingEncrypt.x = x;
+        floatingEncrypt.y = y;
+        floatingEncrypt.visible = true;
+      }
+    }
+  }
+
+  async function handleFloatingEncrypt() {
+    if (!floatingEncrypt.text || floatingEncrypt.isEncrypting) return;
+    floatingEncrypt.isEncrypting = true;
+    try {
+      const token = await invoke<string>("crypto_encrypt_secret", {
+        plaintext: floatingEncrypt.text,
+        pubkeyContent: null,
+      });
+
+      const tokenMarkdown = `\`🔒[${token}]\``;
+      const start = floatingEncrypt.start;
+      const end = floatingEncrypt.end;
+
+      const newContent = content.slice(0, start) + tokenMarkdown + content.slice(end);
+      onContentChange(newContent);
+
+      floatingEncrypt.visible = false;
+
+      setTimeout(() => {
+        if (textareaEl) {
+          textareaEl.focus();
+          const newPos = start + tokenMarkdown.length;
+          textareaEl.selectionStart = newPos;
+          textareaEl.selectionEnd = newPos;
+          updateCursorPosition();
+        }
+      }, 50);
+    } catch (err: any) {
+      alert("Не удалось зашифровать секрет: " + err);
+    } finally {
+      floatingEncrypt.isEncrypting = false;
+    }
+  }
 
   function copyCodeToClipboard() {
     if (!content) return;
@@ -221,6 +343,9 @@
   function handleEditorScroll() {
     if (textareaEl && gutterEl) {
       gutterEl.scrollTop = textareaEl.scrollTop;
+    }
+    if (floatingEncrypt.visible) {
+      floatingEncrypt.visible = false;
     }
   }
 
@@ -496,7 +621,7 @@
     {#if activePath}
       {#if isEditing}
         <!-- EDIT MODE (with Line Numbers Gutter and 1:1 Scroll Sync) -->
-        <div class="editor-workspace">
+        <div class="editor-workspace" bind:this={workspaceEl}>
           <div class="line-gutter" bind:this={gutterEl}>
             {#each lineNumbers as lineNum}
               <div
@@ -512,15 +637,52 @@
             bind:this={textareaEl}
             class="editor-textarea"
             value={content}
-            oninput={handleTextareaInput}
+            oninput={(e) => {
+              handleTextareaInput(e);
+              floatingEncrypt.visible = false;
+            }}
             onscroll={handleEditorScroll}
             onclick={updateCursorPosition}
-            onkeyup={updateCursorPosition}
-            onselect={updateCursorPosition}
-            onkeydown={handleTextareaKeydown}
+            onkeyup={(e) => {
+              updateCursorPosition();
+              if (e.shiftKey) checkEditorSelection();
+            }}
+            onmouseup={(e) => {
+              updateCursorPosition();
+              checkEditorSelection(e);
+            }}
+            onselect={() => {
+              updateCursorPosition();
+              checkEditorSelection();
+            }}
+            onkeydown={(e) => {
+              handleTextareaKeydown(e);
+              if (e.key !== "Shift" && e.key !== "Control" && e.key !== "Alt") {
+                floatingEncrypt.visible = false;
+              }
+            }}
             placeholder={isMarkdown ? "Пишите в формате Markdown..." : "Исходный код файла..."}
             spellcheck="false"
           ></textarea>
+
+          {#if floatingEncrypt.visible}
+            <div
+              class="floating-encrypt-bar"
+              style="left: {floatingEncrypt.x}px; top: {floatingEncrypt.y}px;"
+            >
+              <button
+                type="button"
+                class="floating-encrypt-btn"
+                onmousedown={(e) => e.preventDefault()}
+                onclick={handleFloatingEncrypt}
+                disabled={floatingEncrypt.isEncrypting}
+                title="Зашифровать выделенный текст публичным ключом SSH (~/.ssh/id_ed25519)"
+              >
+                <Icon name="lock" size={12} color="var(--cortex-accent, #38bdf8)" />
+                <span>{floatingEncrypt.isEncrypting ? "Шифрование..." : "Зашифровать"}</span>
+              </button>
+            </div>
+          {/if}
         </div>
       {:else}
         <!-- VIEW MODE -->
@@ -928,6 +1090,41 @@
     tab-size: 2;
     user-select: text;
     -webkit-user-select: text;
+  }
+
+  .floating-encrypt-bar {
+    position: absolute;
+    z-index: 60;
+    pointer-events: auto;
+    animation: fadeIn 0.15s ease;
+  }
+
+  .floating-encrypt-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--cortex-bg-header, #080c14);
+    border: 1px solid var(--cortex-accent, #38bdf8);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 0.73rem;
+    font-weight: 500;
+    color: var(--cortex-fg-primary, #ffffff);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+    transition: all 0.12s ease;
+    user-select: none;
+  }
+
+  .floating-encrypt-btn:hover:not(:disabled) {
+    background: var(--cortex-bg-card, #141b2a);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+    transform: translateY(-1px);
+  }
+
+  .floating-encrypt-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   /* CODE VIEWER FOR NON-MD FILES */

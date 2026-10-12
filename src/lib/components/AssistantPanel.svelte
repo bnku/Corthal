@@ -120,13 +120,11 @@
     onOpenNote?.(href);
   }
 
-  let inputMessage = $state("");
-  let textareaEl = $state<HTMLTextAreaElement | null>(null);
-  let quickSecretInput = $state("");
-  let encryptedResult = $state("");
-  let isEncrypting = $state(false);
-  let showEncryptTool = $state(false);
-  let isProviderDropdownOpen = $state(false);
+  let richInputEl = $state<HTMLDivElement | null>(null);
+  let hasInputContent = $state(false);
+  let showEncryptTooltip = $state(false);
+  let tooltipTimeout: any = null;
+  let isModelDropdownOpen = $state(false);
   let copiedId = $state<string | null>(null);
 
   // User decides whether to attach the open note to the current prompt (opt-in, default false)
@@ -152,6 +150,87 @@
   });
 
   let codexStatus = $state<CodexStatus | null>(null);
+
+  const EFFORT_LEVELS = ["auto", "low", "medium", "high", "xhigh"] as const;
+
+  let currentEffort = $derived(
+    (config.provider === "codex"
+      ? config.codex_reasoning_effort
+      : config.provider === "openrouter"
+      ? config.openrouter_reasoning_effort
+      : config.openai_reasoning_effort) || "auto"
+  );
+
+  let effortIndex = $derived(
+    Math.max(0, EFFORT_LEVELS.indexOf(currentEffort as any))
+  );
+
+  async function handleEffortChange(newIndex: number) {
+    const level = EFFORT_LEVELS[newIndex] || "auto";
+    if (config.provider === "codex") {
+      config.codex_reasoning_effort = level;
+    } else if (config.provider === "openrouter") {
+      config.openrouter_reasoning_effort = level;
+    } else {
+      config.openai_reasoning_effort = level;
+    }
+    await handleSaveConfig(config);
+  }
+
+  let availableModels = $derived.by<string[]>(() => {
+    let list: string[] = [];
+    if (config.provider === "codex") {
+      list = codexStatus?.available_models && codexStatus.available_models.length > 0
+        ? codexStatus.available_models
+        : ["gpt-6.1-sol", "gpt-6-astra", "gpt-5.6-sol", "gpt-5.5", "o3-mini", "o1", "gpt-4o"];
+      if (config.codex_model && !list.includes(config.codex_model)) {
+        list = [config.codex_model, ...list];
+      }
+    } else if (config.provider === "openrouter") {
+      list = [
+        "anthropic/claude-3.7-sonnet",
+        "openai/gpt-4o",
+        "google/gemini-2.5-pro",
+        "deepseek/deepseek-r1",
+        "meta-llama/llama-3.3-70b-instruct",
+      ];
+      if (config.openrouter_model && !list.includes(config.openrouter_model)) {
+        list = [config.openrouter_model, ...list];
+      }
+    } else {
+      list = ["llama3", "mistral", "qwen2.5", "deepseek-coder"];
+      if (config.openai_model && !list.includes(config.openai_model)) {
+        list = [config.openai_model, ...list];
+      }
+    }
+    return Array.from(new Set(list));
+  });
+
+  function handleWindowClick() {
+    if (isModelDropdownOpen) {
+      isModelDropdownOpen = false;
+    }
+  }
+
+  let currentModel = $derived(
+    config.provider === "codex"
+      ? config.codex_model
+      : config.provider === "openrouter"
+      ? config.openrouter_model
+      : config.openai_model
+  );
+
+  async function handleSelectModel(modelName: string) {
+    if (config.provider === "codex") {
+      config.codex_model = modelName;
+    } else if (config.provider === "openrouter") {
+      config.openrouter_model = modelName;
+    } else {
+      config.openai_model = modelName;
+    }
+    isModelDropdownOpen = false;
+    await handleSaveConfig(config);
+  }
 
   let messages = $state<ChatMessage[]>([
     {
@@ -206,10 +285,10 @@
   });
 
   function handleGlobalClick(e: MouseEvent) {
-    if (isProviderDropdownOpen) {
+    if (isModelDropdownOpen) {
       const target = e.target as HTMLElement | null;
-      if (!target?.closest(".provider-pill-wrap")) {
-        isProviderDropdownOpen = false;
+      if (!target?.closest(".model-pill-wrap")) {
+        isModelDropdownOpen = false;
       }
     }
   }
@@ -218,6 +297,7 @@
     window.removeEventListener("click", handleGlobalClick);
     if (unlistenChunk) unlistenChunk();
     if (unlistenConfig) unlistenConfig();
+    if (tooltipTimeout) clearTimeout(tooltipTimeout);
   });
 
   async function loadConfig() {
@@ -245,24 +325,12 @@
     }
   }
 
-  async function handleSwitchProvider(provider: AssistantProvider) {
-    config.provider = provider;
-    isProviderDropdownOpen = false;
-    await handleSaveConfig(config);
-  }
-
   function scrollToBottom() {
     setTimeout(() => {
       if (messagesContainer) {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       }
     }, 10);
-  }
-
-  function adjustTextareaHeight() {
-    if (!textareaEl) return;
-    textareaEl.style.height = "auto";
-    textareaEl.style.height = `${Math.min(Math.max(textareaEl.scrollHeight, 38), 160)}px`;
   }
 
   async function copyMessage(id: string, text: string) {
@@ -283,31 +351,208 @@
     }
   }
 
-  async function handleQuickEncrypt() {
-    if (!quickSecretInput.trim()) return;
-    isEncrypting = true;
+  function extractPrompt(node: Node): string {
+    let result = "";
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        result += child.textContent || "";
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        const el = child as HTMLElement;
+        if (el.classList.contains("cortex-secret-mount") || el.hasAttribute("data-token")) {
+          const token = el.getAttribute("data-token");
+          result += `🔒[${token}]`;
+        } else if (el.tagName === "BR") {
+          result += "\n";
+        } else if (el.tagName === "DIV" || el.tagName === "P") {
+          result += (result.length > 0 && !result.endsWith("\n") ? "\n" : "") + extractPrompt(el);
+        } else {
+          result += extractPrompt(el);
+        }
+      }
+    }
+    return result;
+  }
+
+  function updateInputState() {
+    if (!richInputEl) {
+      hasInputContent = false;
+      return;
+    }
+    const prompt = extractPrompt(richInputEl).trim();
+    hasInputContent = prompt.length > 0;
+  }
+
+  let savedInputRange: Range | null = null;
+
+  function saveCurrentRange() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      const r = sel.getRangeAt(0);
+      if (richInputEl && richInputEl.contains(r.commonAncestorContainer)) {
+        savedInputRange = r.cloneRange();
+      }
+    }
+  }
+
+  $effect(() => {
+    const handleSelectionChange = () => {
+      saveCurrentRange();
+    };
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+    };
+  });
+
+  async function handleEncryptInputSelection() {
+    let range: Range | null = null;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      const r = sel.getRangeAt(0);
+      if (richInputEl && richInputEl.contains(r.commonAncestorContainer)) {
+        range = r;
+      }
+    }
+
+    if (!range && savedInputRange) {
+      range = savedInputRange;
+    }
+
+    if (!range) {
+      showEncryptTooltip = true;
+      if (tooltipTimeout) clearTimeout(tooltipTimeout);
+      tooltipTimeout = setTimeout(() => {
+        showEncryptTooltip = false;
+      }, 2000);
+      return;
+    }
+
+    const rawText = range.toString().trim();
+    if (!rawText) {
+      showEncryptTooltip = true;
+      if (tooltipTimeout) clearTimeout(tooltipTimeout);
+      tooltipTimeout = setTimeout(() => {
+        showEncryptTooltip = false;
+      }, 2000);
+      return;
+    }
+
     try {
       const token = await invoke<string>("crypto_encrypt_secret", {
-        plaintext: quickSecretInput,
+        plaintext: rawText,
         pubkeyContent: null,
       });
-      encryptedResult = token;
-      quickSecretInput = "";
+
+      const mountSpan = document.createElement("span");
+      mountSpan.className = "cortex-secret-mount input-secret-badge";
+      mountSpan.contentEditable = "false";
+      mountSpan.setAttribute("data-token", token);
+
+      mount(SecretPill, {
+        target: mountSpan,
+        props: {
+          token,
+          autoReveal: true,
+          onPassphraseNeeded: () => (onPassphraseNeeded ? onPassphraseNeeded() : Promise.resolve(null)),
+        },
+      });
+
+      range.deleteContents();
+      range.insertNode(mountSpan);
+
+      const spaceNode = document.createTextNode("\u00A0");
+      if (mountSpan.nextSibling) {
+        mountSpan.parentNode?.insertBefore(spaceNode, mountSpan.nextSibling);
+      } else {
+        mountSpan.parentNode?.appendChild(spaceNode);
+      }
+
+      if (sel) {
+        const newRange = document.createRange();
+        newRange.setStartAfter(spaceNode);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+      }
+
+      savedInputRange = null;
+      updateInputState();
+      richInputEl?.focus();
     } catch (err: any) {
-      alert("Ошибка шифрования: " + err);
-    } finally {
-      isEncrypting = false;
+      alert("Не удалось зашифровать секрет: " + err);
+    }
+  }
+
+  function handleInputPaste(e: ClipboardEvent) {
+    e.preventDefault();
+    const text = e.clipboardData?.getData("text/plain") || "";
+    if (!text) return;
+
+    const secretRegex = /`?🔒\[(enc:v1:[^\]]+)\]`?/g;
+    if (!secretRegex.test(text)) {
+      document.execCommand("insertText", false, text);
+      updateInputState();
+      return;
+    }
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+
+    const frag = document.createDocumentFragment();
+    let lastIndex = 0;
+    secretRegex.lastIndex = 0;
+    let match;
+
+    while ((match = secretRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+      const token = match[1];
+      const mountSpan = document.createElement("span");
+      mountSpan.className = "cortex-secret-mount input-secret-badge";
+      mountSpan.contentEditable = "false";
+      mountSpan.setAttribute("data-token", token);
+      mount(SecretPill, {
+        target: mountSpan,
+        props: {
+          token,
+          autoReveal: true,
+          onPassphraseNeeded: () => (onPassphraseNeeded ? onPassphraseNeeded() : Promise.resolve(null)),
+        },
+      });
+      frag.appendChild(mountSpan);
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < text.length) {
+      frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+
+    range.insertNode(frag);
+    updateInputState();
+  }
+
+  function handleInputKeydown(e: KeyboardEvent) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "e") {
+      e.preventDefault();
+      handleEncryptInputSelection();
     }
   }
 
   async function handleSendMessage() {
-    if (!inputMessage.trim() || isGenerating) return;
+    if (!richInputEl || isGenerating) return;
 
-    let sanitized = inputMessage;
+    let userText = extractPrompt(richInputEl).trim();
+    if (!userText) return;
 
     // Optional pre-send interception if user specifically typed {{secret:...}}
     const secretRegex = /\{\{secret:(.*?)\}\}/g;
-    const matches = [...inputMessage.matchAll(secretRegex)];
+    const matches = [...userText.matchAll(secretRegex)];
     if (matches.length > 0) {
       for (const match of matches) {
         const rawPlaintext = match[1];
@@ -316,7 +561,7 @@
             plaintext: rawPlaintext,
             pubkeyContent: null,
           });
-          sanitized = sanitized.replace(match[0], token);
+          userText = userText.replace(match[0], token);
         } catch (err: any) {
           alert("Не удалось зашифровать секрет: " + err);
           return;
@@ -324,11 +569,8 @@
       }
     }
 
-    const userText = sanitized;
-    inputMessage = "";
-    if (textareaEl) {
-      textareaEl.style.height = "auto";
-    }
+    richInputEl.innerHTML = "";
+    hasInputContent = false;
 
     // Add user message
     messages.push({
@@ -342,12 +584,6 @@
     const sessionId = crypto.randomUUID();
     currentSessionId = sessionId;
     isGenerating = true;
-
-    let currentModel = config.provider === "codex"
-      ? config.codex_model
-      : config.provider === "openrouter"
-      ? config.openrouter_model
-      : config.openai_model;
 
     messages.push({
       id: sessionId,
@@ -438,8 +674,10 @@
   let activeFileName = $derived(activeNotePath ? activeNotePath.split("/").pop() || "" : "");
 </script>
 
+<svelte:window onclick={handleWindowClick} />
+
 <div class="assistant-container">
-  <!-- Top Header with Provider, Model Pill, and Action Icons -->
+  <!-- Top Header with Model Pill & Actions -->
   <div class="header">
     <div class="header-left">
       <div class="title-block">
@@ -447,103 +685,82 @@
         <span class="panel-heading">Ассистент</span>
       </div>
 
-      <!-- Provider / Model Pill -->
-      <div class="provider-pill-wrap">
+      <!-- Model & Effort Popover Pill -->
+      <div class="model-pill-wrap">
         <button
           type="button"
-          class="provider-pill"
+          class="model-pill"
           onclick={(e) => {
             e.stopPropagation();
-            isProviderDropdownOpen = !isProviderDropdownOpen;
+            isModelDropdownOpen = !isModelDropdownOpen;
           }}
-          title="Сменить активного провайдера"
+          title="Выбор модели и рассуждений"
         >
           <span
             class="provider-dot"
             class:online={config.provider === "codex" ? codexStatus?.is_logged_in : true}
           ></span>
-          <span class="provider-name">{getProviderLabel(config.provider)}</span>
           <span class="model-badge">{getActiveModelBadge()}</span>
           <Icon name="chevron-down" size={11} class="chevron-icon" />
         </button>
 
-        {#if isProviderDropdownOpen}
+        {#if isModelDropdownOpen}
           <!-- svelte-ignore a11y_click_events_have_key_events -->
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="provider-dropdown" onclick={(e) => e.stopPropagation()}>
-            <div class="p-drop-header">Выбор ИИ-движка</div>
-            <button
-              type="button"
-              class="p-drop-item"
-              class:active={config.provider === "codex"}
-              onclick={() => handleSwitchProvider("codex")}
-            >
-              <div class="p-item-left">
-                <span class="p-item-title">Codex CLI</span>
-                <span class="p-item-sub">ChatGPT Plus/Pro • {config.codex_model}</span>
+          <div class="model-popover" onclick={(e) => e.stopPropagation()}>
+            <div class="popover-header">
+              <span class="popover-title">Модель ({getProviderLabel(config.provider)})</span>
+            </div>
+
+            <div class="model-scroll-list">
+              {#each availableModels as modelName}
+                <button
+                  type="button"
+                  class="model-item-btn"
+                  class:active={currentModel === modelName}
+                  onclick={() => handleSelectModel(modelName)}
+                >
+                  <span class="model-item-name">{modelName}</span>
+                  {#if currentModel === modelName}
+                    <Icon name="check" size={13} color="var(--cortex-accent, #38bdf8)" />
+                  {/if}
+                </button>
+              {/each}
+            </div>
+
+            <div class="popover-divider"></div>
+
+            <div class="popover-effort-box">
+              <div class="effort-header">
+                <span class="effort-title">Рассуждения (Reasoning):</span>
+                <span class="effort-badge">{currentEffort}</span>
               </div>
-              {#if codexStatus?.is_logged_in}
-                <span class="p-tag ok">ChatGPT</span>
-              {/if}
-            </button>
-
-            <button
-              type="button"
-              class="p-drop-item"
-              class:active={config.provider === "openrouter"}
-              onclick={() => handleSwitchProvider("openrouter")}
-            >
-              <div class="p-item-left">
-                <span class="p-item-title">OpenRouter</span>
-                <span class="p-item-sub">{config.openrouter_model}</span>
+              <div class="slider-wrap">
+                <input
+                  type="range"
+                  min="0"
+                  max="4"
+                  step="1"
+                  value={effortIndex}
+                  oninput={(e) => handleEffortChange(parseInt(e.currentTarget.value, 10))}
+                  class="cortex-slider"
+                />
+                <div class="slider-ticks">
+                  <span class:active={effortIndex === 0}>auto</span>
+                  <span class:active={effortIndex === 1}>low</span>
+                  <span class:active={effortIndex === 2}>med</span>
+                  <span class:active={effortIndex === 3}>high</span>
+                  <span class:active={effortIndex === 4}>max</span>
+                </div>
               </div>
-              <span class="p-tag blue">API</span>
-            </button>
-
-            <button
-              type="button"
-              class="p-drop-item"
-              class:active={config.provider === "openai"}
-              onclick={() => handleSwitchProvider("openai")}
-            >
-              <div class="p-item-left">
-                <span class="p-item-title">OpenAI / Local</span>
-                <span class="p-item-sub">{config.openai_model} • {config.openai_base_url.replace(/https?:\/\//, '')}</span>
-              </div>
-              <span class="p-tag purple">Local</span>
-            </button>
-
-            <div class="p-drop-divider"></div>
-
-            <button
-              type="button"
-              class="p-drop-settings-btn"
-              onclick={() => {
-                isProviderDropdownOpen = false;
-                onOpenSettings?.("assistant");
-              }}
-            >
-              <Icon name="sliders" size={13} />
-              <span>Параметры ИИ-ассистента...</span>
-            </button>
+            </div>
           </div>
         {/if}
       </div>
     </div>
 
-    <!-- Header Quick Actions -->
+    <!-- Header Actions: ONLY Clear Chat! -->
     <div class="header-actions">
-      <button
-        type="button"
-        class="action-icon-btn"
-        class:active={showEncryptTool}
-        onclick={() => (showEncryptTool = !showEncryptTool)}
-        title="Шифрование секрета"
-        aria-label="Шифрование"
-      >
-        <Icon name="lock" size={13} />
-      </button>
-
       <button
         type="button"
         class="action-icon-btn"
@@ -553,54 +770,8 @@
       >
         <Icon name="trash" size={13} />
       </button>
-
-      <button
-        type="button"
-        class="action-icon-btn"
-        onclick={() => onOpenSettings?.("assistant")}
-        title="Параметры"
-        aria-label="Параметры"
-      >
-        <Icon name="settings" size={13} />
-      </button>
     </div>
   </div>
-
-  <!-- Quick Encrypt Dropdown Panel -->
-  {#if showEncryptTool}
-    <div class="quick-encrypt-box">
-      <div class="box-title">Шифрование секрета публичным SSH-ключом:</div>
-      <div class="input-row">
-        <input
-          type="password"
-          placeholder="Введите секрет..."
-          bind:value={quickSecretInput}
-          onkeydown={(e) => e.key === "Enter" && handleQuickEncrypt()}
-        />
-        <button type="button" class="encrypt-btn" onclick={handleQuickEncrypt} disabled={isEncrypting}>
-          {isEncrypting ? "..." : "Зашифровать"}
-        </button>
-      </div>
-
-      {#if encryptedResult}
-        <div class="result-box">
-          <code class="token-code">{encryptedResult}</code>
-          <div class="result-actions">
-            <button type="button" class="res-btn" onclick={() => navigator.clipboard.writeText(encryptedResult)}>
-              <Icon name="copy" size={11} />
-              <span>Копировать</span>
-            </button>
-            {#if onInsertText}
-              <button type="button" class="res-btn" onclick={() => onInsertText?.(encryptedResult)}>
-                <Icon name="file-down" size={11} />
-                <span>Вставить</span>
-              </button>
-            {/if}
-          </div>
-        </div>
-      {/if}
-    </div>
-  {/if}
 
   <!-- Messages Scroll Area -->
   <div class="messages-area" bind:this={messagesContainer}>
@@ -692,26 +863,47 @@
       </div>
     {/if}
 
-    <!-- Input Box -->
+    <!-- Input Box with standard Secret Block support -->
     <div class="input-card">
-      <textarea
-        bind:this={textareaEl}
-        placeholder="Сообщение ассистенту..."
-        bind:value={inputMessage}
-        oninput={adjustTextareaHeight}
-        onkeydown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
-          }
-        }}
-        rows="1"
-      ></textarea>
+      <div
+        bind:this={richInputEl}
+        class="rich-input-box"
+        class:is-empty={!hasInputContent}
+        contenteditable="true"
+        role="textbox"
+        tabindex="0"
+        aria-multiline="true"
+        aria-label="Сообщение ассистенту"
+        oninput={updateInputState}
+        onkeydown={handleInputKeydown}
+        onpaste={handleInputPaste}
+        onmouseup={saveCurrentRange}
+        onkeyup={saveCurrentRange}
+      ></div>
 
       <div class="input-footer">
-        <span class="input-hint">Enter — отправить, Shift+Enter — новая строка</span>
+        <span class="input-hint">Enter — отправить, Shift+Enter — перенос</span>
 
         <div class="input-action-buttons">
+          <div class="encrypt-btn-wrapper">
+            <button
+              type="button"
+              class="encrypt-action-btn"
+              onmousedown={(e) => e.preventDefault()}
+              onclick={handleEncryptInputSelection}
+              title="Зашифровать выделенный текст (Ctrl+E)"
+              aria-label="Зашифровать выделенный текст"
+              disabled={isGenerating}
+            >
+              <Icon name="lock" size={13} />
+            </button>
+            {#if showEncryptTooltip}
+              <div class="encrypt-tooltip">
+                Выделите текст для шифрования
+              </div>
+            {/if}
+          </div>
+
           {#if isGenerating}
             <button type="button" class="stop-btn" onclick={handleStopGeneration} title="Остановить ответ">
               <Icon name="square" size={11} />
@@ -722,7 +914,7 @@
               type="button"
               class="send-btn"
               onclick={handleSendMessage}
-              disabled={!inputMessage.trim()}
+              disabled={!hasInputContent}
               title="Отправить (Enter)"
             >
               <Icon name="send" size={13} />
@@ -744,6 +936,14 @@
     -webkit-user-select: text;
     min-width: 0;
     overflow: hidden;
+    container-type: inline-size;
+    container-name: assistant;
+  }
+
+  @container assistant (max-width: 320px) {
+    .panel-heading {
+      display: none;
+    }
   }
 
   /* 1. HEADER */
@@ -762,7 +962,7 @@
   .header-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
   }
 
@@ -779,15 +979,16 @@
     font-weight: 600;
     color: var(--cortex-fg-primary, #ffffff);
     letter-spacing: -0.2px;
+    white-space: nowrap;
   }
 
-  /* Provider Pill Trigger */
-  .provider-pill-wrap {
+  /* Model Pill Trigger */
+  .model-pill-wrap {
     position: relative;
     min-width: 0;
   }
 
-  .provider-pill {
+  .model-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -802,7 +1003,7 @@
     max-width: 170px;
   }
 
-  .provider-pill:hover {
+  .model-pill:hover {
     border-color: var(--cortex-accent, #38bdf8);
     background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
     color: var(--cortex-fg-primary, #ffffff);
@@ -821,13 +1022,6 @@
     box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
   }
 
-  .provider-name {
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   .model-badge {
     background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
     color: var(--cortex-accent, #38bdf8);
@@ -838,16 +1032,16 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 75px;
+    max-width: 85px;
   }
 
-  .provider-pill :global(.chevron-icon) {
+  .model-pill :global(.chevron-icon) {
     color: var(--cortex-fg-muted, #64748b);
     flex-shrink: 0;
   }
 
-  /* Provider Dropdown */
-  .provider-dropdown {
+  /* Model & Effort Popover */
+  .model-popover {
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
@@ -859,21 +1053,31 @@
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    padding: 4px;
+    padding: 6px;
     animation: fadeIn 0.12s ease-out;
   }
 
-  .p-drop-header {
+  .popover-header {
+    padding: 4px 6px 6px;
+  }
+
+  .popover-title {
     font-size: 0.68rem;
     font-weight: 600;
     color: var(--cortex-fg-muted, #94a3b8);
-    padding: 5px 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
 
-  .p-drop-item {
+  .model-scroll-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .model-item-btn {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -886,82 +1090,100 @@
     transition: background 0.1s ease;
   }
 
-  .p-drop-item:hover {
+  .model-item-btn:hover {
     background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
   }
 
-  .p-drop-item.active {
+  .model-item-btn.active {
     background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
   }
 
-  .p-item-left {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    min-width: 0;
-  }
-
-  .p-item-title {
+  .model-item-name {
     font-size: 0.78rem;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--cortex-fg-primary, #ffffff);
+    font-family: monospace;
   }
 
-  .p-item-sub {
-    font-size: 0.68rem;
-    color: var(--cortex-fg-muted, #94a3b8);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 170px;
-  }
-
-  .p-tag {
-    font-size: 0.62rem;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  .p-tag.ok {
-    background: rgba(16, 185, 129, 0.15);
-    color: #10b981;
-  }
-
-  .p-tag.blue {
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.15));
-    color: var(--cortex-accent, #38bdf8);
-  }
-
-  .p-tag.purple {
-    background: rgba(168, 85, 247, 0.15);
-    color: #c084fc;
-  }
-
-  .p-drop-divider {
+  .popover-divider {
     height: 1px;
     background: var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
-    margin: 4px 0;
+    margin: 8px 0;
   }
 
-  .p-drop-settings-btn {
+  .popover-effort-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 2px 6px 4px;
+  }
+
+  .effort-header {
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 6px 8px;
-    border-radius: 5px;
-    background: transparent;
-    border: none;
-    color: var(--cortex-fg-secondary, #cbd5e1);
-    font-size: 0.74rem;
-    cursor: pointer;
-    transition: all 0.1s ease;
+    justify-content: space-between;
   }
 
-  .p-drop-settings-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
-    color: var(--cortex-fg-primary, #ffffff);
+  .effort-title {
+    font-size: 0.7rem;
+    color: var(--cortex-fg-secondary, #cbd5e1);
+  }
+
+  .effort-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--cortex-accent, #38bdf8);
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    text-transform: uppercase;
+  }
+
+  .slider-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cortex-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--cortex-border, rgba(255, 255, 255, 0.15));
+    outline: none;
+    cursor: pointer;
+  }
+
+  .cortex-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--cortex-accent, #38bdf8);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+    transition: transform 0.1s ease;
+  }
+
+  .cortex-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+
+  .slider-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    color: var(--cortex-fg-muted, #64748b);
+    user-select: none;
+  }
+
+  .slider-ticks span.active {
+    color: var(--cortex-accent, #38bdf8);
+    font-weight: 600;
   }
 
   /* Header action buttons */
@@ -988,98 +1210,6 @@
 
   .action-icon-btn:hover {
     background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
-    color: var(--cortex-fg-primary, #ffffff);
-  }
-
-  .action-icon-btn.active {
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.15));
-    color: var(--cortex-accent, #38bdf8);
-    border-color: var(--cortex-accent, #38bdf8);
-  }
-
-  /* 2. QUICK ENCRYPT PANEL */
-  .quick-encrypt-box {
-    padding: 8px 12px;
-    background: var(--cortex-bg-card, rgba(0, 0, 0, 0.2));
-    border-bottom: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .box-title {
-    font-size: 0.72rem;
-    color: var(--cortex-fg-muted, #94a3b8);
-  }
-
-  .input-row {
-    display: flex;
-    gap: 6px;
-  }
-
-  .input-row input {
-    flex: 1;
-    background: var(--cortex-bg-input, rgba(0, 0, 0, 0.25));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
-    border-radius: 5px;
-    padding: 5px 8px;
-    color: var(--cortex-fg-primary, #ffffff);
-    font-size: 0.76rem;
-    outline: none;
-  }
-
-  .input-row input:focus {
-    border-color: var(--cortex-accent, #38bdf8);
-  }
-
-  .encrypt-btn {
-    background: var(--cortex-accent, #38bdf8);
-    border: none;
-    border-radius: 5px;
-    color: #ffffff;
-    font-size: 0.72rem;
-    font-weight: 500;
-    padding: 0 10px;
-    cursor: pointer;
-  }
-
-  .result-box {
-    background: rgba(0, 0, 0, 0.25);
-    padding: 6px 8px;
-    border-radius: 5px;
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .token-code {
-    font-size: 0.68rem;
-    word-break: break-all;
-    color: var(--cortex-accent, #38bdf8);
-    user-select: all;
-  }
-
-  .result-actions {
-    display: flex;
-    gap: 6px;
-  }
-
-  .res-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.06));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
-    border-radius: 4px;
-    color: var(--cortex-fg-secondary, #cbd5e1);
-    font-size: 0.68rem;
-    padding: 2px 7px;
-    cursor: pointer;
-  }
-
-  .res-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.12));
     color: var(--cortex-fg-primary, #ffffff);
   }
 
@@ -1390,23 +1520,89 @@
     box-shadow: 0 0 0 1px var(--cortex-accent-subtle, rgba(56, 189, 248, 0.2));
   }
 
-  .input-card textarea {
+  .rich-input-box {
     width: 100%;
     background: transparent;
     border: none;
     color: var(--cortex-fg-primary, #ffffff);
     font-size: 0.82rem;
     line-height: 1.45;
-    resize: none;
     outline: none;
     box-sizing: border-box;
     font-family: inherit;
     min-height: 36px;
     max-height: 160px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    position: relative;
+    user-select: text;
+    -webkit-user-select: text;
   }
 
-  .input-card textarea::placeholder {
+  .rich-input-box.is-empty::before {
+    content: "Спросите ассистента...";
+    position: absolute;
+    left: 0;
+    top: 0;
     color: var(--cortex-fg-muted, #64748b);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .rich-input-box :global(.cortex-secret-mount.input-secret-badge) {
+    display: inline-flex;
+    vertical-align: middle;
+    margin: 0 2px;
+    user-select: all;
+  }
+
+  .encrypt-btn-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .encrypt-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--cortex-fg-muted, #94a3b8);
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+
+  .encrypt-action-btn:hover:not(:disabled) {
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
+    border-color: var(--cortex-accent, #38bdf8);
+    color: var(--cortex-accent, #38bdf8);
+  }
+
+  .encrypt-action-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .encrypt-tooltip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    background: var(--cortex-bg-header, #080c14);
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.15));
+    border-radius: 5px;
+    padding: 4px 8px;
+    font-size: 0.68rem;
+    color: var(--cortex-fg-primary, #ffffff);
+    white-space: nowrap;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    pointer-events: none;
+    animation: fadeIn 0.12s ease-out;
   }
 
   .input-footer {
