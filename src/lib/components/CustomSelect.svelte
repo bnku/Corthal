@@ -18,6 +18,7 @@
     id?: string;
     maxMenuHeight?: string;
     dropdownWidth?: string;
+    preferredPlacement?: "auto" | "down" | "up";
     onchange?: (value: any) => void;
   }
 
@@ -30,19 +31,90 @@
     id,
     maxMenuHeight = "240px",
     dropdownWidth,
+    preferredPlacement = "auto",
     onchange,
   }: Props = $props();
 
   let isOpen = $state(false);
+  let placement = $state<"down" | "up">("down");
+  let computedMaxHeight = $state<string>("");
   let containerEl = $state<HTMLDivElement | null>(null);
+  let menuEl = $state<HTMLDivElement | null>(null);
 
   // Selected option lookup
   let selectedOption = $derived(options.find((opt) => opt.value === value));
 
+  function getScrollParents(node: HTMLElement | null): HTMLElement[] {
+    const parents: HTMLElement[] = [];
+    if (!node) return parents;
+    let parent = node.parentElement;
+    while (parent && parent !== document.body && parent !== document.documentElement) {
+      const style = window.getComputedStyle(parent);
+      const overflowY = style.overflowY;
+      if (overflowY === "auto" || overflowY === "scroll" || overflowY === "hidden") {
+        parents.push(parent);
+      }
+      parent = parent.parentElement;
+    }
+    return parents;
+  }
+
+  function updatePlacement() {
+    if (!containerEl) return;
+    const triggerRect = containerEl.getBoundingClientRect();
+
+    let topBoundary = 0;
+    let bottomBoundary = window.innerHeight;
+
+    const scrollParents = getScrollParents(containerEl);
+    for (const parent of scrollParents) {
+      const r = parent.getBoundingClientRect();
+      topBoundary = Math.max(topBoundary, r.top);
+      bottomBoundary = Math.min(bottomBoundary, r.bottom);
+    }
+
+    const spaceBelow = Math.max(0, bottomBoundary - triggerRect.bottom);
+    const spaceAbove = Math.max(0, triggerRect.top - topBoundary);
+
+    const parsedMax = parseInt(maxMenuHeight, 10) || 240;
+    const estimatedNeededHeight = Math.min(
+      parsedMax,
+      Math.max(60, options.length * 40 + 12)
+    );
+
+    if (preferredPlacement === "up") {
+      placement = "up";
+      const available = Math.max(100, spaceAbove - 8);
+      computedMaxHeight = `${Math.min(parsedMax, available)}px`;
+    } else if (preferredPlacement === "down") {
+      placement = "down";
+      const available = Math.max(100, spaceBelow - 8);
+      computedMaxHeight = `${Math.min(parsedMax, available)}px`;
+    } else {
+      // Auto smart placement:
+      // If there is not enough room below for the estimated menu height,
+      // and there is more room above than below, open upwards!
+      if (spaceBelow < estimatedNeededHeight && spaceAbove > spaceBelow) {
+        placement = "up";
+        const available = Math.max(100, spaceAbove - 8);
+        computedMaxHeight = `${Math.min(parsedMax, available)}px`;
+      } else {
+        placement = "down";
+        const available = Math.max(100, spaceBelow - 8);
+        computedMaxHeight = `${Math.min(parsedMax, available)}px`;
+      }
+    }
+  }
+
   function toggleOpen(e: MouseEvent) {
     e.stopPropagation();
     if (disabled) return;
-    isOpen = !isOpen;
+    if (!isOpen) {
+      updatePlacement();
+      isOpen = true;
+    } else {
+      isOpen = false;
+    }
   }
 
   function handleSelect(optValue: string | number, e: MouseEvent) {
@@ -62,11 +134,13 @@
     } else if (e.key === "Enter" || e.key === " ") {
       if (!isOpen) {
         e.preventDefault();
+        updatePlacement();
         isOpen = true;
       }
     } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       if (!isOpen) {
         e.preventDefault();
+        updatePlacement();
         isOpen = true;
         return;
       }
@@ -81,20 +155,46 @@
       if (options[nextIndex]) {
         value = options[nextIndex].value;
         onchange?.(options[nextIndex].value);
+        requestAnimationFrame(() => {
+          if (menuEl) {
+            const selected = menuEl.querySelector<HTMLElement>(".select-option-item.is-selected");
+            selected?.scrollIntoView({ block: "nearest" });
+          }
+        });
       }
     }
   }
 
   $effect(() => {
     if (isOpen) {
+      updatePlacement();
+
+      // Scroll selected option into view when opening
+      requestAnimationFrame(() => {
+        if (menuEl) {
+          const selected = menuEl.querySelector<HTMLElement>(".select-option-item.is-selected");
+          selected?.scrollIntoView({ block: "nearest" });
+        }
+      });
+
       function handleClickOutside(e: MouseEvent) {
         if (containerEl && !containerEl.contains(e.target as Node)) {
           isOpen = false;
         }
       }
+
+      function handleReposition() {
+        updatePlacement();
+      }
+
       window.addEventListener("click", handleClickOutside, true);
+      window.addEventListener("resize", handleReposition);
+      window.addEventListener("scroll", handleReposition, true);
+
       return () => {
         window.removeEventListener("click", handleClickOutside, true);
+        window.removeEventListener("resize", handleReposition);
+        window.removeEventListener("scroll", handleReposition, true);
       };
     }
   });
@@ -106,6 +206,8 @@
   class="cortex-custom-select {className}"
   class:is-open={isOpen}
   class:is-disabled={disabled}
+  class:placement-up={placement === "up"}
+  class:placement-down={placement === "down"}
 >
   <button
     type="button"
@@ -136,8 +238,9 @@
 
   {#if isOpen}
     <div
-      class="select-dropdown-menu custom-scroll"
-      style:max-height={maxMenuHeight}
+      bind:this={menuEl}
+      class="select-dropdown-menu custom-scroll placement-{placement}"
+      style:max-height={computedMaxHeight || maxMenuHeight}
       style:width={dropdownWidth || "100%"}
       role="listbox"
     >
@@ -270,7 +373,6 @@
   /* DROPDOWN MENU */
   .select-dropdown-menu {
     position: absolute;
-    top: calc(100% + 4px);
     left: 0;
     z-index: 1000;
     background: var(--cortex-bg-card, #1a1d26);
@@ -281,13 +383,35 @@
     overflow-x: hidden;
     padding: 4px;
     box-sizing: border-box;
-    animation: dropIn 0.12s ease-out;
   }
 
-  @keyframes dropIn {
+  .select-dropdown-menu.placement-down {
+    top: calc(100% + 4px);
+    bottom: auto;
+    animation: dropInDown 0.12s ease-out;
+  }
+
+  .select-dropdown-menu.placement-up {
+    bottom: calc(100% + 4px);
+    top: auto;
+    animation: dropInUp 0.12s ease-out;
+  }
+
+  @keyframes dropInDown {
     from {
       opacity: 0;
       transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes dropInUp {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
     }
     to {
       opacity: 1;
