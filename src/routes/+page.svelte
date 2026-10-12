@@ -1416,11 +1416,6 @@
     background: transparent;
   }
 
-  :global(*) {
-    scrollbar-width: thin;
-    scrollbar-color: var(--cortex-border, rgba(255, 255, 255, 0.18)) transparent;
-  }
-
   .cortex-app-root {
     display: flex;
     flex-direction: column;
@@ -1435,8 +1430,16 @@
     user-select: none;
   }
 
+  /* When modal is open, completely disable scrolling and hide any background scrollbars */
+  :global(.cortex-app-root.modal-open .sidebar-explorer .tree-container),
+  :global(.cortex-app-root.modal-open .pane-content-body),
+  :global(.cortex-app-root.modal-open .workspace-area) {
+    overflow: hidden !important;
+  }
+
   /* 1. TOP TITLEBAR */
   .app-titlebar {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
