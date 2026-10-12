@@ -69,6 +69,7 @@
   import CircleX from "lucide-svelte/icons/circle-x";
   import FileDown from "lucide-svelte/icons/file-down";
   import Square from "lucide-svelte/icons/square";
+  import Code from "lucide-svelte/icons/code";
 
   interface Props {
     name: string;
@@ -86,6 +87,7 @@
     "file-text": FileText,
     "file": FileText,
     "file-code": FileCode,
+    "code": Code,
     "archive": Archive,
     "inbox": Inbox,
     "globe": Globe,

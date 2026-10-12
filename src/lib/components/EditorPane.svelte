@@ -9,6 +9,7 @@
   import Icon from "./Icon.svelte";
   import SecretPill from "./SecretPill.svelte";
   import PropertiesBlock from "./PropertiesBlock.svelte";
+  import LiveMarkdownEditor from "./LiveMarkdownEditor.svelte";
 
   interface TabInfo {
     path: string;
@@ -574,11 +575,11 @@
     <!-- PANE TOOLBAR ACTIONS (Right side of tab bar) -->
     <div class="pane-actions">
       {#if activePath}
-        <!-- Insert Secret Button (visible when editing) -->
-        {#if isEditing}
+        <!-- Insert Secret Button (visible when markdown file is open) -->
+        {#if isMarkdown}
           <button
             class="pane-action-btn secret-btn"
-            title="Зашифровать и вставить секрет"
+            title="Зашифровать и вставить секрет (Ctrl+E)"
             onclick={onOpenSecretModal}
           >
             <Icon name="lock" size={12} color="#f59e0b" />
@@ -586,26 +587,47 @@
           </button>
         {/if}
 
-        <!-- Mode Toggle: View / Edit -->
+        <!-- Mode Toggle: Live Preview vs Source for Markdown, View vs Edit for Code -->
         <div class="mode-toggle-group">
-          <button
-            class="mode-btn"
-            class:active={!isEditing}
-            onclick={() => onToggleEditing(false)}
-            title={isMarkdown ? "Режим просмотра Markdown" : "Режим просмотра кода"}
-          >
-            <Icon name="eye" size={12} />
-            <span class="btn-text">Просмотр</span>
-          </button>
-          <button
-            class="mode-btn"
-            class:active={isEditing}
-            onclick={() => onToggleEditing(true)}
-            title="Режим правки"
-          >
-            <Icon name="file-edit" size={12} />
-            <span class="btn-text">Правка</span>
-          </button>
+          {#if isMarkdown}
+            <button
+              class="mode-btn"
+              class:active={!isEditing}
+              onclick={() => onToggleEditing(false)}
+              title="Живой просмотр (Live Preview) — редактирование с рендерингом на лету"
+            >
+              <Icon name="sparkles" size={12} />
+              <span class="btn-text">Живой просмотр</span>
+            </button>
+            <button
+              class="mode-btn"
+              class:active={isEditing}
+              onclick={() => onToggleEditing(true)}
+              title="Исходный код Markdown с номерами строк"
+            >
+              <Icon name="code" size={12} />
+              <span class="btn-text">Исходник</span>
+            </button>
+          {:else}
+            <button
+              class="mode-btn"
+              class:active={!isEditing}
+              onclick={() => onToggleEditing(false)}
+              title="Режим просмотра кода"
+            >
+              <Icon name="eye" size={12} />
+              <span class="btn-text">Просмотр</span>
+            </button>
+            <button
+              class="mode-btn"
+              class:active={isEditing}
+              onclick={() => onToggleEditing(true)}
+              title="Режим правки кода"
+            >
+              <Icon name="file-edit" size={12} />
+              <span class="btn-text">Правка</span>
+            </button>
+          {/if}
         </div>
       {/if}
 
@@ -625,94 +647,98 @@
   <!-- PANE BODY -->
   <div class="pane-content-body">
     {#if activePath}
-      {#if isEditing}
-        <!-- EDIT MODE (with Line Numbers Gutter and 1:1 Scroll Sync) -->
-        <div class="editor-workspace" bind:this={workspaceEl}>
-          <div class="line-gutter" bind:this={gutterEl}>
-            {#each lineNumbers as lineNum}
-              <div
-                class="gutter-line"
-                class:active={currentCursorLine === lineNum}
-              >
-                {lineNum}
-              </div>
-            {/each}
-          </div>
-
-          <textarea
-            bind:this={textareaEl}
-            class="editor-textarea"
-            value={content}
-            oninput={(e) => {
-              handleTextareaInput(e);
-              floatingEncrypt.visible = false;
-            }}
-            onscroll={handleEditorScroll}
-            onclick={updateCursorPosition}
-            onkeyup={(e) => {
-              updateCursorPosition();
-              if (e.shiftKey) checkEditorSelection();
-            }}
-            onmouseup={(e) => {
-              updateCursorPosition();
-              checkEditorSelection(e);
-            }}
-            onselect={() => {
-              updateCursorPosition();
-              checkEditorSelection();
-            }}
-            onkeydown={(e) => {
-              handleTextareaKeydown(e);
-              if (e.key !== "Shift" && e.key !== "Control" && e.key !== "Alt") {
-                floatingEncrypt.visible = false;
-              }
-            }}
-            placeholder={isMarkdown ? "Пишите в формате Markdown..." : "Исходный код файла..."}
-            spellcheck="false"
-          ></textarea>
-
-          {#if floatingEncrypt.visible}
-            <div
-              class="floating-encrypt-bar"
-              style="left: {floatingEncrypt.x}px; top: {floatingEncrypt.y}px;"
-            >
-              <button
-                type="button"
-                class="floating-encrypt-btn"
-                onmousedown={(e) => e.preventDefault()}
-                onclick={handleFloatingEncrypt}
-                disabled={floatingEncrypt.isEncrypting}
-                title="Зашифровать выделенный текст публичным ключом SSH (~/.ssh/id_ed25519)"
-              >
-                <Icon name="lock" size={12} color="var(--cortex-accent, #38bdf8)" />
-                <span>{floatingEncrypt.isEncrypting ? "Шифрование..." : "Зашифровать"}</span>
-              </button>
+      {#if isMarkdown}
+        <!-- MARKDOWN: Hybrid Live Preview & Source Editor -->
+        <div class="markdown-live-container">
+          {#if !isEditing && parsedDoc.frontmatter && Object.keys(parsedDoc.frontmatter).length > 0}
+            <div class="frontmatter-wrap">
+              <PropertiesBlock
+                properties={parsedDoc.frontmatter}
+                onTagClick={(tag) => onTagClick?.(tag)}
+              />
             </div>
           {/if}
+
+          {#key activePath}
+            <LiveMarkdownEditor
+              {content}
+              mode={isEditing ? "source" : "live"}
+              {activePath}
+              onContentChange={onContentChange}
+              onCursorChange={onCursorChange}
+              onSave={onSaveNote}
+              onOpenSecretModal={onOpenSecretModal}
+              onOpenNote={onOpenNote}
+              onPassphraseNeeded={onPassphraseNeeded}
+            />
+          {/key}
         </div>
       {:else}
-        <!-- VIEW MODE -->
-        {#if isMarkdown}
-          <!-- Markdown Preview -->
-          <div class="markdown-preview-container">
-            {#if parsedDoc.frontmatter && Object.keys(parsedDoc.frontmatter).length > 0}
-              <div class="frontmatter-wrap">
-                <PropertiesBlock
-                  properties={parsedDoc.frontmatter}
-                  onTagClick={(tag) => onTagClick?.(tag)}
-                />
+        <!-- NON-MARKDOWN: Code Editor (isEditing) or Code Viewer (!isEditing) -->
+        {#if isEditing}
+          <!-- EDIT MODE (with Line Numbers Gutter and 1:1 Scroll Sync) -->
+          <div class="editor-workspace" bind:this={workspaceEl}>
+            <div class="line-gutter" bind:this={gutterEl}>
+              {#each lineNumbers as lineNum}
+                <div
+                  class="gutter-line"
+                  class:active={currentCursorLine === lineNum}
+                >
+                  {lineNum}
+                </div>
+              {/each}
+            </div>
+
+            <textarea
+              bind:this={textareaEl}
+              class="editor-textarea"
+              value={content}
+              oninput={(e) => {
+                handleTextareaInput(e);
+                floatingEncrypt.visible = false;
+              }}
+              onscroll={handleEditorScroll}
+              onclick={updateCursorPosition}
+              onkeyup={(e) => {
+                updateCursorPosition();
+                if (e.shiftKey) checkEditorSelection();
+              }}
+              onmouseup={(e) => {
+                updateCursorPosition();
+                checkEditorSelection(e);
+              }}
+              onselect={() => {
+                updateCursorPosition();
+                checkEditorSelection();
+              }}
+              onkeydown={(e) => {
+                handleTextareaKeydown(e);
+                if (e.key !== "Shift" && e.key !== "Control" && e.key !== "Alt") {
+                  floatingEncrypt.visible = false;
+                }
+              }}
+              placeholder="Исходный код файла..."
+              spellcheck="false"
+            ></textarea>
+
+            {#if floatingEncrypt.visible}
+              <div
+                class="floating-encrypt-bar"
+                style="left: {floatingEncrypt.x}px; top: {floatingEncrypt.y}px;"
+              >
+                <button
+                  type="button"
+                  class="floating-encrypt-btn"
+                  onmousedown={(e) => e.preventDefault()}
+                  onclick={handleFloatingEncrypt}
+                  disabled={floatingEncrypt.isEncrypting}
+                  title="Зашифровать выделенный текст публичным ключом SSH (~/.ssh/id_ed25519)"
+                >
+                  <Icon name="lock" size={12} color="var(--cortex-accent, #38bdf8)" />
+                  <span>{floatingEncrypt.isEncrypting ? "Шифрование..." : "Зашифровать"}</span>
+                </button>
               </div>
             {/if}
-
-            {#key parsedMarkdownHtml}
-              <div
-                class="markdown-preview-content"
-                use:mountSecrets={onPassphraseNeeded}
-                onclick={handleContentClick}
-              >
-                {@html parsedMarkdownHtml}
-              </div>
-            {/key}
           </div>
         {:else}
           <!-- Code Viewer for Non-Markdown files (.rs, .py, .js, .sh, .json, etc.) -->
@@ -1234,6 +1260,26 @@
     font-family: inherit;
     font-size: inherit;
     line-height: inherit;
+  }
+
+  /* MARKDOWN LIVE PREVIEW CONTAINER */
+  .markdown-live-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--cortex-bg-main, #0f172a);
+    position: relative;
+  }
+
+  .markdown-live-container .frontmatter-wrap {
+    max-width: 880px;
+    width: 100%;
+    margin: 16px auto 0 auto;
+    padding: 0 28px;
+    box-sizing: border-box;
+    flex-shrink: 0;
   }
 
   /* MARKDOWN PREVIEW STYLING */
