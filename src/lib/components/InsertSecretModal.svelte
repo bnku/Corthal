@@ -34,9 +34,9 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
+    if (e.key === "Escape" || e.code === "Escape") {
       onClose();
-    } else if (e.key === "Enter" && !e.shiftKey) {
+    } else if ((e.key === "Enter" || e.code === "Enter") && !e.shiftKey) {
       e.preventDefault();
       handleEncryptAndInsert();
     }

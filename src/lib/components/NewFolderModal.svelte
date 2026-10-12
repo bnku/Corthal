@@ -92,10 +92,9 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (!isOpen) return;
-    if (e.key === "Escape") {
+    if (e.key === "Escape" || e.code === "Escape") {
       onClose();
-    } else if (e.key === "Enter" && !e.shiftKey) {
+    } else if ((e.key === "Enter" || e.code === "Enter") && !e.shiftKey) {
       e.preventDefault();
       handleCreate();
     }
@@ -135,6 +134,7 @@
           class="text-input"
           bind:value={folderTitle}
           placeholder="Например: Недвижимость или Питомцы"
+          autofocus
         />
 
         <!-- 2. Folder directory name / slug -->

@@ -376,6 +376,19 @@
   let isFolderSettingsModalOpen = $state(false);
   let selectedFolderForSettings = $state<VaultNode | null>(null);
 
+  // Deletion modal and session state
+  let skipDeleteConfirmSession = $state(false);
+  let isDeleteModalOpen = $state(false);
+  let deleteModalCheckbox = $state(false);
+  let deleteTargetNode = $state<VaultNode | null>(null);
+  let deleteTargetPath = $state<string | null>(null);
+  let deleteTargetIsDir = $state(false);
+  let deleteTargetTitle = $state("");
+
+  // Tree selection state
+  let selectedTreePath = $state<string | null>(null);
+  let selectedTreeNode = $state<VaultNode | null>(null);
+
   let isAnyModalOpen = $derived(
     isSettingsModalOpen ||
     isSecretModalOpen ||
@@ -384,7 +397,8 @@
     isFolderSettingsModalOpen ||
     isVaultOpenModalOpen ||
     isConfirmKeyModalOpen ||
-    isPassphraseModalOpen
+    isPassphraseModalOpen ||
+    isDeleteModalOpen
   );
 
   // Context Menu state
@@ -813,55 +827,196 @@
     }
   }
 
+  function isEditingText(target: EventTarget | null): boolean {
+    if (!target || !(target instanceof HTMLElement)) return false;
+    const tag = target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
+      return true;
+    }
+    return false;
+  }
+
+  function findNodeByPath(node: VaultNode | null, targetPath: string): VaultNode | null {
+    if (!node) return null;
+    if (node.relative_path === targetPath) return node;
+    if (node.children) {
+      for (const child of node.children) {
+        const found = findNodeByPath(child, targetPath);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  function promptDeleteItem(nodeOrPath: VaultNode | string | null) {
+    if (!nodeOrPath) return;
+    let node: VaultNode | null = null;
+    let targetPath = "";
+    if (typeof nodeOrPath === "string") {
+      targetPath = nodeOrPath;
+      node = findNodeByPath(vaultTree, targetPath);
+    } else {
+      node = nodeOrPath;
+      targetPath = node.relative_path;
+    }
+    if (!targetPath) return;
+
+    const isDir = node ? node.is_dir : !targetPath.endsWith(".md");
+    const title = node?.title || node?.name || targetPath.split("/").pop() || targetPath;
+
+    deleteTargetNode = node;
+    deleteTargetPath = targetPath;
+    deleteTargetIsDir = isDir;
+    deleteTargetTitle = title;
+
+    if (skipDeleteConfirmSession) {
+      executeDelete(targetPath, isDir);
+      return;
+    }
+
+    deleteModalCheckbox = false;
+    isDeleteModalOpen = true;
+  }
+
+  async function handleConfirmDelete() {
+    if (deleteModalCheckbox) {
+      skipDeleteConfirmSession = true;
+    }
+    const path = deleteTargetPath;
+    const isDir = deleteTargetIsDir;
+    isDeleteModalOpen = false;
+    if (path) {
+      await executeDelete(path, isDir);
+    }
+  }
+
+  async function executeDelete(targetPath: string, isDir: boolean) {
+    try {
+      await invoke("vault_delete_path", { path: targetPath });
+
+      // Close open tabs matching deleted path
+      if (isDir) {
+        const prefix = targetPath.endsWith("/") ? targetPath : `${targetPath}/`;
+        const toCloseLeft = paneLeftTabs.filter((p) => p === targetPath || p.startsWith(prefix));
+        const toCloseRight = paneRightTabs.filter((p) => p === targetPath || p.startsWith(prefix));
+        for (const p of toCloseLeft) {
+          closeTab("left", p);
+          delete fileCache[p];
+        }
+        for (const p of toCloseRight) {
+          closeTab("right", p);
+          delete fileCache[p];
+        }
+      } else {
+        closeTab("left", targetPath);
+        closeTab("right", targetPath);
+        delete fileCache[targetPath];
+      }
+
+      if (selectedTreePath === targetPath || (isDir && selectedTreePath?.startsWith(targetPath + "/"))) {
+        selectedTreePath = null;
+        selectedTreeNode = null;
+      }
+
+      await loadVault();
+    } catch (err: any) {
+      console.error("Failed to delete path:", err);
+      alert("Ошибка при удалении: " + err);
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
+    const isCtrl = e.ctrlKey || e.metaKey;
+
     // Refresh: F5 or Ctrl+R
-    if (e.key === "F5" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r")) {
+    if (e.key === "F5" || (isCtrl && (e.code === "KeyR" || e.key.toLowerCase() === "r" || e.key === "к" || e.key === "К"))) {
       e.preventDefault();
       handleRefreshVault();
+      return;
     }
+
     // Save: Ctrl+S
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+    if (isCtrl && (e.code === "KeyS" || e.key.toLowerCase() === "s" || e.key === "ы" || e.key === "Ы")) {
       e.preventDefault();
       saveNote();
+      return;
     }
+
     // New Note: Ctrl+N
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
+    if (isCtrl && (e.code === "KeyN" || e.key.toLowerCase() === "n" || e.key === "т" || e.key === "Т")) {
       e.preventDefault();
-      openCreateNoteDialog("");
+      let targetFolder = "";
+      const currentPath = selectedTreePath || activeFilePath;
+      if (selectedTreeNode && selectedTreeNode.is_dir) {
+        targetFolder = selectedTreeNode.relative_path;
+      } else if (currentPath) {
+        const lastSlash = currentPath.lastIndexOf("/");
+        if (lastSlash !== -1) {
+          targetFolder = currentPath.substring(0, lastSlash);
+        }
+      }
+      openCreateNoteDialog(targetFolder);
+      return;
     }
+
     // Close Tab: Ctrl+W
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "w") {
+    if (isCtrl && (e.code === "KeyW" || e.key.toLowerCase() === "w" || e.key === "ц" || e.key === "Ц")) {
       e.preventDefault();
       if (focusedPane === "right" && isSplit && paneRightActive) {
         closeTab("right", paneRightActive);
       } else if (paneLeftActive) {
         closeTab("left", paneLeftActive);
       }
+      return;
     }
+
     // Search: Ctrl+F or Ctrl+P
-    if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "f" || e.key.toLowerCase() === "p")) {
+    if (isCtrl && (e.code === "KeyF" || e.code === "KeyP" || e.key.toLowerCase() === "f" || e.key.toLowerCase() === "p" || e.key === "а" || e.key === "з")) {
       e.preventDefault();
       handleFocusSearch();
+      return;
     }
+
     // Settings: Ctrl+,
-    if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+    if (isCtrl && (e.code === "Comma" || e.key === "," || e.key === "б" || e.key === "Б")) {
       e.preventDefault();
+      settingsInitialTab = "appearance";
       isSettingsModalOpen = true;
+      return;
     }
+
     // Toggle Split: Ctrl+\ or Ctrl+2
-    if ((e.ctrlKey || e.metaKey) && (e.key === "\\" || e.key === "2")) {
+    if (isCtrl && (e.code === "Backslash" || e.code === "Digit2" || e.key === "\\" || e.key === "2")) {
       e.preventDefault();
       toggleSplit();
+      return;
     }
+
     // Toggle Sidebar: Ctrl+B
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+    if (isCtrl && (e.code === "KeyB" || e.key.toLowerCase() === "b" || e.key === "и" || e.key === "И")) {
       e.preventDefault();
       showLeftSidebar = !showLeftSidebar;
+      return;
     }
+
     // Toggle Assistant: Ctrl+J
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") {
+    if (isCtrl && (e.code === "KeyJ" || e.key.toLowerCase() === "j" || e.key === "о" || e.key === "О")) {
       e.preventDefault();
       showAssistant = !showAssistant;
+      return;
+    }
+
+    // Delete item: Del key
+    if (e.code === "Delete" || e.key === "Delete") {
+      if (isEditingText(e.target) || isAnyModalOpen) {
+        return;
+      }
+      const target = selectedTreePath || activeFilePath;
+      if (target) {
+        e.preventDefault();
+        promptDeleteItem(target);
+      }
+      return;
     }
   }
 
@@ -898,13 +1053,19 @@
     isFolderSettingsModalOpen = true;
   }
 
-  function handleFolderContextMenu(e: MouseEvent, node: VaultNode) {
+  function handleItemContextMenu(e: MouseEvent, node: VaultNode) {
+    selectedTreePath = node.relative_path;
+    selectedTreeNode = node;
     contextMenu = {
       visible: true,
       x: Math.min(e.clientX, window.innerWidth - 240),
-      y: Math.min(e.clientY, window.innerHeight - 180),
+      y: Math.min(e.clientY, window.innerHeight - 200),
       node,
     };
+  }
+
+  function handleFolderContextMenu(e: MouseEvent, node: VaultNode) {
+    handleItemContextMenu(e, node);
   }
 
   async function handleNoteCreated(newPath: string) {
@@ -1143,12 +1304,22 @@
           {#if filteredTree}
             <VaultTree
               node={filteredTree}
-              selectedPath={activeFilePath}
+              selectedPath={selectedTreePath || activeFilePath}
               {expandedFolders}
               onToggleFolder={handleToggleFolder}
-              onSelectNote={(p) => openNote(p)}
+              onSelectNote={(p) => {
+                selectedTreePath = p;
+                selectedTreeNode = findNodeByPath(vaultTree, p);
+                openNote(p);
+              }}
+              onSelectFolder={(folderPath, node) => {
+                selectedTreePath = folderPath;
+                selectedTreeNode = node;
+              }}
               onCreateNote={openCreateNoteDialog}
-              onFolderContextMenu={handleFolderContextMenu}
+              onFolderContextMenu={handleItemContextMenu}
+              onItemContextMenu={handleItemContextMenu}
+              onDeleteItem={(node) => promptDeleteItem(node)}
             />
           {:else}
             <div class="loading">Загрузка базы знаний...</div>
@@ -1435,20 +1606,53 @@
   <ContextMenu
     x={contextMenu.x}
     y={contextMenu.y}
+    isDir={contextMenu.node.is_dir}
+    itemPath={contextMenu.node.relative_path}
+    itemTitle={contextMenu.node.title || contextMenu.node.name}
     folderPath={contextMenu.node.relative_path}
     folderTitle={contextMenu.node.title || contextMenu.node.name}
     onConfigureFolder={() => {
       if (contextMenu.node) openFolderSettings(contextMenu.node);
     }}
     onCreateNote={() => {
-      if (contextMenu.node) openCreateNoteDialog(contextMenu.node.relative_path);
+      if (contextMenu.node) {
+        const folder = contextMenu.node.is_dir
+          ? contextMenu.node.relative_path
+          : (contextMenu.node.relative_path.includes("/") ? contextMenu.node.relative_path.substring(0, contextMenu.node.relative_path.lastIndexOf("/")) : "");
+        openCreateNoteDialog(folder);
+      }
     }}
     onCreateSubfolder={() => {
       if (contextMenu.node) openCreateFolderDialog(contextMenu.node.relative_path);
     }}
+    onDelete={() => {
+      if (contextMenu.node) {
+        const node = contextMenu.node;
+        contextMenu.visible = false;
+        promptDeleteItem(node);
+      }
+    }}
     onClose={() => (contextMenu.visible = false)}
   />
 {/if}
+
+<ConfirmModal
+  isOpen={isDeleteModalOpen}
+  title={deleteTargetIsDir ? "Удаление папки" : "Удаление заметки"}
+  message={`Вы действительно хотите удалить ${deleteTargetIsDir ? "папку" : "заметку"} «${deleteTargetTitle || deleteTargetPath}»?\n${deleteTargetIsDir ? "Все вложенные файлы и папки будут удалены безвозвратно." : "Файл будет удален с диска."}`}
+  confirmText="Удалить"
+  cancelText="Отмена"
+  danger={true}
+  showCheckbox={true}
+  checkboxLabel="Больше не спрашивать в этой сессии"
+  bind:checkboxChecked={deleteModalCheckbox}
+  onConfirm={handleConfirmDelete}
+  onCancel={() => {
+    isDeleteModalOpen = false;
+    deleteTargetNode = null;
+    deleteTargetPath = null;
+  }}
+/>
 
 <InsertSecretModal
   isOpen={isSecretModalOpen}

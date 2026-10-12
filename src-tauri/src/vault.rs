@@ -579,6 +579,24 @@ pub fn create_dir_with_meta(relative_path: &str, meta: Option<&MetaJson>) -> Res
     Ok(clean_path)
 }
 
+/// Deletes a file or directory safely within the active vault root
+pub fn delete_path(relative_path: &str) -> Result<(), VaultError> {
+    let clean_path = relative_path.trim_start_matches('/');
+    if clean_path.is_empty() {
+        return Err(VaultError::RootError("Cannot delete root directory".to_string()));
+    }
+    let target = resolve_safe_path(clean_path)?;
+    if !target.exists() {
+        return Err(VaultError::NotFound(format!("Path not found: {}", clean_path)));
+    }
+    if target.is_dir() {
+        fs::remove_dir_all(&target)?;
+    } else {
+        fs::remove_file(&target)?;
+    }
+    Ok(())
+}
+
 fn chrono_date_str() -> String {
     // Current date format YYYY-MM-DD
     let now = std::time::SystemTime::now();

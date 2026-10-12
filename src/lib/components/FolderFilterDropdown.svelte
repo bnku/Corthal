@@ -110,7 +110,7 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape" && isOpen) {
+    if ((e.key === "Escape" || e.code === "Escape") && isOpen) {
       closeDropdown();
     }
   }

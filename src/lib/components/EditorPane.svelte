@@ -367,6 +367,12 @@
   }
 
   function handleTextareaKeydown(e: KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && (e.code === "KeyE" || e.key.toLowerCase() === "e")) {
+      e.preventDefault();
+      checkEditorSelection();
+      handleFloatingEncrypt();
+      return;
+    }
     if (e.key === "Tab") {
       e.preventDefault();
       if (!textareaEl) return;
@@ -499,11 +505,11 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+    if ((e.ctrlKey || e.metaKey) && (e.code === "KeyS" || e.key.toLowerCase() === "s")) {
       e.preventDefault();
       onSaveNote();
     }
-    if ((e.ctrlKey || e.metaKey) && e.key === "w" && activePath) {
+    if ((e.ctrlKey || e.metaKey) && (e.code === "KeyW" || e.key.toLowerCase() === "w") && activePath) {
       e.preventDefault();
       onCloseTab(activePath);
     }
@@ -539,7 +545,7 @@
           role="tab"
           tabindex="0"
           aria-selected={isActive}
-          onkeydown={(e) => e.key === "Enter" && handleTabClick(tab.path, e as any)}
+          onkeydown={(e) => (e.key === "Enter" || e.code === "Enter") && handleTabClick(tab.path, e as any)}
         >
           <span class="tab-icon">
             <Icon name={getFileIcon(tab.path)} size={13} color={isActive ? "var(--cortex-accent)" : "var(--cortex-fg-muted)"} />

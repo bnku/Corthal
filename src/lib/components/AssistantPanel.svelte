@@ -538,7 +538,7 @@
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
-    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "e") {
+    } else if ((e.ctrlKey || e.metaKey) && (e.code === "KeyE" || e.key.toLowerCase() === "e")) {
       e.preventDefault();
       handleEncryptInputSelection();
     }

@@ -24,7 +24,7 @@
         onClose();
       }
       function handleKeydown(e: KeyboardEvent) {
-        if (e.key === "Escape") {
+        if (e.key === "Escape" || e.code === "Escape") {
           onClose();
         }
       }

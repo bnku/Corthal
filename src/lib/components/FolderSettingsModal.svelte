@@ -78,9 +78,9 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (!isOpen) return;
-    if (e.key === "Escape") {
+    if (e.key === "Escape" || e.code === "Escape") {
       onClose();
-    } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    } else if ((e.key === "Enter" || e.code === "Enter") && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       handleSave();
     }

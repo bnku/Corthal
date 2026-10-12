@@ -41,7 +41,7 @@
     onclick={() => (isCollapsed = !isCollapsed)}
     role="button"
     tabindex="0"
-    onkeydown={(e) => e.key === "Enter" && (isCollapsed = !isCollapsed)}
+    onkeydown={(e) => (e.key === "Enter" || e.code === "Enter") && (isCollapsed = !isCollapsed)}
   >
     <div class="header-left">
       <span class="chevron">

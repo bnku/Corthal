@@ -46,10 +46,10 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (!isOpen) return;
-    if (e.key === "Escape") {
+    if (e.key === "Escape" || e.code === "Escape") {
       e.preventDefault();
       onCancel();
-    } else if (e.key === "Enter") {
+    } else if (e.key === "Enter" || e.code === "Enter") {
       e.preventDefault();
       handleSubmit();
     }

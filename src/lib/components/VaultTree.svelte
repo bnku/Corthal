@@ -9,9 +9,12 @@
     expandedFolders: Set<string>;
     depth?: number;
     onSelectNote: (path: string) => void;
+    onSelectFolder?: (folderPath: string, node: VaultNode) => void;
     onToggleFolder: (folderPath: string) => void;
     onCreateNote?: (folderPath: string) => void;
     onFolderContextMenu?: (e: MouseEvent, node: VaultNode) => void;
+    onItemContextMenu?: (e: MouseEvent, node: VaultNode) => void;
+    onDeleteItem?: (node: VaultNode) => void;
   }
 
   let {
@@ -20,9 +23,12 @@
     expandedFolders,
     depth = 0,
     onSelectNote,
+    onSelectFolder,
     onToggleFolder,
     onCreateNote,
     onFolderContextMenu,
+    onItemContextMenu,
+    onDeleteItem,
   }: Props = $props();
 
   let isSelectedChild = $derived(
@@ -33,8 +39,14 @@
     node.relative_path === "" || expandedFolders.has(node.relative_path)
   );
 
-  function toggleExpand(e: MouseEvent) {
+  function toggleExpand(e?: MouseEvent) {
+    e?.stopPropagation();
+    onToggleFolder(node.relative_path);
+  }
+
+  function handleDirClick(e: MouseEvent) {
     e.stopPropagation();
+    onSelectFolder?.(node.relative_path, node);
     onToggleFolder(node.relative_path);
   }
 
@@ -44,13 +56,23 @@
 
   function handleNewNoteClick(e: MouseEvent) {
     e.stopPropagation();
+    onSelectFolder?.(node.relative_path, node);
     onCreateNote?.(node.relative_path);
   }
 
   function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    onFolderContextMenu?.(e, node);
+    if (node.is_dir) {
+      onSelectFolder?.(node.relative_path, node);
+    } else {
+      onSelectNote(node.relative_path);
+    }
+    if (onItemContextMenu) {
+      onItemContextMenu(e, node);
+    } else {
+      onFolderContextMenu?.(e, node);
+    }
   }
 
   // Formatting friendly names
@@ -106,14 +128,23 @@
     {#if node.relative_path !== ""}
       <div
         class="dir-item"
-        class:has-selected-child={isSelectedChild}
-        onclick={toggleExpand}
+        class:selected={selectedPath === node.relative_path}
+        class:has-selected-child={isSelectedChild && selectedPath !== node.relative_path}
+        onclick={handleDirClick}
         oncontextmenu={handleContextMenu}
         role="button"
         tabindex="0"
-        onkeydown={(e) => e.key === "Enter" && toggleExpand(e as any)}
+        onkeydown={(e) => {
+          if (e.key === "Enter" || e.code === "Enter") {
+            e.preventDefault();
+            handleDirClick(e as any);
+          } else if (e.code === "Delete" || e.key === "Delete") {
+            e.preventDefault();
+            onDeleteItem?.(node);
+          }
+        }}
       >
-        <span class="chevron">
+        <span class="chevron" onclick={toggleExpand} role="presentation">
           <Icon name={isExpanded ? "chevron-down" : "chevron-right"} size={13} color="#64748b" />
         </span>
 
@@ -144,9 +175,12 @@
             {expandedFolders}
             depth={depth + 1}
             {onSelectNote}
+            {onSelectFolder}
             {onToggleFolder}
             {onCreateNote}
             {onFolderContextMenu}
+            {onItemContextMenu}
+            {onDeleteItem}
           />
         {/each}
       </div>
@@ -156,9 +190,18 @@
       class="file-item"
       class:selected={selectedPath === node.relative_path}
       onclick={() => handleFileClick(node.relative_path)}
+      oncontextmenu={handleContextMenu}
       role="button"
       tabindex="0"
-      onkeydown={(e) => e.key === "Enter" && handleFileClick(node.relative_path)}
+      onkeydown={(e) => {
+        if (e.key === "Enter" || e.code === "Enter") {
+          e.preventDefault();
+          handleFileClick(node.relative_path);
+        } else if (e.code === "Delete" || e.key === "Delete") {
+          e.preventDefault();
+          onDeleteItem?.(node);
+        }
+      }}
     >
       <span class="file-icon">
         <Icon name={fileIconName} size={14} color={selectedPath === node.relative_path ? "#ffffff" : "#94a3b8"} />
@@ -190,6 +233,12 @@
   .dir-item:hover {
     background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
     color: var(--cortex-fg-primary, #f8fafc);
+  }
+
+  .dir-item.selected {
+    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.18));
+    color: var(--cortex-accent, #38bdf8);
+    font-weight: 600;
   }
 
   .dir-item:hover .action-add-btn {

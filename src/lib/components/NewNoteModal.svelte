@@ -53,9 +53,9 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (!isOpen) return;
-    if (e.key === "Escape") {
+    if (e.key === "Escape" || e.code === "Escape") {
       onClose();
-    } else if (e.key === "Enter") {
+    } else if (e.key === "Enter" || e.code === "Enter") {
       e.preventDefault();
       handleCreate();
     }
@@ -93,6 +93,7 @@
           class="text-input"
           bind:value={noteTitle}
           placeholder="Например: Настройка AmneziaVPN"
+          autofocus
         />
 
         <label for="note-filename-input" class="input-label">Имя файла (.md):</label>

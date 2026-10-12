@@ -126,18 +126,18 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (disabled) return;
-    if (e.key === "Escape") {
+    if (e.key === "Escape" || e.code === "Escape") {
       if (isOpen) {
         e.stopPropagation();
         isOpen = false;
       }
-    } else if (e.key === "Enter" || e.key === " ") {
+    } else if (e.key === "Enter" || e.code === "Enter" || e.key === " " || e.code === "Space") {
       if (!isOpen) {
         e.preventDefault();
         updatePlacement();
         isOpen = true;
       }
-    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    } else if (e.key === "ArrowDown" || e.code === "ArrowDown" || e.key === "ArrowUp" || e.code === "ArrowUp") {
       if (!isOpen) {
         e.preventDefault();
         updatePlacement();

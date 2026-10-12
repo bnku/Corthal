@@ -8,6 +8,10 @@
     confirmText?: string;
     cancelText?: string;
     danger?: boolean;
+    showCheckbox?: boolean;
+    checkboxLabel?: string;
+    checkboxChecked?: boolean;
+    onCheckboxChange?: (checked: boolean) => void;
     onConfirm: () => void;
     onCancel: () => void;
   }
@@ -19,13 +23,22 @@
     confirmText = "Подтвердить",
     cancelText = "Отмена",
     danger = true,
+    showCheckbox = false,
+    checkboxLabel = "Больше не спрашивать в этой сессии",
+    checkboxChecked = $bindable(false),
+    onCheckboxChange,
     onConfirm,
     onCancel,
   }: Props = $props();
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
+    if (!isOpen) return;
+    if (e.key === "Escape" || e.code === "Escape") {
+      e.preventDefault();
       onCancel();
+    } else if (e.key === "Enter" || e.code === "Enter") {
+      e.preventDefault();
+      onConfirm();
     }
   }
 </script>
@@ -50,6 +63,17 @@
 
       <div class="modal-body">
         <p class="message-text">{message}</p>
+        {#if showCheckbox}
+          <label class="modal-checkbox-row">
+            <input
+              type="checkbox"
+              bind:checked={checkboxChecked}
+              onchange={(e) => onCheckboxChange?.(e.currentTarget.checked)}
+              class="modal-checkbox"
+            />
+            <span class="checkbox-label">{checkboxLabel}</span>
+          </label>
+        {/if}
       </div>
 
       <div class="modal-footer">
@@ -158,6 +182,32 @@
     line-height: 1.55;
     color: var(--text-main, #cbd5e1);
     margin: 0;
+  }
+
+  .modal-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .modal-checkbox {
+    accent-color: var(--cortex-accent, #38bdf8);
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+  }
+
+  .checkbox-label {
+    font-size: 13px;
+    color: var(--text-muted, #94a3b8);
+    transition: color 0.12s ease;
+  }
+
+  .modal-checkbox-row:hover .checkbox-label {
+    color: var(--text-main, #f8fafc);
   }
 
   .modal-footer {

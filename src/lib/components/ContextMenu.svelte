@@ -4,11 +4,15 @@
   interface Props {
     x: number;
     y: number;
-    folderPath: string;
-    folderTitle: string;
-    onConfigureFolder: () => void;
-    onCreateNote: () => void;
-    onCreateSubfolder: () => void;
+    folderPath?: string;
+    folderTitle?: string;
+    itemPath?: string;
+    itemTitle?: string;
+    isDir?: boolean;
+    onConfigureFolder?: () => void;
+    onCreateNote?: () => void;
+    onCreateSubfolder?: () => void;
+    onDelete?: () => void;
     onClose: () => void;
   }
 
@@ -17,18 +21,25 @@
     y,
     folderPath,
     folderTitle,
+    itemPath,
+    itemTitle,
+    isDir = true,
     onConfigureFolder,
     onCreateNote,
     onCreateSubfolder,
+    onDelete,
     onClose,
   }: Props = $props();
+
+  let effectivePath = $derived(itemPath ?? folderPath ?? "");
+  let effectiveTitle = $derived(itemTitle ?? folderTitle ?? effectivePath);
 
   function handleClickOutside(e: MouseEvent) {
     onClose();
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
+    if (e.key === "Escape" || e.code === "Escape") {
       onClose();
     }
   }
@@ -45,50 +56,78 @@
   tabindex="-1"
 >
   <div class="menu-header">
-    <Icon name="folder" size={13} color="#94a3b8" />
-    <span class="folder-name">{folderTitle || folderPath}</span>
+    <Icon name={isDir ? "folder" : "file-text"} size={13} color="#94a3b8" />
+    <span class="folder-name">{effectiveTitle || effectivePath}</span>
   </div>
 
   <div class="menu-divider"></div>
 
-  <button
-    class="menu-item"
-    onclick={(e) => {
-      e.stopPropagation();
-      onConfigureFolder();
-      onClose();
-    }}
-    role="menuitem"
-  >
-    <Icon name="sliders" size={14} color="#60a5fa" />
-    <span>Настроить папку (Метаданные)</span>
-  </button>
+  {#if isDir}
+    {#if onConfigureFolder}
+      <button
+        class="menu-item"
+        onclick={(e) => {
+          e.stopPropagation();
+          onConfigureFolder();
+          onClose();
+        }}
+        role="menuitem"
+      >
+        <Icon name="sliders" size={14} color="#60a5fa" />
+        <span>Настроить папку (Метаданные)</span>
+      </button>
+    {/if}
 
-  <button
-    class="menu-item"
-    onclick={(e) => {
-      e.stopPropagation();
-      onCreateNote();
-      onClose();
-    }}
-    role="menuitem"
-  >
-    <Icon name="file-text" size={14} color="#34d399" />
-    <span>Новая заметка</span>
-  </button>
+    {#if onCreateNote}
+      <button
+        class="menu-item"
+        onclick={(e) => {
+          e.stopPropagation();
+          onCreateNote();
+          onClose();
+        }}
+        role="menuitem"
+      >
+        <Icon name="file-text" size={14} color="#34d399" />
+        <span>Новая заметка</span>
+        <span class="menu-shortcut">Ctrl+N</span>
+      </button>
+    {/if}
 
-  <button
-    class="menu-item"
-    onclick={(e) => {
-      e.stopPropagation();
-      onCreateSubfolder();
-      onClose();
-    }}
-    role="menuitem"
-  >
-    <Icon name="folder" size={14} color="#fbbf24" />
-    <span>Новая подпапка</span>
-  </button>
+    {#if onCreateSubfolder}
+      <button
+        class="menu-item"
+        onclick={(e) => {
+          e.stopPropagation();
+          onCreateSubfolder();
+          onClose();
+        }}
+        role="menuitem"
+      >
+        <Icon name="folder" size={14} color="#fbbf24" />
+        <span>Новая подпапка</span>
+      </button>
+    {/if}
+  {/if}
+
+  {#if onDelete}
+    {#if isDir}
+      <div class="menu-divider"></div>
+    {/if}
+    <button
+      class="menu-item danger"
+      onclick={(e) => {
+        e.stopPropagation();
+        onDelete();
+        onClose();
+      }}
+      role="menuitem"
+    >
+      <Icon name="trash" size={14} color="#f43f5e" />
+      <span>Удалить</span>
+      <span class="menu-shortcut">Del</span>
+    </button>
+  {/if}
 </div>
 
 <style>
@@ -147,5 +186,17 @@
   .menu-item:hover {
     background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.15));
     color: var(--cortex-accent, #ffffff);
+  }
+
+  .menu-shortcut {
+    margin-left: auto;
+    font-size: 0.72rem;
+    color: var(--cortex-fg-muted, #64748b);
+    padding-left: 12px;
+  }
+
+  .menu-item.danger:hover {
+    background: rgba(244, 63, 94, 0.15);
+    color: #f43f5e;
   }
 </style>

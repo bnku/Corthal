@@ -141,6 +141,11 @@ fn vault_create_dir_with_meta(relative_path: String, meta: Option<vault::MetaJso
 }
 
 #[tauri::command]
+fn vault_delete_path(path: String) -> Result<(), String> {
+    vault::delete_path(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn theme_detect_system() -> theme::SystemThemeInfo {
     theme::detect_system_theme()
 }
@@ -255,6 +260,7 @@ pub fn run() {
             vault_create_dir,
             vault_save_dir_meta,
             vault_create_dir_with_meta,
+            vault_delete_path,
             vault_get_active,
             vault_switch,
             vault_watch_start,
