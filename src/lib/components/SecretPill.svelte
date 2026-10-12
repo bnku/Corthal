@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+  import Icon from "./Icon.svelte";
 
   interface Props {
     token: string;
@@ -117,7 +118,11 @@
     }
   }
 
-  async function toggleReveal() {
+  async function toggleReveal(e?: MouseEvent) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (isRevealed) {
       isRevealed = false;
       return;
@@ -128,7 +133,11 @@
     }
   }
 
-  async function copyToClipboard() {
+  async function copyToClipboard(e?: MouseEvent) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const val = await getDecrypted();
     if (val !== null) {
       await navigator.clipboard.writeText(val);
@@ -141,7 +150,9 @@
 </script>
 
 <span class="secret-pill" class:revealed={isRevealed}>
-  <span class="badge">🔒 SSH Age</span>
+  <span class="badge" title="Зашифрованный секрет">
+    <Icon name={isRevealed ? "unlock" : "lock"} size={11} />
+  </span>
   
   {#if isRevealed && decryptedValue}
     <span class="value revealed-text">{decryptedValue}</span>
@@ -151,30 +162,36 @@
 
   <div class="actions">
     <button
+      type="button"
       class="action-btn"
+      onmousedown={(e) => e.stopPropagation()}
       onclick={toggleReveal}
+      title={isRevealed ? "Скрыть" : "Показать"}
       aria-label={isRevealed ? "Скрыть" : "Показать (расшифровать SSH-ключом)"}
       disabled={isLoading}
     >
       {#if isLoading}
-        ⏳
+        <Icon name="refresh-cw" size={11} class="spin" />
       {:else if isRevealed}
-        👁️‍🗨️
+        <Icon name="eye-off" size={11} />
       {:else}
-        👁️
+        <Icon name="eye" size={11} />
       {/if}
     </button>
 
     <button
+      type="button"
       class="action-btn copy-btn"
+      onmousedown={(e) => e.stopPropagation()}
       onclick={copyToClipboard}
+      title={copyFeedback ? "Скопировано!" : "Скопировать"}
       aria-label="Скопировать в буфер обмена"
       disabled={isLoading}
     >
       {#if copyFeedback}
-        ✅
+        <Icon name="check" size={11} color="var(--cortex-accent, #38bdf8)" />
       {:else}
-        📋
+        <Icon name="copy" size={11} />
       {/if}
     </button>
   </div>
@@ -188,38 +205,56 @@
   .secret-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     background: var(--cortex-bg-card, rgba(30, 41, 59, 0.85));
     border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
     border-radius: 6px;
-    padding: 2px 8px;
-    font-size: 0.85rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    padding: 2px 5px 2px 4px;
+    font-size: 0.82rem;
+    font-family: var(--cortex-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
     vertical-align: middle;
     transition: all 0.2s ease;
     user-select: none;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .secret-pill.revealed {
-    border-color: rgba(34, 197, 94, 0.6);
-    background: rgba(20, 83, 45, 0.25);
+    border-color: rgba(34, 197, 94, 0.45);
+    background: rgba(20, 83, 45, 0.22);
   }
 
   .badge {
-    background: var(--cortex-accent-subtle, #475569);
-    color: var(--cortex-accent, #f8fafc);
-    border: 1px solid var(--cortex-accent-border, transparent);
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 1px 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
+    color: var(--cortex-accent, #38bdf8);
+    border: 1px solid var(--cortex-accent-border, rgba(56, 189, 248, 0.25));
+    width: 18px;
+    height: 18px;
     border-radius: 4px;
-    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+
+  .secret-pill.revealed .badge {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.35);
+    color: #4ade80;
   }
 
   .value {
     color: var(--cortex-fg-primary, #cbd5e1);
     font-weight: 500;
     padding: 0 4px;
+    font-size: 0.82rem;
+    line-height: 1.3;
+    word-break: break-all;
+  }
+
+  .masked-text {
+    letter-spacing: 0.1em;
+    color: var(--cortex-fg-muted, #94a3b8);
   }
 
   .revealed-text {
@@ -229,23 +264,33 @@
 
   .actions {
     display: inline-flex;
-    gap: 3px;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
   }
 
   .action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
     background: transparent;
     border: none;
-    color: #94a3b8;
+    color: var(--cortex-fg-muted, #94a3b8);
     cursor: pointer;
-    font-size: 0.85rem;
-    padding: 1px 4px;
+    padding: 0;
     border-radius: 4px;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
   }
 
   .action-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    color: #f8fafc;
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.1));
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .action-btn:active:not(:disabled) {
+    transform: scale(0.92);
   }
 
   .action-btn:disabled {
@@ -257,5 +302,18 @@
     color: #f87171;
     font-size: 0.75rem;
     margin-left: 4px;
+  }
+
+  :global(.spin) {
+    animation: cortex-spin 1s linear infinite;
+  }
+
+  @keyframes cortex-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>
