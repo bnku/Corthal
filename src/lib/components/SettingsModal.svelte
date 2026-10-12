@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import Icon from "./Icon.svelte";
+  import CustomSelect, { type SelectOption } from "./CustomSelect.svelte";
   import { themeStore } from "$lib/theme/store.svelte";
   import { THEME_PRESETS, ACCENT_COLORS } from "$lib/theme/presets";
   import type {
@@ -10,6 +11,7 @@
     AssistantConfig,
     CodexStatus,
     AssistantProvider,
+    PassphrasePolicy,
     SecurityConfig,
     SessionStatus,
   } from "$lib/types";
@@ -38,6 +40,49 @@
   let customGtkInput = $state("");
   let selectedGtkPath = $state("");
   let selectedKeyPath = $state("");
+
+  // Select options for CustomSelect components
+  let gtkThemeOptions = $derived<SelectOption[]>([
+    { value: "", label: "-- Не использовать GTK тему (по умолчанию) --" },
+    ...themeStore.installedGtkThemes.map((gtk) => ({
+      value: gtk.path,
+      label: `${gtk.name} (${gtk.is_dark ? "Dark" : "Light"})`,
+      badge: gtk.is_dark ? "Dark" : "Light",
+    })),
+  ]);
+
+  let sshKeyOptions = $derived<SelectOption[]>(
+    sshKeys.map((key) => ({
+      value: key.path,
+      label: `${key.filename} (${key.key_type})${key.comment ? ` — ${key.comment}` : ""}`,
+      badge: key.key_type,
+    }))
+  );
+
+  const passphraseTimeoutOptions: SelectOption[] = [
+    { value: 5, label: "5 минут" },
+    { value: 10, label: "10 минут" },
+    { value: 15, label: "15 минут (по умолчанию)" },
+    { value: 30, label: "30 минут" },
+    { value: 60, label: "1 час" },
+    { value: 120, label: "2 часа" },
+  ];
+
+  const REASONING_EFFORT_OPTIONS: SelectOption[] = [
+    { value: "auto", label: "auto (По умолчанию / Без параметра)" },
+    { value: "low", label: "low (Низкий)" },
+    { value: "medium", label: "medium (Средний)" },
+    { value: "high", label: "high (Высокий)" },
+    { value: "xhigh", label: "xhigh / sky (Максимальный)" },
+  ];
+
+  const CODEX_REASONING_OPTIONS: SelectOption[] = [
+    { value: "auto", label: "auto (По умолчанию)" },
+    { value: "low", label: "low (Низкий)" },
+    { value: "medium", label: "medium (Средний)" },
+    { value: "high", label: "high (Высокий)" },
+    { value: "xhigh", label: "xhigh / sky (Максимальный)" },
+  ];
 
   // Security config & session status
   let securityConfig = $state<SecurityConfig>({
@@ -76,16 +121,21 @@
 
   async function saveSecuritySettings() {
     try {
-      await invoke("crypto_save_security_config", { config: $state.snapshot(securityConfig) });
+      await invoke("crypto_save_security_config", {
+        config: {
+          passphrase_policy: securityConfig.passphrase_policy,
+          passphrase_timeout_minutes: Number(securityConfig.passphrase_timeout_minutes) || 15,
+        },
+      });
       await refreshSessionStatus();
     } catch (e) {
       console.error("Failed to save security config:", e);
     }
   }
 
-  function setPolicy(policy: PassphrasePolicy) {
+  async function setPolicy(policy: PassphrasePolicy) {
     securityConfig.passphrase_policy = policy;
-    saveSecuritySettings();
+    await saveSecuritySettings();
   }
 
   async function handleLockSession() {
@@ -130,6 +180,30 @@
   let openaiFetchError = $state<string | null>(null);
   let openaiModels = $state<string[]>([]);
 
+  let codexModelOptions = $derived<SelectOption[]>(
+    (codexStatus?.available_models && codexStatus.available_models.length > 0
+      ? codexStatus.available_models
+      : ["gpt-6.1-sol", "gpt-6-astra", "gpt-5.6-sol", "gpt-5.5", "o3-mini", "o1", "gpt-4o"]
+    ).map((m) => ({ value: m, label: m }))
+  );
+
+  let openrouterModelOptions = $derived<SelectOption[]>(
+    (openrouterModels.length > 0
+      ? openrouterModels
+      : [
+          "anthropic/claude-3.7-sonnet",
+          "anthropic/claude-3.5-sonnet",
+          "google/gemini-2.0-flash-001",
+          "openai/gpt-4o",
+          "deepseek/deepseek-chat",
+        ]
+    ).map((m) => ({ value: m, label: m }))
+  );
+
+  let openaiModelOptions = $derived<SelectOption[]>(
+    openaiModels.map((m) => ({ value: m, label: m }))
+  );
+
   $effect(() => {
     if (isOpen) {
       if (initialTab) activeTab = initialTab;
@@ -157,13 +231,19 @@
         if (activeTab === "security") {
           refreshSessionStatus();
         }
-      }, 2000);
+      }, 1000);
 
       return () => {
         if (unlistenUnlocked) unlistenUnlocked();
         if (unlistenLocked) unlistenLocked();
         if (pollInterval) clearInterval(pollInterval);
       };
+    }
+  });
+
+  $effect(() => {
+    if (isOpen && activeTab === "security") {
+      refreshSessionStatus();
     }
   });
 
@@ -547,14 +627,13 @@
               <div class="gtk-picker-box">
                 <span class="gtk-picker-label">Установленные темы GTK в системе:</span>
                 <div class="gtk-picker-controls">
-                  <select bind:value={selectedGtkPath} class="gtk-select">
-                    <option value="">-- Выберите GTK тему --</option>
-                    {#each themeStore.installedGtkThemes as gtk}
-                      <option value={gtk.path}>
-                        {gtk.name} ({gtk.is_dark ? "Dark" : "Light"})
-                      </option>
-                    {/each}
-                  </select>
+                  <div class="gtk-select-wrapper">
+                    <CustomSelect
+                      options={gtkThemeOptions}
+                      bind:value={selectedGtkPath}
+                      placeholder="-- Выберите GTK тему --"
+                    />
+                  </div>
                   <button
                     class="apply-gtk-btn"
                     disabled={!selectedGtkPath || themeStore.isLoadingGtk}
@@ -597,36 +676,39 @@
               </p>
 
               <div class="security-card">
-                <div class="sec-item">
-                  <span class="sec-label">Текущая база знаний:</span>
-                  <div class="vault-sec-badge">
-                    <span class="vault-sec-name">📁 {activeVault?.name || "knowledge"}</span>
-                    <span class="vault-sec-path">({activeVault?.display_path || "~/knowledge"})</span>
+                <div class="sec-grid-info">
+                  <div class="sec-item">
+                    <span class="sec-label">Текущая база знаний:</span>
+                    <div class="vault-sec-badge">
+                      <span class="vault-sec-name">📁 {activeVault?.name || "knowledge"}</span>
+                      <span class="vault-sec-path">({activeVault?.display_path || "~/knowledge"})</span>
+                    </div>
                   </div>
-                </div>
 
-                <div class="sec-item">
-                  <span class="sec-label">Активный SSH-ключ для этой базы:</span>
-                  <div class="current-key-row">
-                    <span class="key-badge">{activeSshKey?.key_type || "ED25519"}</span>
-                    <code class="sec-code">{activeSshKey?.filename || "id_ed25519.pub"}</code>
-                    {#if activeSshKey?.comment}
-                      <span class="key-comment-tag">{activeSshKey.comment}</span>
-                    {/if}
+                  <div class="sec-item">
+                    <span class="sec-label">Активный SSH-ключ:</span>
+                    <div class="current-key-row">
+                      <span class="key-badge">{activeSshKey?.key_type || "ED25519"}</span>
+                      <code class="sec-code">{activeSshKey?.filename || "id_ed25519.pub"}</code>
+                      {#if activeSshKey?.comment}
+                        <span class="key-comment-tag">{activeSshKey.comment}</span>
+                      {/if}
+                    </div>
                   </div>
                 </div>
 
                 <div class="sec-item">
                   <span class="sec-label">Сменить SSH-ключ для текущей базы:</span>
                   <div class="ssh-selector-row">
-                    <select bind:value={selectedKeyPath} class="ssh-select">
-                      {#each sshKeys as key}
-                        <option value={key.path}>
-                          {key.filename} ({key.key_type}) {key.comment ? `— ${key.comment}` : ""}
-                        </option>
-                      {/each}
-                    </select>
+                    <div class="ssh-select-wrapper">
+                      <CustomSelect
+                        options={sshKeyOptions}
+                        bind:value={selectedKeyPath}
+                        placeholder="Выберите SSH-ключ..."
+                      />
+                    </div>
                     <button
+                      type="button"
                       class="apply-key-btn"
                       disabled={!selectedKeyPath || selectedKeyPath === activeSshKey?.path}
                       onclick={() => {
@@ -640,37 +722,42 @@
                   <span class="sec-note">При смене ключа будет запрошено подтверждение, а файл .meta.json обновится.</span>
                 </div>
 
+                <div class="sec-grid-status">
                   <div class="sec-item">
-                  <span class="sec-label">Формат токенов шифрования:</span>
-                  <code class="sec-code">🔒[enc:v1:AGE-ENCRYPTED-DATA]</code>
-                </div>
+                    <span class="sec-label">Формат токенов шифрования:</span>
+                    <code class="sec-code">🔒[enc:v1:AGE-ENCRYPTED-DATA]</code>
+                  </div>
 
-                <div class="sec-item">
-                  <span class="sec-label">Статус хранилища:</span>
-                  <span class="sec-badge ok">✓ Защищено локальным ключом пользователя</span>
+                  <div class="sec-item">
+                    <span class="sec-label">Статус хранилища:</span>
+                    <span class="sec-badge ok">✓ Защищено локальным ключом</span>
+                  </div>
                 </div>
               </div>
 
               <!-- Passphrase Cache Policy Section -->
-              <h3 class="section-title" style="margin-top: 24px;">Запрос пароля SSH-ключа и сессия</h3>
+              <h3 class="section-title" style="margin-top: 18px;">Запрос пароля SSH-ключа и сессия</h3>
               <p class="section-desc">
                 Определяет, как долго Cortex удерживает расшифрованный SSH-ключ в оперативной памяти (Zero-Knowledge). Пароли никогда не сохраняются на диск.
               </p>
 
               <div class="security-card">
                 <!-- Policy Option: Once per session -->
-                <label
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <div
                   class="policy-option-row"
                   class:selected={securityConfig.passphrase_policy === "session"}
+                  onclick={() => setPolicy("session")}
+                  role="radio"
+                  aria-checked={securityConfig.passphrase_policy === "session"}
+                  tabindex="0"
                 >
                   <div class="policy-radio-label">
-                    <input
-                      type="radio"
-                      name="passphrase_policy"
-                      value="session"
-                      bind:group={securityConfig.passphrase_policy}
-                      onchange={saveSecuritySettings}
-                    />
+                    <div class="custom-radio-circle" class:checked={securityConfig.passphrase_policy === "session"}>
+                      {#if securityConfig.passphrase_policy === "session"}
+                        <div class="radio-inner-dot"></div>
+                      {/if}
+                    </div>
                     <div class="policy-option-info">
                       <span class="policy-title">Один раз за сессию (Рекомендуется)</span>
                       <span class="policy-desc">
@@ -678,21 +765,24 @@
                       </span>
                     </div>
                   </div>
-                </label>
+                </div>
 
                 <!-- Policy Option: Timeout in minutes -->
-                <label
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <div
                   class="policy-option-row"
                   class:selected={securityConfig.passphrase_policy === "timeout"}
+                  onclick={() => setPolicy("timeout")}
+                  role="radio"
+                  aria-checked={securityConfig.passphrase_policy === "timeout"}
+                  tabindex="0"
                 >
                   <div class="policy-radio-label">
-                    <input
-                      type="radio"
-                      name="passphrase_policy"
-                      value="timeout"
-                      bind:group={securityConfig.passphrase_policy}
-                      onchange={saveSecuritySettings}
-                    />
+                    <div class="custom-radio-circle" class:checked={securityConfig.passphrase_policy === "timeout"}>
+                      {#if securityConfig.passphrase_policy === "timeout"}
+                        <div class="radio-inner-dot"></div>
+                      {/if}
+                    </div>
                     <div class="policy-option-info">
                       <span class="policy-title">Раз в N минут (по тайм-ауту)</span>
                       <span class="policy-desc">
@@ -705,38 +795,34 @@
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div class="timeout-config-row" onclick={(e) => e.stopPropagation()} role="presentation">
-                      <label for="timeout-select" class="timeout-label">Сбрасывать через:</label>
-                      <select
-                        id="timeout-select"
-                        class="cortex-select timeout-select"
-                        bind:value={securityConfig.passphrase_timeout_minutes}
-                        onchange={saveSecuritySettings}
-                        onclick={(e) => e.stopPropagation()}
-                      >
-                        <option value={5}>5 минут</option>
-                        <option value={10}>10 минут</option>
-                        <option value={15}>15 минут (по умолчанию)</option>
-                        <option value={30}>30 минут</option>
-                        <option value={60}>1 час</option>
-                        <option value={120}>2 часа</option>
-                      </select>
+                      <span class="timeout-label">Сбрасывать через:</span>
+                      <div class="timeout-select-wrap">
+                        <CustomSelect
+                          options={passphraseTimeoutOptions}
+                          bind:value={securityConfig.passphrase_timeout_minutes}
+                          onchange={() => saveSecuritySettings()}
+                        />
+                      </div>
                     </div>
                   {/if}
-                </label>
+                </div>
 
                 <!-- Policy Option: Always prompt -->
-                <label
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <div
                   class="policy-option-row"
                   class:selected={securityConfig.passphrase_policy === "always"}
+                  onclick={() => setPolicy("always")}
+                  role="radio"
+                  aria-checked={securityConfig.passphrase_policy === "always"}
+                  tabindex="0"
                 >
                   <div class="policy-radio-label">
-                    <input
-                      type="radio"
-                      name="passphrase_policy"
-                      value="always"
-                      bind:group={securityConfig.passphrase_policy}
-                      onchange={saveSecuritySettings}
-                    />
+                    <div class="custom-radio-circle" class:checked={securityConfig.passphrase_policy === "always"}>
+                      {#if securityConfig.passphrase_policy === "always"}
+                        <div class="radio-inner-dot"></div>
+                      {/if}
+                    </div>
                     <div class="policy-option-info">
                       <span class="policy-title">Запрашивать каждый раз</span>
                       <span class="policy-desc">
@@ -744,7 +830,7 @@
                       </span>
                     </div>
                   </div>
-                </label>
+                </div>
 
                 <!-- Current Session Lock Status -->
                 <div class="sec-item session-status-row">
@@ -820,18 +906,13 @@
                     <div class="provider-card-body">
                       <!-- Model Selection -->
                       <div class="field-row">
-                        <label class="field-label" for="codex-model">Модель ChatGPT:</label>
+                        <span class="field-label">Модель ChatGPT:</span>
                         <div class="field-control">
-                          <select
-                            id="codex-model"
-                            class="cortex-select"
+                          <CustomSelect
+                            options={codexModelOptions}
                             bind:value={assistantConfig.codex_model}
                             onchange={saveAssistantSettings}
-                          >
-                            {#each (codexStatus?.available_models && codexStatus.available_models.length > 0 ? codexStatus.available_models : ["gpt-6.1-sol", "gpt-6-astra", "gpt-5.6-sol", "gpt-5.5", "o3-mini", "o1", "gpt-4o"]) as m}
-                              <option value={m}>{m}</option>
-                            {/each}
-                          </select>
+                          />
                         </div>
                       </div>
 
@@ -852,20 +933,13 @@
 
                       <!-- Reasoning Effort -->
                       <div class="field-row">
-                        <label class="field-label" for="codex-effort">Уровень рассуждений (Reasoning):</label>
+                        <span class="field-label">Уровень рассуждений (Reasoning):</span>
                         <div class="field-control">
-                          <select
-                            id="codex-effort"
-                            class="cortex-select"
+                          <CustomSelect
+                            options={CODEX_REASONING_OPTIONS}
                             bind:value={assistantConfig.codex_reasoning_effort}
                             onchange={saveAssistantSettings}
-                          >
-                            <option value="auto">auto (По умолчанию)</option>
-                            <option value="low">low (Низкий)</option>
-                            <option value="medium">medium (Средний)</option>
-                            <option value="high">high (Высокий)</option>
-                            <option value="xhigh">xhigh / sky (Максимальный)</option>
-                          </select>
+                          />
                         </div>
                       </div>
                     </div>
@@ -945,26 +1019,13 @@
 
                       <!-- Model Selection -->
                       <div class="field-row">
-                        <label class="field-label" for="or-model-select">Модель:</label>
+                        <span class="field-label">Модель:</span>
                         <div class="field-control">
-                          <select
-                            id="or-model-select"
-                            class="cortex-select"
+                          <CustomSelect
+                            options={openrouterModelOptions}
                             bind:value={assistantConfig.openrouter_model}
                             onchange={saveAssistantSettings}
-                          >
-                            {#if openrouterModels.length > 0}
-                              {#each openrouterModels as m}
-                                <option value={m}>{m}</option>
-                              {/each}
-                            {:else}
-                              <option value="anthropic/claude-3.7-sonnet">Claude 3.7 Sonnet (Hybrid Reasoning)</option>
-                              <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                              <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
-                              <option value="openai/gpt-4o">OpenAI GPT-4o</option>
-                              <option value="deepseek/deepseek-chat">DeepSeek V3</option>
-                            {/if}
-                          </select>
+                          />
                         </div>
                       </div>
 
@@ -985,19 +1046,13 @@
 
                       <!-- Reasoning Effort -->
                       <div class="field-row">
-                        <label class="field-label" for="or-effort">Уровень рассуждений (Reasoning):</label>
+                        <span class="field-label">Уровень рассуждений (Reasoning):</span>
                         <div class="field-control">
-                          <select
-                            id="or-effort"
-                            class="cortex-select"
+                          <CustomSelect
+                            options={REASONING_EFFORT_OPTIONS}
                             bind:value={assistantConfig.openrouter_reasoning_effort}
                             onchange={saveAssistantSettings}
-                          >
-                            <option value="auto">auto (По умолчанию / Без параметра)</option>
-                            <option value="low">low (Низкий)</option>
-                            <option value="medium">medium (Средний)</option>
-                            <option value="high">high (Высокий)</option>
-                          </select>
+                          />
                         </div>
                       </div>
 
@@ -1110,19 +1165,14 @@
 
                       <!-- Model Selection -->
                       <div class="field-row">
-                        <label class="field-label" for="custom-model-select">Модель:</label>
+                        <span class="field-label">Модель:</span>
                         <div class="field-control">
                           {#if openaiModels.length > 0}
-                            <select
-                              id="custom-model-select"
-                              class="cortex-select"
+                            <CustomSelect
+                              options={openaiModelOptions}
                               bind:value={assistantConfig.openai_model}
                               onchange={saveAssistantSettings}
-                            >
-                              {#each openaiModels as m}
-                                <option value={m}>{m}</option>
-                              {/each}
-                            </select>
+                            />
                           {:else}
                             <input
                               id="custom-model-select"
@@ -1154,20 +1204,13 @@
 
                       <!-- Reasoning Effort -->
                       <div class="field-row">
-                        <label class="field-label" for="custom-effort">Уровень рассуждений (Reasoning):</label>
+                        <span class="field-label">Уровень рассуждений (Reasoning):</span>
                         <div class="field-control">
-                          <select
-                            id="custom-effort"
-                            class="cortex-select"
+                          <CustomSelect
+                            options={REASONING_EFFORT_OPTIONS}
                             bind:value={assistantConfig.openai_reasoning_effort}
                             onchange={saveAssistantSettings}
-                          >
-                            <option value="auto">auto (По умолчанию / Без параметра)</option>
-                            <option value="low">low (Низкий)</option>
-                            <option value="medium">medium (Средний)</option>
-                            <option value="high">high (Высокий)</option>
-                            <option value="xhigh">xhigh (Максимальный)</option>
-                          </select>
+                          />
                         </div>
                       </div>
 
@@ -1329,8 +1372,9 @@
 
   .modal-body {
     display: grid;
-    grid-template-columns: 200px 1fr;
+    grid-template-columns: 200px minmax(0, 1fr);
     flex: 1;
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -1862,18 +1906,15 @@
 
   .gtk-picker-controls {
     display: flex;
+    align-items: center;
     gap: 8px;
+    width: 100%;
+    min-width: 0;
   }
 
-  .gtk-select {
+  .gtk-select-wrapper {
     flex: 1;
-    background: var(--cortex-bg-input, #212530);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
-    border-radius: 6px;
-    color: var(--cortex-fg-primary, #ffffff);
-    padding: 7px 10px;
-    font-size: 0.82rem;
-    outline: none;
+    min-width: 0;
   }
 
   .custom-path-input {
@@ -1895,10 +1936,14 @@
     font-size: 0.78rem;
     font-weight: 500;
     padding: 0 14px;
+    height: 34px;
     border-radius: 6px;
     cursor: pointer;
     transition: opacity 0.15s;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .apply-gtk-btn:disabled {
@@ -1922,13 +1967,22 @@
     padding: 16px;
     display: flex;
     flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .sec-grid-info, .sec-grid-status {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
   }
 
   .sec-item {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
+    min-width: 0;
   }
 
   .sec-label {
@@ -1955,17 +2009,22 @@
     border-radius: 6px;
     border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
     font-size: 0.82rem;
+    overflow: hidden;
   }
 
   .vault-sec-name {
     font-weight: 600;
     color: var(--cortex-fg-primary, #ffffff);
+    white-space: nowrap;
   }
 
   .vault-sec-path {
     font-family: ui-monospace, SFMono-Regular, monospace;
     color: var(--cortex-fg-muted, #94a3b8);
     font-size: 0.78rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .current-key-row {
@@ -1973,6 +2032,7 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    min-width: 0;
   }
 
   .key-badge {
@@ -1982,6 +2042,7 @@
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 4px;
+    flex-shrink: 0;
   }
 
   .key-comment-tag {
@@ -1992,31 +2053,37 @@
 
   .ssh-selector-row {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
   }
 
-  .ssh-select {
+  .ssh-select-wrapper {
     flex: 1;
-    background: var(--cortex-bg-main, #13161c);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
-    border-radius: 6px;
-    color: var(--cortex-fg-primary, #ffffff);
-    padding: 7px 10px;
-    font-size: 0.8rem;
-    outline: none;
+    min-width: 0;
   }
 
   .apply-key-btn {
+    flex-shrink: 0;
     background: var(--cortex-accent, #3b82f6);
     border: none;
     color: #ffffff;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     font-weight: 500;
-    padding: 0 14px;
+    padding: 0 16px;
+    height: 34px;
     border-radius: 6px;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: all 0.15s ease;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .apply-key-btn:hover:not(:disabled) {
+    background: var(--cortex-accent-hover, #2563eb);
   }
 
   .apply-key-btn:disabled {
@@ -2045,46 +2112,78 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 12px;
+    padding: 12px 14px;
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
+    outline: none;
   }
 
   .policy-option-row:hover {
     background: rgba(255, 255, 255, 0.04);
-    border-color: var(--cortex-border-hover, rgba(255, 255, 255, 0.15));
+    border-color: var(--cortex-border-hover, rgba(255, 255, 255, 0.18));
   }
 
   .policy-option-row.selected {
-    border-color: var(--cortex-accent, #3b82f6);
-    background: rgba(59, 130, 246, 0.05);
+    border-color: var(--cortex-accent, #38bdf8);
+    background: rgba(56, 189, 248, 0.06);
   }
 
   .policy-radio-label {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: 12px;
     cursor: pointer;
     width: 100%;
+  }
+
+  .custom-radio-circle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--cortex-border-hover, rgba(255, 255, 255, 0.3));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: all 0.15s ease;
+  }
+
+  .custom-radio-circle.checked {
+    border-color: var(--cortex-accent, #38bdf8);
+    background: transparent;
+  }
+
+  .radio-inner-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--cortex-accent, #38bdf8);
   }
 
   .policy-option-info {
     display: flex;
     flex-direction: column;
     gap: 3px;
+    min-width: 0;
+    flex: 1;
   }
 
   .policy-title {
-    font-size: 0.84rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--cortex-fg-primary, #ffffff);
   }
 
+  .policy-option-row.selected .policy-title {
+    color: var(--cortex-accent, #38bdf8);
+  }
+
   .policy-desc {
-    font-size: 0.76rem;
+    font-size: 0.77rem;
     color: var(--cortex-fg-muted, #94a3b8);
     line-height: 1.35;
   }
@@ -2092,8 +2191,8 @@
   .timeout-config-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-left: 26px;
+    gap: 12px;
+    margin-left: 30px;
     margin-top: 4px;
     padding-top: 8px;
     border-top: 1px dashed var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
@@ -2102,13 +2201,12 @@
   .timeout-label {
     font-size: 0.78rem;
     color: var(--cortex-fg-secondary, #cbd5e1);
+    white-space: nowrap;
   }
 
-  .timeout-select {
-    width: auto;
-    min-width: 140px;
-    padding: 5px 8px;
-    font-size: 0.8rem;
+  .timeout-select-wrap {
+    width: 200px;
+    min-width: 160px;
   }
 
   .session-status-row {
@@ -2301,7 +2399,6 @@
   }
 
   .cortex-input,
-  .cortex-select,
   .cortex-textarea {
     width: 100%;
     box-sizing: border-box;
@@ -2317,7 +2414,6 @@
   }
 
   .cortex-input:focus,
-  .cortex-select:focus,
   .cortex-textarea:focus {
     border-color: var(--cortex-accent, #3b82f6);
     box-shadow: 0 0 0 2px var(--cortex-accent-subtle, rgba(59, 130, 246, 0.2));
