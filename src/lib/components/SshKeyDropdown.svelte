@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import type { SshKeyInfo, SessionStatus } from "$lib/types";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     isOpen: boolean;
@@ -59,8 +60,8 @@
   <div class="ssh-dropdown" onclick={(e) => e.stopPropagation()}>
     <div class="dropdown-header">
       <div class="header-text">
-        <span class="header-title">SSH-ключ базы</span>
-        <span class="header-sub">Привязан к «{vaultName}» (.meta.json)</span>
+        <span class="header-title">{t("ssh_dropdown.title")}</span>
+        <span class="header-sub">{t("ssh_dropdown.bound_to", { vault: vaultName })}</span>
       </div>
       <span class="key-count">{keys.length}</span>
     </div>
@@ -104,7 +105,7 @@
       {/each}
 
       {#if keys.length === 0}
-        <div class="empty-list">В ~/.ssh/ не найдено публичных ключей</div>
+        <div class="empty-list">{t("ssh_dropdown.no_keys")}</div>
       {/if}
     </div>
 
@@ -116,13 +117,13 @@
           sessionStatus = null;
           onClose();
         }}
-        title="Очистить пароль из памяти сессии"
+        title={t("ssh_dropdown.lock_tooltip")}
       >
         <Icon name="lock" size={14} color="#f87171" />
         <span style="color: #f87171;">
-          Заблокировать (сбросить пароль из памяти)
+          {t("ssh_dropdown.lock_btn")}
           {#if sessionStatus.remaining_seconds != null}
-            ({Math.ceil(sessionStatus.remaining_seconds / 60)} мин)
+            ({Math.ceil(sessionStatus.remaining_seconds / 60)} {t("common.lines").includes("строк") ? "мин" : "min"})
           {/if}
         </span>
       </button>
@@ -137,7 +138,7 @@
       }}
     >
       <Icon name="settings" size={14} color="var(--text-muted, #94a3b8)" />
-      <span>Все настройки шифрования...</span>
+      <span>{t("ssh_dropdown.all_settings")}</span>
     </button>
   </div>
 {/if}

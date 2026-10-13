@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { VaultSummary, VaultInfo } from "$lib/types";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     isOpen: boolean;
@@ -47,7 +48,7 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="vault-dropdown" onclick={(e) => e.stopPropagation()}>
     <div class="dropdown-header">
-      <span class="header-title">Базы знаний</span>
+      <span class="header-title">{t("explorer.title")}</span>
       <span class="vault-count">{recents.length}</span>
     </div>
 
@@ -71,7 +72,7 @@
               <div class="vault-name">
                 {item.name}
                 {#if isActive}
-                  <span class="active-badge">Текущая</span>
+                  <span class="active-badge">{t("common.active")}</span>
                 {/if}
               </div>
               <div class="vault-path" aria-label={item.path}>{item.display_path}</div>
@@ -91,7 +92,7 @@
                   e.stopPropagation();
                   onRemoveRecent(item.path);
                 }}
-                aria-label="Убрать из недавних"
+                aria-label={t("common.delete")}
               >
                 <Icon name="trash" size={13} />
               </button>
@@ -101,7 +102,7 @@
       {/each}
 
       {#if recents.length === 0}
-        <div class="empty-list">Нет недавних баз знаний</div>
+        <div class="empty-list">{t("explorer.empty")}</div>
       {/if}
     </div>
 
@@ -115,7 +116,7 @@
       }}
     >
       <Icon name="folder-plus" size={15} color="var(--accent-color, #0284c7)" />
-      <span>Открыть другую базу знаний...</span>
+      <span>{t("modals.vault_open_title")}...</span>
     </button>
   </div>
 {/if}

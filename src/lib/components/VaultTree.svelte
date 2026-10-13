@@ -2,6 +2,7 @@
   import type { VaultNode } from "$lib/types";
   import VaultTree from "./VaultTree.svelte";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     node: VaultNode;
@@ -157,7 +158,7 @@
         {#if onCreateNote}
           <button
             class="action-add-btn"
-            aria-label="Создать заметку в этой папке"
+            aria-label={t("explorer.new_note")}
             onclick={handleNewNoteClick}
           >
             <Icon name="plus" size={13} />

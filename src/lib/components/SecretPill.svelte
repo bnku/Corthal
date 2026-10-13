@@ -3,6 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     token: string;
@@ -94,7 +95,7 @@
       if (onPassphraseNeeded) {
         passphrase = await onPassphraseNeeded();
       } else {
-        passphrase = prompt("Введите пасс-фразу от SSH ключа (~/.ssh/id_ed25519):");
+        passphrase = prompt(t("secret_pill.prompt_passphrase"));
       }
 
       if (passphrase === null) {
@@ -110,7 +111,7 @@
         decryptedValue = plain;
         return plain;
       } catch (retryErr: any) {
-        errorMessage = retryErr?.toString() || "Ошибка расшифровки";
+        errorMessage = retryErr?.toString() || t("secret_pill.decrypt_error");
         return null;
       }
     } finally {
@@ -150,7 +151,7 @@
 </script>
 
 <span class="secret-pill" class:revealed={isRevealed}>
-  <span class="badge" title="Зашифрованный секрет">
+  <span class="badge" title={t("secret_pill.badge_title")}>
     <Icon name={isRevealed ? "unlock" : "lock"} size={11} />
   </span>
   
@@ -166,8 +167,8 @@
       class="action-btn"
       onmousedown={(e) => e.stopPropagation()}
       onclick={toggleReveal}
-      title={isRevealed ? "Скрыть" : "Показать"}
-      aria-label={isRevealed ? "Скрыть" : "Показать (расшифровать SSH-ключом)"}
+      title={isRevealed ? t("secret_pill.hide") : t("secret_pill.reveal")}
+      aria-label={isRevealed ? t("secret_pill.hide") : t("secret_pill.reveal_aria")}
       disabled={isLoading}
     >
       {#if isLoading}
@@ -184,8 +185,8 @@
       class="action-btn copy-btn"
       onmousedown={(e) => e.stopPropagation()}
       onclick={copyToClipboard}
-      title={copyFeedback ? "Скопировано!" : "Скопировать"}
-      aria-label="Скопировать в буфер обмена"
+      title={copyFeedback ? t("secret_pill.copied") : t("secret_pill.copy")}
+      aria-label={t("secret_pill.copy_aria")}
       disabled={isLoading}
     >
       {#if copyFeedback}

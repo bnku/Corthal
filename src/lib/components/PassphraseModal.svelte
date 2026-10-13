@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     isOpen: boolean;
@@ -75,24 +76,24 @@
             <Icon name="lock" size={18} color="var(--cortex-accent, #38bdf8)" />
           </div>
           <div>
-            <h3 class="modal-title">Пасс-фраза SSH-ключа</h3>
-            <span class="modal-subtitle">Локальное дешифрование секрета (AGE)</span>
+            <h3 class="modal-title">{t("modals.passphrase_title")}</h3>
+            <span class="modal-subtitle">AGE / SSH X25519</span>
           </div>
         </div>
-        <button class="close-btn" onclick={onCancel} aria-label="Закрыть">
+        <button class="close-btn" onclick={onCancel} aria-label={t("common.close")}>
           <Icon name="x" size={16} />
         </button>
       </div>
 
       <div class="modal-body">
         <div class="key-path-info">
-          <span class="info-label">Ключ:</span>
+          <span class="info-label">{t("modals.passphrase_key")}</span>
           <code class="key-path">{keyPath}</code>
         </div>
 
         <div class="input-container">
           <label for="passphrase-input" class="input-label">
-            Введите пароль / пасс-фразу ключа:
+            {t("modals.passphrase_label")}
           </label>
 
           <!-- Stealth Input Field with Anti-Shoulder-Surfing Display -->
@@ -112,7 +113,7 @@
             <!-- Disguised Mask: Visual bullets randomized in count to protect against shoulder surfing -->
             <div class="disguised-display">
               {#if passphrase.length === 0}
-                <span class="placeholder-text">Введите пароль...</span>
+                <span class="placeholder-text">{t("modals.passphrase_placeholder")}</span>
               {:else}
                 <div class="decoy-bullets" class:keystroke-pulse={pulseTrigger}>
                   {#each Array(decoyLength) as _}
@@ -131,7 +132,7 @@
                   decoyLength = 0;
                   inputEl?.focus();
                 }}
-                title="Очистить"
+                title={t("common.clear")}
               >
                 <Icon name="x" size={12} />
               </button>
@@ -142,8 +143,8 @@
           <div class="security-guard-banner">
             <span class="guard-icon">🛡️</span>
             <div class="guard-text">
-              <strong>Shoulder-surfing guard активен:</strong>
-              <span>Количество точек на экране рандомизировано — наблюдатель из-за спины не сможет определить длину пароля.</span>
+              <strong>{t("modals.passphrase_guard_title")}</strong>
+              <span>{t("modals.passphrase_guard_desc")}</span>
             </div>
           </div>
         </div>
@@ -151,10 +152,10 @@
 
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick={onCancel}>
-          Отмена
+          {t("common.cancel")}
         </button>
         <button class="btn btn-primary" onclick={handleSubmit}>
-          <span>Расшифровать</span>
+          <span>{t("modals.unlock")}</span>
           <Icon name="unlock" size={14} />
         </button>
       </div>

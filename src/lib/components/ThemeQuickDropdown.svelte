@@ -1,6 +1,7 @@
 <script lang="ts">
   import { THEME_PRESETS } from "$lib/theme/presets";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     isOpen: boolean;
@@ -45,7 +46,7 @@
     <div class="dropdown-header">
       <div class="header-left">
         <Icon name="palette" size={14} color="var(--accent-color, #0284c7)" />
-        <span class="header-title">Цветовая тема</span>
+        <span class="header-title">{t("theme_dropdown.title")}</span>
       </div>
       <span class="theme-count">{THEME_PRESETS.length}</span>
     </div>
@@ -72,7 +73,7 @@
             <div class="theme-name-row">
               <span class="theme-name">{preset.name}</span>
               {#if preset.category === "light"}
-                <span class="category-badge">Светлая</span>
+                <span class="category-badge">{t("theme_dropdown.light_category")}</span>
               {/if}
             </div>
             <div class="theme-desc">{preset.description}</div>
@@ -99,7 +100,7 @@
       }}
     >
       <Icon name="sliders" size={14} color="var(--text-muted, #94a3b8)" />
-      <span>Все настройки оформления и акцент...</span>
+      <span>{t("theme_dropdown.all_settings")}</span>
     </button>
   </div>
 {/if}

@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { AVAILABLE_ICONS, COLOR_PALETTE } from "$lib/icons";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     isOpen: boolean;
@@ -115,7 +116,7 @@
       <div class="modal-header">
         <div class="title-wrap">
           <Icon name="folder" size={18} color="#38bdf8" />
-          <h3>Создать новую папку</h3>
+          <h3>{t("modals.new_folder_title")}</h3>
         </div>
         <button class="close-btn" onclick={onClose}>✕</button>
       </div>
@@ -226,13 +227,13 @@
       </div>
 
       <div class="modal-footer">
-        <button class="cancel-btn" onclick={onClose}>Отмена</button>
+        <button class="cancel-btn" onclick={onClose}>{t("common.cancel")}</button>
         <button
           class="submit-btn"
           onclick={handleCreate}
           disabled={!folderName.trim() || isCreating}
         >
-          {isCreating ? "Создание..." : "Создать папку"}
+          {isCreating ? t("common.loading") : t("common.create")}
         </button>
       </div>
     </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { t } from "$lib/i18n";
 
   interface Props {
     isOpen: boolean;
@@ -76,17 +77,17 @@
       <div class="modal-header">
         <div class="title-wrap">
           <span class="file-icon">📝</span>
-          <h3>Создать новую заметку</h3>
+          <h3>{t("modals.new_note_title")}</h3>
         </div>
         <button class="close-btn" onclick={onClose}>✕</button>
       </div>
 
       <div class="modal-body">
         <div class="folder-badge">
-          Папка: <code>{targetFolder || "Корень базы (knowledge/)"}</code>
+          Папка: <code>{targetFolder || "knowledge/"}</code>
         </div>
 
-        <label for="note-title-input" class="input-label">Заголовок заметки:</label>
+        <label for="note-title-input" class="input-label">{t("modals.new_note_name")}:</label>
         <input
           id="note-title-input"
           type="text"
@@ -114,13 +115,13 @@
       </div>
 
       <div class="modal-footer">
-        <button class="cancel-btn" onclick={onClose}>Отмена</button>
+        <button class="cancel-btn" onclick={onClose}>{t("common.cancel")}</button>
         <button
           class="submit-btn"
           onclick={handleCreate}
           disabled={!fileName.trim() || isCreating}
         >
-          {isCreating ? "Создание..." : "Создать заметку"}
+          {isCreating ? t("common.loading") : t("common.create")}
         </button>
       </div>
     </div>

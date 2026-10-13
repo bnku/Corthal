@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { t } from "$lib/i18n";
 
   interface Props {
     isOpen: boolean;
@@ -27,7 +28,7 @@
       secretText = "";
       onClose();
     } catch (err: any) {
-      errorMessage = "Ошибка шифрования: " + err;
+      errorMessage = (t("secret_pill.decrypt_error") || "Error") + ": " + err;
     } finally {
       isEncrypting = false;
     }
@@ -55,23 +56,22 @@
       <div class="modal-header">
         <div class="title-wrap">
           <span class="lock-icon">🔒</span>
-          <h3>Зашифровать и вставить секрет</h3>
+          <h3>{t("modals.insert_secret_title")}</h3>
         </div>
-        <button class="close-btn" onclick={onClose}>✕</button>
+        <button class="close-btn" onclick={onClose} aria-label={t("common.close")}>✕</button>
       </div>
 
       <div class="modal-body">
         <p class="desc">
-          Введенное значение будет локально зашифровано вашим публичным SSH-ключом
-          (<code>~/.ssh/id_ed25519.pub</code>) и вставлено как Zero-Knowledge токен.
+          {t("modals.insert_secret_desc")}
         </p>
 
-        <label for="secret-input" class="input-label">Значение секрета (пароль, токен, ключ API):</label>
+        <label for="secret-input" class="input-label">{t("modals.secret_text")}</label>
         <textarea
           id="secret-input"
           class="secret-textarea"
           bind:value={secretText}
-          placeholder="Вставьте сюда конфиденциальные данные..."
+          placeholder={t("modals.insert_secret_placeholder")}
           rows="3"
         ></textarea>
 
@@ -81,13 +81,13 @@
       </div>
 
       <div class="modal-footer">
-        <button class="cancel-btn" onclick={onClose}>Отмена</button>
+        <button class="cancel-btn" onclick={onClose}>{t("common.cancel")}</button>
         <button
           class="submit-btn"
           onclick={handleEncryptAndInsert}
           disabled={!secretText.trim() || isEncrypting}
         >
-          {isEncrypting ? "Шифрование..." : "Зашифровать и вставить"}
+          {isEncrypting ? t("modals.encrypting") : t("modals.encrypt_and_insert")}
         </button>
       </div>
     </div>

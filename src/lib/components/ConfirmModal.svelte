@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     isOpen: boolean;
@@ -20,16 +21,20 @@
     isOpen,
     title,
     message,
-    confirmText = "Подтвердить",
-    cancelText = "Отмена",
+    confirmText,
+    cancelText,
     danger = true,
     showCheckbox = false,
-    checkboxLabel = "Больше не спрашивать в этой сессии",
+    checkboxLabel,
     checkboxChecked = $bindable(false),
     onCheckboxChange,
     onConfirm,
     onCancel,
   }: Props = $props();
+
+  let effectiveConfirmText = $derived(confirmText || t("common.confirm"));
+  let effectiveCancelText = $derived(cancelText || t("common.cancel"));
+  let effectiveCheckboxLabel = $derived(checkboxLabel || t("modals.dont_ask_again"));
 
   function handleKeydown(e: KeyboardEvent) {
     if (!isOpen) return;
@@ -56,7 +61,7 @@
           <Icon name={danger ? "shield" : "lightbulb"} size={20} color={danger ? "#f43f5e" : "#0284c7"} />
         </div>
         <div class="header-title">{title}</div>
-        <button class="close-btn" onclick={onCancel} aria-label="Закрыть">
+        <button class="close-btn" onclick={onCancel} aria-label={t("common.close")}>
           <Icon name="x" size={16} />
         </button>
       </div>
@@ -71,14 +76,14 @@
               onchange={(e) => onCheckboxChange?.(e.currentTarget.checked)}
               class="modal-checkbox"
             />
-            <span class="checkbox-label">{checkboxLabel}</span>
+            <span class="checkbox-label">{effectiveCheckboxLabel}</span>
           </label>
         {/if}
       </div>
 
       <div class="modal-footer">
         <button class="btn btn-cancel" onclick={onCancel}>
-          {cancelText}
+          {effectiveCancelText}
         </button>
         <button
           class="btn"
@@ -86,7 +91,7 @@
           class:btn-primary={!danger}
           onclick={onConfirm}
         >
-          {confirmText}
+          {effectiveConfirmText}
         </button>
       </div>
     </div>

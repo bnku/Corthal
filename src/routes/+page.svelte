@@ -22,6 +22,7 @@
   import PassphraseModal from "$lib/components/PassphraseModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { themeStore } from "$lib/theme/store.svelte";
+  import { t, i18n } from "$lib/i18n";
 
   // Vault & Tree State
   let vaultTree = $state<VaultNode | null>(null);
@@ -1115,7 +1116,7 @@
   function handleInsertSecretToken(encryptedToken: string) {
     if (!activeFilePath || !fileCache[activeFilePath]) {
       navigator.clipboard.writeText(encryptedToken);
-      alert("Токен скопирован в буфер обмена!");
+      alert(t("common.copy_clipboard_success"));
       return;
     }
     fileCache[activeFilePath].content += `\n${encryptedToken}\n`;
@@ -1124,7 +1125,7 @@
   function handleInsertText(text: string) {
     if (!activeFilePath || !fileCache[activeFilePath]) {
       navigator.clipboard.writeText(text);
-      alert("Текст скопирован в буфер обмена!");
+      alert(t("common.copy_clipboard_success"));
       return;
     }
     fileCache[activeFilePath].content += "\n" + text;
@@ -1263,7 +1264,7 @@
         </div>
       {:else}
         <span class="titlebar-placeholder">
-          {activeVault ? `${activeVault.name} (${activeVault.display_path})` : "База знаний не открыта"}
+          {activeVault ? `${activeVault.name} (${activeVault.display_path})` : t("header.no_vault_open")}
         </span>
       {/if}
     </div>
@@ -1277,8 +1278,8 @@
           class="layout-btn"
           class:active={showLeftSidebar}
           onclick={() => (showLeftSidebar = !showLeftSidebar)}
-          title="Скрыть/показать проводник заметок (Ctrl+B вне текста, Ctrl+Alt+B везде)"
-          aria-label="Переключить боковую панель проводника"
+          title={t("header.toggle_sidebar")}
+          aria-label={t("header.aria_sidebar")}
         >
           <Icon name="panel-left" size={15} />
         </button>
@@ -1288,8 +1289,8 @@
           class="layout-btn"
           class:active={isSplit}
           onclick={toggleSplit}
-          title="Разделить экран пополам / Объединить (Ctrl+\\ или Ctrl+2)"
-          aria-label="Разделить редактор"
+          title={t("header.toggle_split")}
+          aria-label={t("header.aria_split")}
         >
           <Icon name="columns-2" size={15} />
         </button>
@@ -1299,8 +1300,8 @@
           class="layout-btn"
           class:active={showAssistant}
           onclick={() => (showAssistant = !showAssistant)}
-          title="Скрыть/показать панель ИИ-ассистента (Ctrl+J)"
-          aria-label="Переключить панель ассистента"
+          title={t("header.toggle_assistant")}
+          aria-label={t("header.aria_assistant")}
         >
           <Icon name="panel-right" size={15} />
         </button>
@@ -1312,8 +1313,8 @@
       <button
         class="layout-btn settings-btn"
         onclick={() => (isSettingsModalOpen = true)}
-        title="Настройки темы и безопасности"
-        aria-label="Открыть настройки"
+        title={t("header.settings")}
+        aria-label={t("header.aria_settings")}
       >
         <Icon name="settings" size={15} />
       </button>
@@ -1331,7 +1332,7 @@
         <!-- Explorer Header with compact quick action icons (VS Code red box #3) -->
         <div class="explorer-header">
           <div class="explorer-title">
-            <span>БАЗА ЗНАНИЙ</span>
+            <span>{t("explorer.title")}</span>
           </div>
 
           <div class="explorer-actions">
@@ -1339,8 +1340,8 @@
               class="icon-action-btn"
               class:spinning={isRefreshing}
               onclick={handleRefreshVault}
-              title="Синхронизировать с диском (F5 / Ctrl+R)"
-              aria-label="Синхронизировать с диском"
+              title={t("explorer.sync")}
+              aria-label={t("explorer.sync")}
             >
               <Icon name="refresh-cw" size={13} />
             </button>
@@ -1348,8 +1349,8 @@
             <button
               class="icon-action-btn"
               onclick={() => openCreateNoteDialog("")}
-              title="Новая заметка"
-              aria-label="Новая заметка"
+              title={t("explorer.new_note")}
+              aria-label={t("explorer.new_note")}
             >
               <Icon name="file-plus" size={14} />
             </button>
@@ -1357,8 +1358,8 @@
             <button
               class="icon-action-btn"
               onclick={() => openCreateFolderDialog("")}
-              title="Новая папка"
-              aria-label="Новая папка"
+              title={t("explorer.new_folder")}
+              aria-label={t("explorer.new_folder")}
             >
               <Icon name="folder-plus" size={14} />
             </button>
@@ -1366,8 +1367,8 @@
             <button
               class="icon-action-btn"
               onclick={toggleCollapseAll}
-              title={areFoldersCollapsed ? "Развернуть папки" : "Свернуть все папки"}
-              aria-label="Свернуть / Развернуть папки"
+              title={areFoldersCollapsed ? t("explorer.expand_all") : t("explorer.collapse_all")}
+              aria-label={t("explorer.collapse_all")}
             >
               <Icon name={areFoldersCollapsed ? "chevrons-up-down" : "chevrons-down-up"} size={14} />
             </button>
@@ -1380,7 +1381,7 @@
             <Icon name="search" size={13} color="var(--cortex-fg-muted, #64748b)" class="search-icon" />
             <input
               type="text"
-              placeholder="Поиск заметок и тегов..."
+              placeholder={t("explorer.search_placeholder")}
               bind:value={searchQuery}
             />
             {#if searchQuery}
@@ -1414,7 +1415,7 @@
               onDeleteItem={(node) => promptDeleteItem(node)}
             />
           {:else}
-            <div class="loading">Загрузка базы знаний...</div>
+            <div class="loading">{t("explorer.loading")}</div>
           {/if}
         </div>
       </aside>
@@ -1425,7 +1426,7 @@
         class:active={resizingTarget === "explorer"}
         onpointerdown={(e) => startResizing("explorer", e)}
         ondblclick={() => resetWidth("explorer")}
-        title="Потяните для изменения ширины проводника (двойной клик для сброса)"
+        title={t("explorer.resizer_tooltip")}
         role="separator"
         aria-orientation="vertical"
         aria-valuenow={explorerWidth}
@@ -1488,7 +1489,7 @@
             class:active={resizingTarget === "split"}
             onpointerdown={(e) => startResizing("split", e)}
             ondblclick={() => resetWidth("split")}
-            title="Потяните для изменения соотношения разделов (двойной клик для сброса 50/50)"
+            title={t("editor.split_resizer_tooltip")}
             role="separator"
             aria-orientation="vertical"
           ></div>
@@ -1543,7 +1544,7 @@
         class:active={resizingTarget === "assistant"}
         onpointerdown={(e) => startResizing("assistant", e)}
         ondblclick={() => resetWidth("assistant")}
-        title="Потяните для изменения ширины ассистента (двойной клик для сброса)"
+        title={t("assistant.resizer_tooltip")}
         role="separator"
         aria-orientation="vertical"
         aria-valuenow={assistantWidth}
@@ -1581,7 +1582,7 @@
             isSshDropdownOpen = false;
             isThemeDropdownOpen = false;
           }}
-          aria-label="Смена базы знаний"
+          aria-label={t("statusbar.vault_change")}
         >
           <Icon name="folder" size={13} color="var(--cortex-accent, #38bdf8)" />
           <span class="vault-label">{activeVault?.display_path || "~/knowledge"}</span>
@@ -1607,7 +1608,7 @@
             isVaultDropdownOpen = false;
             isThemeDropdownOpen = false;
           }}
-          aria-label="Выбор SSH-ключа базы"
+          aria-label={t("statusbar.ssh_key_select")}
         >
           <Icon name="shield-check" size={13} color="var(--cortex-accent, #38bdf8)" />
           <span>{activeSshKey ? activeSshKey.filename.replace(/\.pub$/, '') : 'SSH X25519'}</span>
@@ -1641,13 +1642,13 @@
     <div class="statusbar-right">
       {#if activeFilePath && activeFile}
         {#if isCurrentEditing}
-          <span class="statusbar-item cursor-pos" title="Текущая строка и столбец курсора">
-            Стр {editorCursorLine}, Кол {editorCursorCol}
+          <span class="statusbar-item cursor-pos" title={t("statusbar.cursor_tooltip")}>
+            {t("statusbar.cursor_pos", { line: editorCursorLine, col: editorCursorCol })}
           </span>
           <span class="statusbar-dot">•</span>
         {/if}
         <span class="statusbar-item stat-item">
-          {docStats.words} слов
+          {t("statusbar.words", { count: docStats.words })}
         </span>
         <span class="statusbar-dot">•</span>
         <span class="statusbar-item format-item">
@@ -1656,9 +1657,9 @@
         <span class="statusbar-dot">•</span>
         <span class="statusbar-item save-status">
           {#if isAnyDirty}
-            <span class="dirty-badge">● Не сохранено</span>
+            <span class="dirty-badge">{t("statusbar.not_saved")}</span>
           {:else}
-            <span class="clean-badge">✓ Сохранено</span>
+            <span class="clean-badge">{t("statusbar.saved")}</span>
           {/if}
         </span>
         <span class="statusbar-dot">•</span>
@@ -1674,7 +1675,7 @@
             isVaultDropdownOpen = false;
             isSshDropdownOpen = false;
           }}
-          aria-label="Смена цветовой темы"
+          aria-label={t("statusbar.theme_change")}
         >
           <span class="theme-dot" style="background: var(--cortex-accent, #38bdf8);"></span>
           <span>{themeStore.currentPreset.name}</span>
@@ -1732,13 +1733,13 @@
 
 <ConfirmModal
   isOpen={isDeleteModalOpen}
-  title={deleteTargetIsDir ? "Удаление папки" : "Удаление заметки"}
-  message={`Вы действительно хотите удалить ${deleteTargetIsDir ? "папку" : "заметку"} «${deleteTargetTitle || deleteTargetPath}»?\n${deleteTargetIsDir ? "Все вложенные файлы и папки будут удалены безвозвратно." : "Файл будет удален с диска."}`}
-  confirmText="Удалить"
-  cancelText="Отмена"
+  title={t("modals.confirm_title")}
+  message={deleteTargetIsDir ? t("modals.confirm_delete_folder", { name: deleteTargetTitle || deleteTargetPath || "" }) : t("modals.confirm_delete_note", { name: deleteTargetTitle || deleteTargetPath || "" })}
+  confirmText={t("common.delete")}
+  cancelText={t("common.cancel")}
   danger={true}
   showCheckbox={true}
-  checkboxLabel="Больше не спрашивать в этой сессии"
+  checkboxLabel={t("settings.security.policy_session")}
   bind:checkboxChecked={deleteModalCheckbox}
   onConfirm={handleConfirmDelete}
   onCancel={() => {
@@ -1783,10 +1784,10 @@
 
 <ConfirmModal
   isOpen={isConfirmKeyModalOpen}
-  title="Изменение SSH-ключа базы знаний"
+  title={t("statusbar.ssh_key_select")}
   message={confirmKeyMessage}
-  confirmText="Изменить ключ"
-  cancelText="Отмена"
+  confirmText={t("common.confirm")}
+  cancelText={t("common.cancel")}
   danger={true}
   onConfirm={handleConfirmChangeSshKey}
   onCancel={() => {

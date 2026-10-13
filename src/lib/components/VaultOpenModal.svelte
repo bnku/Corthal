@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     isOpen: boolean;
@@ -14,11 +15,11 @@
   let errorMessage = $state("");
   let isBrowsing = $state(false);
 
-  const quickSuggestions = [
-    { label: "Основная база знаний", path: "~/knowledge" },
-    { label: "Скрытая база в хоуме", path: "~/.knowledge" },
-    { label: "Проект Cortex", path: "~/dev/cortex" },
-  ];
+  let quickSuggestions = $derived([
+    { label: t("settings.about.developer_notes").includes("Arch") ? "Основная база знаний" : "Knowledge Base", path: "~/knowledge" },
+    { label: "Dotfile Vault (~/.knowledge)", path: "~/.knowledge" },
+    { label: "Cortex Project (~/dev/cortex)", path: "~/dev/cortex" },
+  ]);
 
   $effect(() => {
     if (isOpen) {
@@ -36,7 +37,7 @@
         inputPath = selected;
       }
     } catch (e: any) {
-      errorMessage = e?.toString() || "Ошибка при открытии диалога выбора папки";
+      errorMessage = e?.toString() || "Error opening folder picker";
     } finally {
       isBrowsing = false;
     }
@@ -49,7 +50,7 @@
   function handleSubmit() {
     const trimmed = inputPath.trim();
     if (!trimmed) {
-      errorMessage = "Укажите путь к директории базы знаний";
+      errorMessage = t("modals.vault_path_placeholder");
       return;
     }
     errorMessage = "";
@@ -79,27 +80,27 @@
         <div class="header-icon">
           <Icon name="folder-plus" size={18} color="var(--accent-color, #0284c7)" />
         </div>
-        <div class="header-title">Открыть базу знаний</div>
-        <button class="close-btn" onclick={onClose} aria-label="Закрыть">
+        <div class="header-title">{t("modals.vault_open_title")}</div>
+        <button class="close-btn" onclick={onClose} aria-label={t("common.close")}>
           <Icon name="x" size={16} />
         </button>
       </div>
 
       <div class="modal-body">
-        <div class="field-label">Путь к каталогу базы знаний:</div>
+        <div class="field-label">{t("modals.vault_path_label")}</div>
         <div class="input-row">
           <div class="input-wrap">
             <span class="folder-prefix">📁</span>
             <input
               type="text"
               class="path-input"
-              placeholder="Например: ~/knowledge или /home/user/my-project"
+              placeholder={t("modals.vault_path_placeholder")}
               bind:value={inputPath}
             />
           </div>
           <button class="btn btn-browse" onclick={handleBrowse} disabled={isBrowsing}>
             <Icon name="folder-open" size={14} />
-            <span>Обзор...</span>
+            <span>{t("modals.browse")}</span>
           </button>
         </div>
 
@@ -108,7 +109,7 @@
         {/if}
 
         <div class="suggestions-section">
-          <div class="suggestions-label">Быстрый выбор:</div>
+          <div class="suggestions-label">{t("modals.quick_select")}</div>
           <div class="suggestions-list">
             {#each quickSuggestions as item}
               <button
@@ -126,14 +127,14 @@
 
         <div class="note-box">
           <Icon name="lightbulb" size={15} color="var(--accent-color, #0284c7)" />
-          <span>Если папка ещё не существует, Cortex создаст её автоматически. Конфигурация базы сохранится в <code>.meta.json</code>.</span>
+          <span>{t("modals.vault_auto_create_note")}</span>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-cancel" onclick={onClose}>Отмена</button>
+        <button class="btn btn-cancel" onclick={onClose}>{t("common.cancel")}</button>
         <button class="btn btn-primary" onclick={handleSubmit} disabled={!inputPath.trim()}>
-          Открыть
+          {t("common.open")}
         </button>
       </div>
     </div>

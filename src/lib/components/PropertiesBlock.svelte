@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { NoteFrontmatter } from "$lib/types";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     properties: NoteFrontmatter;
@@ -27,10 +28,10 @@
 
   function getStatusLabel(status?: string): string {
     const s = (status || "").toLowerCase();
-    if (s === "active") return "Активно";
-    if (s === "verified") return "Проверено";
-    if (s === "draft") return "Черновик";
-    if (s === "deprecated") return "Устарело";
+    if (s === "active") return t("properties.status_active");
+    if (s === "verified") return t("properties.status_verified");
+    if (s === "draft") return t("properties.status_draft");
+    if (s === "deprecated") return t("properties.status_deprecated");
     return status || "";
   }
 </script>
@@ -47,7 +48,7 @@
       <span class="chevron">
         <Icon name={isCollapsed ? "chevron-right" : "chevron-down"} size={13} color="#64748b" />
       </span>
-      <span class="header-title">Свойства</span>
+      <span class="header-title">{t("properties.title")}</span>
       {#if properties.tags && properties.tags.length > 0}
         <span class="tag-counter">({properties.tags.length})</span>
       {/if}
@@ -76,7 +77,7 @@
         <div class="prop-row">
           <div class="prop-key">
             <Icon name="pin" size={14} color="#94a3b8" />
-            <span>Название</span>
+            <span>{t("properties.name")}</span>
           </div>
           <div class="prop-value strong">{properties.title}</div>
         </div>
@@ -87,7 +88,7 @@
         <div class="prop-row">
           <div class="prop-key">
             <Icon name="check-circle" size={14} color="#94a3b8" />
-            <span>Статус</span>
+            <span>{t("properties.status")}</span>
           </div>
           <div class="prop-value">
             <span class="status-pill {getStatusClass(properties.status)}">
@@ -103,7 +104,7 @@
         <div class="prop-row">
           <div class="prop-key">
             <Icon name="calendar" size={14} color="#94a3b8" />
-            <span>Дата</span>
+            <span>{t("properties.date")}</span>
           </div>
           <div class="prop-value date-val">{properties.date}</div>
         </div>
@@ -114,7 +115,7 @@
         <div class="prop-row">
           <div class="prop-key">
             <Icon name="tag" size={14} color="#94a3b8" />
-            <span>Теги</span>
+            <span>{t("properties.tags")}</span>
           </div>
           <div class="prop-value tags-container">
             {#each properties.tags as tag}

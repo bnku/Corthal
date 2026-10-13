@@ -11,6 +11,7 @@
   import { createLivePreviewPlugin } from "$lib/editor/livePreviewExtension";
   import { SLASH_COMMANDS, type SlashCommandItem } from "$lib/editor/slashCommands";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     content: string;
@@ -242,10 +243,11 @@
 
     // If text is selected and is an URL:
     if (from !== to && /^https?:\/\//i.test(sel.trim())) {
-      const template = `[ссылка](${sel.trim()})`;
+      const linkLabel = t("live_editor.link_default_text");
+      const template = `[${linkLabel}](${sel.trim()})`;
       editorView.dispatch({
         changes: { from, to, insert: template },
-        selection: { anchor: from + 1, head: from + 7 },
+        selection: { anchor: from + 1, head: from + 1 + linkLabel.length },
       });
       editorView.focus();
       bubbleVisible = false;
@@ -438,7 +440,7 @@
       editorView.focus();
       bubbleVisible = false;
     } catch (err: any) {
-      alert("Не удалось зашифровать секрет: " + err);
+      alert(t("live_editor.encrypt_error") + err);
     } finally {
       isEncrypting = false;
     }
@@ -802,8 +804,8 @@
         class="bubble-btn"
         class:active={isBold}
         onclick={() => toggleFormat("bold")}
-        title="Полужирный (Ctrl+B)"
-        aria-label="Полужирный"
+        title={t("live_editor.bold")}
+        aria-label={t("live_editor.bold")}
       >
         <span class="btn-text bold">B</span>
       </button>
@@ -812,8 +814,8 @@
         class="bubble-btn"
         class:active={isItalic}
         onclick={() => toggleFormat("italic")}
-        title="Курсив (Ctrl+I)"
-        aria-label="Курсив"
+        title={t("live_editor.italic")}
+        aria-label={t("live_editor.italic")}
       >
         <span class="btn-text italic">I</span>
       </button>
@@ -822,8 +824,8 @@
         class="bubble-btn"
         class:active={isStrike}
         onclick={() => toggleFormat("strike")}
-        title="Зачёркнутый (Ctrl+Shift+X / Ctrl+Shift+S)"
-        aria-label="Зачёркнутый"
+        title={t("live_editor.strike")}
+        aria-label={t("live_editor.strike")}
       >
         <span class="btn-text strike">S</span>
       </button>
@@ -832,8 +834,8 @@
         class="bubble-btn"
         class:active={isCode}
         onclick={() => toggleFormat("code")}
-        title="Код (Ctrl+` или Ctrl+Shift+C)"
-        aria-label="В коде"
+        title={t("live_editor.code")}
+        aria-label={t("live_editor.code")}
       >
         <Icon name="code" size={13} />
       </button>
@@ -842,8 +844,8 @@
         class="bubble-btn"
         class:active={isLink}
         onclick={() => toggleFormat("link")}
-        title="Ссылка (Ctrl+K)"
-        aria-label="Вставить ссылку"
+        title={t("live_editor.link")}
+        aria-label={t("live_editor.link")}
       >
         <Icon name="link" size={13} />
       </button>
@@ -854,11 +856,11 @@
         class="bubble-btn encrypt-btn"
         onclick={handleEncryptSelection}
         disabled={isEncrypting}
-        title="Зашифровать выделенный текст ключом SSH (Ctrl+E)"
-        aria-label="Зашифровать секрет"
+        title={t("live_editor.secret")}
+        aria-label={t("live_editor.secret")}
       >
         <Icon name={isEncrypting ? "refresh-cw" : "lock"} size={13} class={isEncrypting ? "spin" : ""} color="#f59e0b" />
-        <span class="encrypt-label">{isEncrypting ? "Шифрование..." : "Зашифровать"}</span>
+        <span class="encrypt-label">{isEncrypting ? t("live_editor.encrypting") : t("editor.encrypt_selection")}</span>
       </button>
     </div>
   {/if}
@@ -873,7 +875,7 @@
       tabindex="-1"
     >
       <div class="slash-header">
-        <span>БЫСТРЫЕ КОМАНДЫ (НАЖМИТЕ ENTER)</span>
+        <span>{t("live_editor.slash_header")}</span>
       </div>
 
       <div class="slash-items">

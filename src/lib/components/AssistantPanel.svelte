@@ -7,6 +7,7 @@
   import type { AssistantConfig, CodexStatus, AssistantStreamChunk, ChatMessage, AssistantProvider } from "$lib/types";
   import Icon from "./Icon.svelte";
   import SecretPill from "./SecretPill.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     activeNotePath: string | null;
@@ -643,7 +644,7 @@
       {
         id: "initial",
         role: "assistant",
-        text: "Диалог очищен. Чем могу помочь?",
+        text: t("assistant.chat_cleared"),
         timestamp: Date.now(),
       },
     ];
@@ -682,7 +683,7 @@
     <div class="header-left">
       <div class="title-block">
         <Icon name="bot" size={16} color="var(--cortex-accent, #38bdf8)" />
-        <span class="panel-heading">Ассистент</span>
+        <span class="panel-heading">{t("assistant.title")}</span>
       </div>
 
       <!-- Model & Effort Popover Pill -->
@@ -694,7 +695,7 @@
             e.stopPropagation();
             isModelDropdownOpen = !isModelDropdownOpen;
           }}
-          title="Выбор модели и рассуждений"
+          title={t("assistant.model_reasoning_tooltip")}
         >
           <span
             class="provider-dot"
@@ -709,7 +710,7 @@
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class="model-popover" onclick={(e) => e.stopPropagation()}>
             <div class="popover-header">
-              <span class="popover-title">Модель ({getProviderLabel(config.provider)})</span>
+              <span class="popover-title">{t("assistant.model_title", { provider: getProviderLabel(config.provider) })}</span>
             </div>
 
             <div class="model-scroll-list">
@@ -732,7 +733,7 @@
 
             <div class="popover-effort-box">
               <div class="effort-header">
-                <span class="effort-title">Рассуждения (Reasoning):</span>
+                <span class="effort-title">{t("assistant.reasoning")}</span>
                 <span class="effort-badge">{currentEffort}</span>
               </div>
               <div class="slider-wrap">
@@ -765,8 +766,8 @@
         type="button"
         class="action-icon-btn"
         onclick={handleClearChat}
-        title="Очистить диалог"
-        aria-label="Очистить диалог"
+        title={t("assistant.clear_chat")}
+        aria-label={t("assistant.clear_chat")}
       >
         <Icon name="trash" size={13} />
       </button>
@@ -805,7 +806,7 @@
                 type="button"
                 class="hover-icon-btn"
                 onclick={() => copyMessage(msg.id, msg.text)}
-                title={copiedId === msg.id ? "Скопировано!" : "Копировать"}
+                title={copiedId === msg.id ? t("assistant.copied") : t("assistant.copy")}
               >
                 <Icon
                   name={copiedId === msg.id ? "check" : "copy"}
@@ -818,7 +819,7 @@
                   type="button"
                   class="hover-icon-btn"
                   onclick={() => insertMessage(msg.text)}
-                  title="Вставить в открытую заметку"
+                  title={t("assistant.insert_into_note")}
                 >
                   <Icon name="file-down" size={12} />
                 </button>
@@ -839,12 +840,12 @@
           <div class="context-chip attached">
             <Icon name="file-text" size={11} color="var(--cortex-accent, #38bdf8)" />
             <span class="context-name" title={activeNotePath}>{activeFileName}</span>
-            <span class="context-tag">в контексте</span>
+            <span class="context-tag">{t("assistant.in_context")}</span>
             <button
               type="button"
               class="chip-close-btn"
               onclick={() => (includeActiveNote = false)}
-              title="Исключить файл из контекста"
+              title={t("assistant.exclude_context")}
             >
               <Icon name="x" size={11} />
             </button>
@@ -854,10 +855,10 @@
             type="button"
             class="context-attach-btn"
             onclick={() => (includeActiveNote = true)}
-            title="Прикрепить содержимое открытого файла к вопросу"
+            title={t("assistant.attach_tooltip")}
           >
             <Icon name="plus" size={11} />
-            <span>Прикрепить <strong>{activeFileName}</strong></span>
+            <span>{t("assistant.attach_file", { filename: activeFileName })}</span>
           </button>
         {/if}
       </div>
@@ -873,7 +874,7 @@
         role="textbox"
         tabindex="0"
         aria-multiline="true"
-        aria-label="Сообщение ассистенту"
+        aria-label={t("assistant.title")}
         oninput={updateInputState}
         onkeydown={handleInputKeydown}
         onpaste={handleInputPaste}
@@ -882,7 +883,7 @@
       ></div>
 
       <div class="input-footer">
-        <span class="input-hint">Enter — отправить, Shift+Enter — перенос</span>
+        <span class="input-hint">Enter — {t("assistant.send")}, Shift+Enter — ↵</span>
 
         <div class="input-action-buttons">
           <div class="encrypt-btn-wrapper">
@@ -891,8 +892,8 @@
               class="encrypt-action-btn"
               onmousedown={(e) => e.preventDefault()}
               onclick={handleEncryptInputSelection}
-              title="Зашифровать выделенный текст (Ctrl+E)"
-              aria-label="Зашифровать выделенный текст"
+              title={t("live_editor.secret")}
+              aria-label={t("live_editor.secret")}
               disabled={isGenerating}
             >
               <Icon name="lock" size={13} />
@@ -905,9 +906,9 @@
           </div>
 
           {#if isGenerating}
-            <button type="button" class="stop-btn" onclick={handleStopGeneration} title="Остановить ответ">
+            <button type="button" class="stop-btn" onclick={handleStopGeneration} title={t("assistant.stop")}>
               <Icon name="square" size={11} />
-              <span>Стоп</span>
+              <span>{t("assistant.stop")}</span>
             </button>
           {:else}
             <button
@@ -915,7 +916,7 @@
               class="send-btn"
               onclick={handleSendMessage}
               disabled={!hasInputContent}
-              title="Отправить (Enter)"
+              title={t("assistant.send")}
             >
               <Icon name="send" size={13} />
             </button>

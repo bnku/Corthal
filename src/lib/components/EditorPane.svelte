@@ -10,6 +10,7 @@
   import SecretPill from "./SecretPill.svelte";
   import PropertiesBlock from "./PropertiesBlock.svelte";
   import LiveMarkdownEditor from "./LiveMarkdownEditor.svelte";
+  import { t } from "$lib/i18n";
 
   interface TabInfo {
     path: string;
@@ -565,7 +566,7 @@
   onclick={onFocusPane}
   onkeydown={handleKeydown}
   role="region"
-  aria-label={`Панель редактора ${paneId === "left" ? "1" : "2"}`}
+  aria-label={t("editor.pane_aria", { num: paneId === "left" ? 1 : 2 })}
   tabindex="0"
 >
   <!-- TAB BAR -->
@@ -595,12 +596,12 @@
           <span class="tab-title" title={tab.path}>{tab.title}</span>
 
           {#if tab.isDirty}
-            <span class="dirty-indicator" title="Несохранённые изменения">●</span>
+            <span class="dirty-indicator" title={t("editor.unsaved_changes")}>●</span>
           {/if}
 
           <button
             class="tab-close-btn"
-            aria-label="Закрыть вкладку"
+            aria-label={t("editor.close_tab")}
             onclick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -620,8 +621,8 @@
         {#if isMarkdown}
           <button
             class="pane-action-btn secret-btn icon-only"
-            title="Зашифровать и вставить секрет (Ctrl+E)"
-            aria-label="Зашифровать секрет"
+            title={t("editor.insert_secret")}
+            aria-label={t("editor.insert_secret")}
             onclick={onOpenSecretModal}
           >
             <Icon name="lock" size={13} color="#f59e0b" />
@@ -635,8 +636,8 @@
               class="mode-btn"
               class:active={!isEditing}
               onclick={() => onToggleEditing(false)}
-              title="Живой просмотр (Live Preview) — визуальное редактирование на лету"
-              aria-label="Живой просмотр"
+              title={t("editor.mode_live")}
+              aria-label={t("editor.mode_live")}
             >
               <Icon name="eye" size={13} />
             </button>
@@ -644,8 +645,8 @@
               class="mode-btn"
               class:active={isEditing}
               onclick={() => onToggleEditing(true)}
-              title="Исходный код Markdown с номерами строк"
-              aria-label="Исходный код Markdown"
+              title={t("editor.mode_source")}
+              aria-label={t("editor.mode_source")}
             >
               <Icon name="code" size={13} />
             </button>
@@ -654,8 +655,8 @@
               class="mode-btn"
               class:active={!isEditing}
               onclick={() => onToggleEditing(false)}
-              title="Режим просмотра кода"
-              aria-label="Режим просмотра кода"
+              title={t("common.preview")}
+              aria-label={t("common.preview")}
             >
               <Icon name="eye" size={13} />
             </button>
@@ -663,8 +664,8 @@
               class="mode-btn"
               class:active={isEditing}
               onclick={() => onToggleEditing(true)}
-              title="Режим правки кода"
-              aria-label="Режим правки кода"
+              title={t("common.edit")}
+              aria-label={t("common.edit")}
             >
               <Icon name="file-edit" size={13} />
             </button>
@@ -677,7 +678,7 @@
         <button
           class="pane-action-btn close-pane-btn"
           onclick={onCloseSplit}
-          title="Закрыть эту панель"
+          title={t("common.close")}
         >
           <Icon name="x" size={13} />
         </button>
@@ -763,7 +764,7 @@
                   floatingEncrypt.visible = false;
                 }
               }}
-              placeholder="Исходный код файла..."
+              placeholder={t("editor.source_placeholder")}
               spellcheck="false"
             ></textarea>
 
@@ -778,10 +779,10 @@
                   onmousedown={(e) => e.preventDefault()}
                   onclick={handleFloatingEncrypt}
                   disabled={floatingEncrypt.isEncrypting}
-                  title="Зашифровать выделенный текст публичным ключом SSH (~/.ssh/id_ed25519)"
+                  title={t("editor.encrypt_tooltip")}
                 >
                   <Icon name="lock" size={12} color="var(--cortex-accent, #38bdf8)" />
-                  <span>{floatingEncrypt.isEncrypting ? "Шифрование..." : "Зашифровать"}</span>
+                  <span>{floatingEncrypt.isEncrypting ? t("editor.encrypting") : t("editor.encrypt_selection")}</span>
                 </button>
               </div>
             {/if}
@@ -794,10 +795,10 @@
                 <Icon name="file-code" size={13} color="var(--cortex-accent)" />
                 <span>{detectedLang.toUpperCase()}</span>
               </div>
-              <span class="code-meta-lines">{lineNumbers.length} строк</span>
+              <span class="code-meta-lines">{t("editor.lines_count", { count: lineNumbers.length })}</span>
               <button class="copy-code-btn" onclick={copyCodeToClipboard}>
                 <Icon name={copiedCode ? "check" : "copy"} size={12} />
-                <span>{copiedCode ? "Скопировано!" : "Копировать код"}</span>
+                <span>{copiedCode ? t("editor.code_copied") : t("editor.copy_code")}</span>
               </button>
             </div>
 
@@ -823,9 +824,9 @@
           <button
             class="shortcut-action-row"
             onclick={onOpenSearch}
-            title="Быстрый поиск заметок и тегов"
+            title={t("editor.welcome.search_notes")}
           >
-            <span class="shortcut-label">Поиск заметок и тегов</span>
+            <span class="shortcut-label">{t("editor.welcome.search_notes")}</span>
             <span class="shortcut-keys">
               <kbd>Ctrl</kbd> + <kbd>F</kbd>
             </span>
@@ -834,9 +835,9 @@
           <button
             class="shortcut-action-row"
             onclick={onOpenCreateNote}
-            title="Создать новую заметку"
+            title={t("editor.welcome.new_note")}
           >
-            <span class="shortcut-label">Новая заметка</span>
+            <span class="shortcut-label">{t("editor.welcome.new_note")}</span>
             <span class="shortcut-keys">
               <kbd>Ctrl</kbd> + <kbd>N</kbd>
             </span>
@@ -845,9 +846,9 @@
           <button
             class="shortcut-action-row"
             onclick={onToggleSidebar}
-            title="Скрыть или показать проводник (Ctrl+B вне редактора, Ctrl+Alt+B везде)"
+            title={t("editor.welcome.explorer")}
           >
-            <span class="shortcut-label">Проводник заметок</span>
+            <span class="shortcut-label">{t("editor.welcome.explorer")}</span>
             <span class="shortcut-keys">
               <kbd>Ctrl</kbd> + <kbd>B</kbd>
             </span>
@@ -856,9 +857,9 @@
           <button
             class="shortcut-action-row"
             onclick={onSplitToggle}
-            title="Разделить экран пополам"
+            title={t("editor.welcome.split_editor")}
           >
-            <span class="shortcut-label">Разделить редактор</span>
+            <span class="shortcut-label">{t("editor.welcome.split_editor")}</span>
             <span class="shortcut-keys">
               <kbd>Ctrl</kbd> + <kbd>\</kbd>
             </span>
@@ -867,9 +868,9 @@
           <button
             class="shortcut-action-row"
             onclick={onToggleAssistant}
-            title="Открыть ИИ-ассистента"
+            title={t("editor.welcome.assistant")}
           >
-            <span class="shortcut-label">ИИ-ассистент Cortex</span>
+            <span class="shortcut-label">{t("editor.welcome.assistant")}</span>
             <span class="shortcut-keys">
               <kbd>Ctrl</kbd> + <kbd>J</kbd>
             </span>
@@ -878,9 +879,9 @@
           <button
             class="shortcut-action-row"
             onclick={onOpenSettings}
-            title="Настройки темы и шифрования"
+            title={t("editor.welcome.settings")}
           >
-            <span class="shortcut-label">Настройки темы</span>
+            <span class="shortcut-label">{t("editor.welcome.settings")}</span>
             <span class="shortcut-keys">
               <kbd>Ctrl</kbd> + <kbd>,</kbd>
             </span>

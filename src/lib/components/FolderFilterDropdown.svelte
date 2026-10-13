@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { HubItem } from "$lib/types";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     hubs: HubItem[];
@@ -31,10 +32,10 @@
 
   let buttonLabel = $derived.by(() => {
     if (isAllSelected) {
-      return `Все разделы (${realHubs.length})`;
+      return `${t("header.all_sections")} (${realHubs.length})`;
     }
     if (selectedHubIds.length === 0) {
-      return `Разделы не выбраны (0)`;
+      return `${t("header.no_sections")} (0)`;
     }
     if (selectedHubIds.length === 1) {
       const match = realHubs.find((h) => h.id === selectedHubIds[0]);
@@ -133,7 +134,7 @@
     class:active={isOpen}
     class:filtered={!isAllSelected}
     onclick={toggleDropdown}
-    aria-label="Фильтр разделов базы знаний"
+    aria-label={t("header.filter_hubs_aria")}
   >
     <Icon name="list-filter" size={13} color="var(--cortex-accent, #38bdf8)" />
     <span class="trigger-label">{buttonLabel}</span>
@@ -147,13 +148,13 @@
       <div class="popover-header">
         <div class="popover-title">
           <Icon name="folder" size={14} color="var(--cortex-accent)" />
-          <span>Корневые разделы</span>
+          <span>{t("header.all_sections")}</span>
           <span class="count-badge">{realHubs.length}</span>
         </div>
         <div class="header-actions">
-          <button class="text-action-btn" onclick={handleSelectAll}>Все</button>
+          <button class="text-action-btn" onclick={handleSelectAll}>{t("common.all")}</button>
           <span class="sep">/</span>
-          <button class="text-action-btn" onclick={handleClearAll}>Сброс</button>
+          <button class="text-action-btn" onclick={handleClearAll}>{t("common.reset")}</button>
         </div>
       </div>
 
@@ -162,7 +163,7 @@
           <Icon name="search" size={12} color="var(--cortex-fg-muted)" />
           <input
             type="text"
-            placeholder="Найти раздел..."
+            placeholder={t("common.search") + "..."}
             bind:value={filterText}
             class="filter-search-input"
           />
@@ -184,7 +185,7 @@
           <span class="hub-row-icon">
             <Icon name="globe" size={14} color="var(--cortex-accent)" />
           </span>
-          <span class="hub-row-name">Все разделы</span>
+          <span class="hub-row-name">{t("header.all_sections")}</span>
           <span class="hub-row-badge">{realHubs.length}</span>
         </button>
 

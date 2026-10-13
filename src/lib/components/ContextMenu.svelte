@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     x: number;
@@ -74,7 +75,7 @@
         role="menuitem"
       >
         <Icon name="sliders" size={14} color="#60a5fa" />
-        <span>Настроить папку (Метаданные)</span>
+        <span>{t("context_menu.configure_folder")}</span>
       </button>
     {/if}
 
@@ -89,7 +90,7 @@
         role="menuitem"
       >
         <Icon name="file-text" size={14} color="#34d399" />
-        <span>Новая заметка</span>
+        <span>{t("context_menu.new_note")}</span>
         <span class="menu-shortcut">Ctrl+N</span>
       </button>
     {/if}
@@ -105,7 +106,7 @@
         role="menuitem"
       >
         <Icon name="folder" size={14} color="#fbbf24" />
-        <span>Новая подпапка</span>
+        <span>{t("context_menu.new_subfolder")}</span>
       </button>
     {/if}
   {/if}
@@ -124,7 +125,7 @@
       role="menuitem"
     >
       <Icon name="trash" size={14} color="#f43f5e" />
-      <span>Удалить</span>
+      <span>{t("common.delete")}</span>
       <span class="menu-shortcut">Del</span>
     </button>
   {/if}

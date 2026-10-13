@@ -3,6 +3,7 @@
   import type { VaultNode } from "$lib/types";
   import { AVAILABLE_ICONS, COLOR_PALETTE } from "$lib/icons";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     isOpen: boolean;
@@ -70,7 +71,7 @@
       onSaved();
       onClose();
     } catch (err: any) {
-      errorMessage = "Ошибка сохранения метаданных: " + err;
+      errorMessage = (t("common.error") || "Error") + ": " + err;
     } finally {
       isSaving = false;
     }
@@ -101,25 +102,25 @@
       <div class="modal-header">
         <div class="title-wrap">
           <Icon name="sliders" size={18} color="#60a5fa" />
-          <h3>Настройки папки (.meta.json)</h3>
+          <h3>{t("folder_settings.title")}</h3>
         </div>
-        <button class="close-btn" onclick={onClose}>✕</button>
+        <button class="close-btn" onclick={onClose} aria-label={t("common.close")}>✕</button>
       </div>
 
       <div class="modal-body">
         <div class="path-badge">
-          Путь: <code>{folderNode.relative_path || "knowledge/"}</code>
+          {t("folder_settings.path")} <code>{folderNode.relative_path || "knowledge/"}</code>
         </div>
 
         <!-- 1. Title -->
-        <label for="folder-title" class="input-label">Человекочитаемое название:</label>
+        <label for="folder-title" class="input-label">{t("folder_settings.name_label")}</label>
         <input
           id="folder-title"
           bind:this={titleInput}
           type="text"
           class="text-input"
           bind:value={title}
-          placeholder="Например: Недвижимость"
+          placeholder={t("folder_settings.name_placeholder")}
           onkeydown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -131,7 +132,7 @@
         <!-- 2. Icon Picker -->
         <div class="icon-picker-section">
           <div class="section-row">
-            <span class="input-label">Иконка:</span>
+            <span class="input-label">{t("folder_settings.icon_label")}</span>
             <div class="preview-badge">
               <Icon name={selectedIcon} size={18} color={selectedColor} />
               <span class="preview-name">{selectedIcon}</span>
@@ -142,7 +143,7 @@
             type="text"
             class="icon-search-input"
             bind:value={iconFilter}
-            placeholder="Поиск иконки..."
+            placeholder={t("folder_settings.icon_search_placeholder")}
           />
 
           <div class="icons-grid">
@@ -163,7 +164,7 @@
         <!-- 3. Color & Order -->
         <div class="two-cols">
           <div>
-            <span class="input-label">Цвет раздела:</span>
+            <span class="input-label">{t("folder_settings.color_label")}</span>
             <div class="color-palette">
               {#each COLOR_PALETTE as colorItem}
                 <button
@@ -179,7 +180,7 @@
           </div>
 
           <div>
-            <label for="folder-order" class="input-label">Порядок сортировки:</label>
+            <label for="folder-order" class="input-label">{t("folder_settings.order_label")}</label>
             <input
               id="folder-order"
               type="number"
@@ -192,12 +193,12 @@
         </div>
 
         <!-- 4. Description -->
-        <label for="folder-desc" class="input-label">Описание назначения (опционально):</label>
+        <label for="folder-desc" class="input-label">{t("folder_settings.desc_label")}</label>
         <textarea
           id="folder-desc"
           class="text-input desc-textarea"
           bind:value={description}
-          placeholder="Краткое назначение этой директории..."
+          placeholder={t("folder_settings.desc_placeholder")}
           rows="2"
         ></textarea>
 
@@ -207,9 +208,9 @@
       </div>
 
       <div class="modal-footer">
-        <button class="cancel-btn" onclick={onClose}>Отмена</button>
+        <button class="cancel-btn" onclick={onClose}>{t("common.cancel")}</button>
         <button class="submit-btn" onclick={handleSave} disabled={isSaving}>
-          {isSaving ? "Сохранение..." : "Сохранить метаданные"}
+          {isSaving ? t("folder_settings.saving") : t("folder_settings.save")}
         </button>
       </div>
     </div>

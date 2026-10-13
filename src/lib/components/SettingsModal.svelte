@@ -4,6 +4,7 @@
   import Icon from "./Icon.svelte";
   import CustomSelect, { type SelectOption } from "./CustomSelect.svelte";
   import { themeStore } from "$lib/theme/store.svelte";
+  import { i18n, t } from "$lib/i18n";
   import { THEME_PRESETS, ACCENT_COLORS } from "$lib/theme/presets";
   import type {
     VaultInfo,
@@ -364,9 +365,9 @@
       <header class="modal-header">
         <div class="header-left">
           <Icon name="settings" size={20} color="var(--cortex-accent)" />
-          <h2 id="settings-title">Параметры</h2>
+          <h2 id="settings-title">{t("settings.modal_title")}</h2>
         </div>
-        <button class="close-btn" onclick={handleDone} aria-label="Закрыть">
+        <button class="close-btn" onclick={handleDone} aria-label={t("common.close")}>
           <Icon name="x" size={18} />
         </button>
       </header>
@@ -381,7 +382,7 @@
             onclick={() => (activeTab = "appearance")}
           >
             <Icon name="monitor" size={16} />
-            <span>Внешний вид</span>
+            <span>{t("settings.tabs.appearance")}</span>
           </button>
           <button
             class="nav-item"
@@ -389,7 +390,7 @@
             onclick={() => (activeTab = "security")}
           >
             <Icon name="shield" size={16} />
-            <span>Шифрование</span>
+            <span>{t("settings.tabs.security")}</span>
           </button>
           <button
             class="nav-item"
@@ -397,7 +398,7 @@
             onclick={() => (activeTab = "assistant")}
           >
             <Icon name="sparkles" size={16} />
-            <span>ИИ-ассистент</span>
+            <span>{t("settings.tabs.assistant")}</span>
           </button>
           <button
             class="nav-item"
@@ -405,16 +406,63 @@
             onclick={() => (activeTab = "about")}
           >
             <Icon name="lightbulb" size={16} />
-            <span>О приложении</span>
+            <span>{t("settings.tabs.about")}</span>
           </button>
         </nav>
 
         <!-- Tab Content -->
         <main class="tab-content">
           {#if activeTab === "appearance"}
+            <!-- 0. LANGUAGE SELECTION -->
+            <section class="settings-section">
+              <div class="section-header-row">
+                <h3 class="section-title">{t("settings.language.title")}</h3>
+              </div>
+              <p class="section-desc">
+                {t("settings.language.desc")}
+              </p>
+              <div class="lang-selector-grid">
+                <button
+                  type="button"
+                  class="lang-card"
+                  class:selected={i18n.locale === "ru"}
+                  onclick={() => i18n.setLocale("ru")}
+                >
+                  <span class="lang-flag">🇷🇺</span>
+                  <div class="lang-info">
+                    <span class="lang-name">{t("settings.language.ru")}</span>
+                    <span class="lang-sub">{t("settings.language.ru_desc")}</span>
+                  </div>
+                  {#if i18n.locale === "ru"}
+                    <div class="lang-check">
+                      <Icon name="check" size={16} color="var(--cortex-accent)" />
+                    </div>
+                  {/if}
+                </button>
+
+                <button
+                  type="button"
+                  class="lang-card"
+                  class:selected={i18n.locale === "en"}
+                  onclick={() => i18n.setLocale("en")}
+                >
+                  <span class="lang-flag">🇬🇧</span>
+                  <div class="lang-info">
+                    <span class="lang-name">{t("settings.language.en")}</span>
+                    <span class="lang-sub">{t("settings.language.en_desc")}</span>
+                  </div>
+                  {#if i18n.locale === "en"}
+                    <div class="lang-check">
+                      <Icon name="check" size={16} color="var(--cortex-accent)" />
+                    </div>
+                  {/if}
+                </button>
+              </div>
+            </section>
+
             <!-- 1. LIVE PREVIEW CARD -->
             <section class="settings-section">
-              <h3 class="section-title">Предпросмотр темы</h3>
+              <h3 class="section-title">{t("settings.appearance.preview_title")}</h3>
               <div class="preview-card">
                 <div class="preview-header">
                   <div class="preview-dots">
@@ -457,15 +505,15 @@
             <!-- 2. THEME PRESETS -->
             <section class="settings-section">
               <div class="section-header-row">
-                <h3 class="section-title">Цветовая палитра</h3>
+                <h3 class="section-title">{t("settings.appearance.palette_title")}</h3>
                 {#if themeStore.config.gtkThemePath}
                   <button class="reset-link" onclick={() => themeStore.clearGtkTheme()}>
-                    Вернуться к пресетам Cortex
+                    {t("settings.appearance.return_cortex_presets")}
                   </button>
                 {/if}
               </div>
               <p class="section-desc">
-                Выберите один из 10 специально настроенных контрастных стилей или минималистичный светлый режим.
+                {t("settings.appearance.palette_desc")}
               </p>
 
               <div class="presets-grid">
@@ -502,9 +550,9 @@
 
             <!-- 3. ACCENT COLORS -->
             <section class="settings-section">
-              <h3 class="section-title">Акцентный цвет</h3>
+              <h3 class="section-title">{t("settings.appearance.accent_title")}</h3>
               <p class="section-desc">
-                Используется для выделения кнопок, активных вкладок, индикаторов фокуса и бейджей.
+                {t("settings.appearance.accent_desc")}
               </p>
 
               <div class="accents-container">
@@ -540,7 +588,7 @@
                       value={themeStore.currentAccent.hex}
                       oninput={handleCustomColorChange}
                     />
-                    <span>Свой HEX-код...</span>
+                    <span>{t("settings.appearance.custom_hex")}</span>
                   </label>
                   {#if themeStore.config.customAccentHex}
                     <span class="custom-hex-val">{themeStore.config.customAccentHex}</span>
@@ -551,12 +599,12 @@
 
             <!-- 4. CONTRAST & ACCESSIBILITY -->
             <section class="settings-section">
-              <h3 class="section-title">Контрастность и спецвозможности</h3>
+              <h3 class="section-title">{t("settings.appearance.contrast_title")}</h3>
               <div class="toggle-row">
                 <div class="toggle-text">
-                  <span class="toggle-label">Режим высокого контраста</span>
+                  <span class="toggle-label">{t("settings.appearance.high_contrast")}</span>
                   <span class="toggle-sub">
-                    Усиливает границы блоков и делает текст максимально контрастным для чтения
+                    {t("settings.appearance.high_contrast_desc")}
                   </span>
                 </div>
                 <button
@@ -565,7 +613,7 @@
                   onclick={() => themeStore.toggleHighContrast()}
                   role="switch"
                   aria-checked={themeStore.config.highContrast}
-                  aria-label="Включить высокий контраст"
+                  aria-label={t("settings.appearance.high_contrast")}
                 >
                   <span class="toggle-handle"></span>
                 </button>
@@ -574,26 +622,26 @@
 
             <!-- 5. LINUX GTK INTEGRATION -->
             <section class="settings-section">
-              <h3 class="section-title">Системное окружение Linux и GTK</h3>
+              <h3 class="section-title">{t("settings.appearance.linux_gtk_title")}</h3>
               <p class="section-desc">
-                Cortex умеет считывать настройки вашей рабочей среды и адаптироваться под установленные темы Cinnamon / GNOME.
+                {t("settings.appearance.linux_gtk_desc")}
               </p>
 
               {#if themeStore.systemInfo}
                 <div class="sys-info-banner">
                   <div class="sys-info-item">
-                    <span class="sys-label">Текущая тема GTK:</span>
+                    <span class="sys-label">{t("settings.appearance.gtk_theme_label")}</span>
                     <span class="sys-value">{themeStore.systemInfo.gtk_theme_name}</span>
                   </div>
                   <div class="sys-info-item">
-                    <span class="sys-label">Режим системы:</span>
+                    <span class="sys-label">{t("settings.appearance.system_mode_label")}</span>
                     <span class="sys-value">
-                      {themeStore.systemInfo.is_dark ? "Тёмный (Dark)" : "Светлый (Light)"}
+                      {themeStore.systemInfo.is_dark ? "Dark" : "Light"}
                     </span>
                   </div>
                   {#if themeStore.systemInfo.system_accent}
                     <div class="sys-info-item">
-                      <span class="sys-label">Системный акцент:</span>
+                      <span class="sys-label">{t("settings.appearance.system_accent_label")}</span>
                       <span class="sys-value color-badge">
                         <span class="badge-color" style="background: {themeStore.systemInfo.system_accent}"></span>
                         {themeStore.systemInfo.system_accent}
@@ -670,9 +718,9 @@
             </section>
           {:else if activeTab === "security"}
             <section class="settings-section">
-              <h3 class="section-title">Асимметричное шифрование SSH / AGE</h3>
+              <h3 class="section-title">{t("settings.security.title")}</h3>
               <p class="section-desc">
-                Cortex защищает конфиденциальные заметки с помощью локального шифрования по алгоритму X25519 (AGE). Привязка ключа сохраняется в <code>.meta.json</code> активной базы знаний.
+                {t("settings.security.desc")}
               </p>
 
               <div class="security-card">
@@ -686,7 +734,7 @@
                   </div>
 
                   <div class="sec-item">
-                    <span class="sec-label">Активный SSH-ключ:</span>
+                    <span class="sec-label">{t("settings.security.active_key")}:</span>
                     <div class="current-key-row">
                       <span class="key-badge">{activeSshKey?.key_type || "ED25519"}</span>
                       <code class="sec-code">{activeSshKey?.filename || "id_ed25519.pub"}</code>
@@ -736,9 +784,9 @@
               </div>
 
               <!-- Passphrase Cache Policy Section -->
-              <h3 class="section-title" style="margin-top: 18px;">Запрос пароля SSH-ключа и сессия</h3>
+              <h3 class="section-title" style="margin-top: 18px;">{t("settings.security.policy_title")}</h3>
               <p class="section-desc">
-                Определяет, как долго Cortex удерживает расшифрованный SSH-ключ в оперативной памяти (Zero-Knowledge). Пароли никогда не сохраняются на диск.
+                {t("settings.security.policy_desc")}
               </p>
 
               <div class="security-card">
@@ -759,7 +807,7 @@
                       {/if}
                     </div>
                     <div class="policy-option-info">
-                      <span class="policy-title">Один раз за сессию (Рекомендуется)</span>
+                      <span class="policy-title">{t("settings.security.policy_session")}</span>
                       <span class="policy-desc">
                         Пароль запрашивается один раз при первой расшифровке секрета и сохраняется в памяти до закрытия Cortex или ручной блокировки.
                       </span>
@@ -784,7 +832,7 @@
                       {/if}
                     </div>
                     <div class="policy-option-info">
-                      <span class="policy-title">Раз в N минут (по тайм-ауту)</span>
+                      <span class="policy-title">{t("settings.security.policy_timeout")}</span>
                       <span class="policy-desc">
                         Пароль автоматически сбрасывается из оперативной памяти при отсутствии активности через заданное время.
                       </span>
@@ -795,7 +843,7 @@
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div class="timeout-config-row" onclick={(e) => e.stopPropagation()} role="presentation">
-                      <span class="timeout-label">Сбрасывать через:</span>
+                      <span class="timeout-label">{t("settings.security.timeout_label")}</span>
                       <div class="timeout-select-wrap">
                         <CustomSelect
                           options={passphraseTimeoutOptions}
@@ -824,7 +872,7 @@
                       {/if}
                     </div>
                     <div class="policy-option-info">
-                      <span class="policy-title">Запрашивать каждый раз</span>
+                      <span class="policy-title">{t("settings.security.policy_always")}</span>
                       <span class="policy-desc">
                         Пароль не сохраняется в памяти вовсе. Каждый просмотр или копирование любого секрета требует повторного ввода пасс-фразы.
                       </span>
@@ -834,23 +882,20 @@
 
                 <!-- Current Session Lock Status -->
                 <div class="sec-item session-status-row">
-                  <span class="sec-label">Текущее состояние оперативной памяти:</span>
+                  <span class="sec-label">{t("settings.security.session_status")}</span>
                   <div class="session-status-controls">
                     {#if sessionStatus?.is_unlocked}
                       <span class="sec-badge ok">
-                        🔓 Разблокировано
-                        {#if sessionStatus.remaining_seconds != null}
-                          (до автоблокировки: {formatRemainingTime(sessionStatus.remaining_seconds)})
-                        {/if}
+                        🔓 {t("settings.security.unlocked_for", { time: sessionStatus.remaining_seconds != null ? formatRemainingTime(sessionStatus.remaining_seconds) : "session" })}
                       </span>
                       <button
                         type="button"
                         class="action-lock-btn"
                         onclick={handleLockSession}
-                        title="Немедленно стереть пароль из оперативной памяти"
+                        title={t("settings.security.lock_now")}
                       >
                         <Icon name="lock" size={13} color="#fca5a5" />
-                        <span>Заблокировать сейчас</span>
+                        <span>{t("settings.security.lock_now")}</span>
                       </button>
                     {:else}
                       <span class="sec-badge locked">
@@ -863,9 +908,9 @@
             </section>
           {:else if activeTab === "assistant"}
             <section class="settings-section">
-              <h3 class="section-title">Активный ИИ-движок</h3>
+              <h3 class="section-title">{t("settings.assistant_tab.title")}</h3>
               <p class="section-desc">
-                Выберите бэкенд для работы персонального ассистента. Настройки выбранного провайдера раскрываются автоматически.
+                {t("settings.assistant_tab.desc")}
               </p>
 
               <div class="provider-accordion-list">
@@ -1278,14 +1323,14 @@
             </section>
           {:else if activeTab === "about"}
             <section class="settings-section">
-              <h3 class="section-title">Cortex v0.1.0 (Clean Room)</h3>
+              <h3 class="section-title">{t("settings.about.title")} v0.1.0 (Clean Room)</h3>
               <p class="section-desc">
-                Агентная персональная операционная среда для ведения заметок, управления знаниями («Второй мозг») и совместной работы с локальными ИИ-агентами.
+                {t("settings.about.app_desc")}
               </p>
               <div class="about-card">
-                <p>• <strong>Стек</strong>: Rust (Tauri 2) + Svelte 5 + WebKit2GTK</p>
-                <p>• <strong>Стилизация</strong>: Чистая независимая архитектура (Clean Room Design)</p>
-                <p>• <strong>Интеграция</strong>: Поддержка тем Arch Linux GTK 3/4 и безопасный VNC-песочница</p>
+                <p>• <strong>{t("settings.about.runtime")}</strong>: Rust (Tauri 2) + Svelte 5 + WebKit2GTK</p>
+                <p>• <strong>{t("settings.about.os")}</strong>: Arch Linux, Cinnamon, AmneziaVPN</p>
+                <p>• {t("settings.about.developer_notes")}</p>
               </div>
             </section>
           {/if}
@@ -1295,7 +1340,7 @@
       <!-- Footer -->
       <footer class="modal-footer">
         <button class="close-done-btn" onclick={handleDone}>
-          Готово
+          {t("common.done")}
         </button>
       </footer>
     </div>
@@ -1602,6 +1647,68 @@
     background: var(--cortex-bg-card, #1b1e27);
     color: var(--cortex-fg-primary, #ffffff);
     border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.15));
+  }
+
+  /* LANGUAGE SELECTOR */
+  .lang-selector-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .lang-card {
+    background: var(--cortex-bg-card, #1b1e27);
+    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+  }
+
+  .lang-card:hover {
+    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
+    border-color: var(--cortex-accent, #3b82f6);
+  }
+
+  .lang-card.selected {
+    border-color: var(--cortex-accent, #3b82f6);
+    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.1));
+  }
+
+  .lang-flag {
+    font-size: 24px;
+    line-height: 1;
+    user-select: none;
+  }
+
+  .lang-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .lang-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--cortex-fg-primary, #ffffff);
+  }
+
+  .lang-sub {
+    font-size: 0.74rem;
+    color: var(--cortex-fg-muted, #94a3b8);
+  }
+
+  .lang-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   /* PRESETS GRID */
