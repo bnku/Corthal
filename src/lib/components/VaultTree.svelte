@@ -241,6 +241,14 @@
     font-weight: 600;
   }
 
+  .dir-item.has-selected-child {
+    color: var(--cortex-fg-primary, #f1f5f9);
+  }
+
+  .dir-item.has-selected-child > .chevron {
+    color: var(--cortex-accent, #38bdf8);
+  }
+
   .dir-item:hover .action-add-btn {
     opacity: 1;
   }

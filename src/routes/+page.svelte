@@ -95,6 +95,28 @@
     }
   }
 
+  let scrollTreeTimer: ReturnType<typeof setTimeout> | null = null;
+  function scrollTreeToSelected(smooth: boolean = true) {
+    if (scrollTreeTimer) clearTimeout(scrollTreeTimer);
+    scrollTreeTimer = setTimeout(() => {
+      const treeContainer = document.querySelector(".tree-container") as HTMLElement | null;
+      if (!treeContainer) return;
+      const selectedEl = treeContainer.querySelector(".file-item.selected, .dir-item.selected") as HTMLElement | null;
+      if (!selectedEl) return;
+
+      const containerRect = treeContainer.getBoundingClientRect();
+      const elRect = selectedEl.getBoundingClientRect();
+
+      if (elRect.top < containerRect.top) {
+        const offset = elRect.top - containerRect.top - 20;
+        treeContainer.scrollBy({ top: offset, behavior: smooth ? "smooth" : "auto" });
+      } else if (elRect.bottom > containerRect.bottom) {
+        const offset = elRect.bottom - containerRect.bottom + 20;
+        treeContainer.scrollBy({ top: offset, behavior: smooth ? "smooth" : "auto" });
+      }
+    }, 60);
+  }
+
   function handleToggleFolder(folderPath: string) {
     const next = new Set(expandedFolders);
     if (next.has(folderPath)) {
@@ -256,6 +278,13 @@
   $effect(() => {
     if (activeFilePath) {
       revealPathAncestors(activeFilePath);
+      if (!selectedTreeNode?.is_dir) {
+        selectedTreePath = activeFilePath;
+        if (vaultTree) {
+          selectedTreeNode = findNodeByPath(vaultTree, activeFilePath);
+        }
+        scrollTreeToSelected();
+      }
     }
   });
 
@@ -657,6 +686,13 @@
       paneRightActive = path;
       focusedPane = "right";
     }
+
+    selectedTreePath = path;
+    if (vaultTree) {
+      selectedTreeNode = findNodeByPath(vaultTree, path);
+    }
+    revealPathAncestors(path);
+    scrollTreeToSelected();
   }
 
   function findNoteInTree(node: VaultNode, target: string): string | null {
@@ -754,6 +790,17 @@
         }
       }
     }
+
+    const currentActive = isSplit && focusedPane === "right" ? paneRightActive : (paneLeftActive || paneRightActive);
+    if (currentActive) {
+      selectedTreePath = currentActive;
+      selectedTreeNode = vaultTree ? findNodeByPath(vaultTree, currentActive) : null;
+      revealPathAncestors(currentActive);
+      scrollTreeToSelected();
+    } else {
+      selectedTreePath = null;
+      selectedTreeNode = null;
+    }
   }
 
   async function saveNote(path?: string, silent = false) {
@@ -813,6 +860,17 @@
   function closeSplit() {
     isSplit = false;
     focusedPane = "left";
+  }
+
+  function handleFocusPane(pane: "left" | "right") {
+    focusedPane = pane;
+    const current = pane === "left" ? paneLeftActive : paneRightActive;
+    if (current) {
+      selectedTreePath = current;
+      selectedTreeNode = vaultTree ? findNodeByPath(vaultTree, current) : null;
+      revealPathAncestors(current);
+      scrollTreeToSelected();
+    }
   }
 
   function toggleCollapseAll() {
@@ -1360,7 +1418,7 @@
           saveFeedback={paneLeftActive && fileCache[paneLeftActive] ? fileCache[paneLeftActive].saveFeedback : false}
           {isSplit}
           canCloseSplit={false}
-          onFocusPane={() => (focusedPane = "left")}
+          onFocusPane={() => handleFocusPane("left")}
           onSelectTab={(p) => openNote(p, "left")}
           onCloseTab={(p) => closeTab("left", p)}
           onToggleEditing={(v) => (paneLeftEditing = v)}
@@ -1410,7 +1468,7 @@
             saveFeedback={paneRightActive && fileCache[paneRightActive] ? fileCache[paneRightActive].saveFeedback : false}
             {isSplit}
             canCloseSplit={true}
-            onFocusPane={() => (focusedPane = "right")}
+            onFocusPane={() => handleFocusPane("right")}
             onSelectTab={(p) => openNote(p, "right")}
             onCloseTab={(p) => closeTab("right", p)}
             onToggleEditing={(v) => (paneRightEditing = v)}
