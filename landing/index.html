@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Corthal — локальный второй мозг для Linux</title>
+  <meta name="description" content="Corthal — локальное Markdown-пространство для Linux. Обычные .md-файлы, секреты, зашифрованные вашим SSH-ключом прямо в тексте, и ИИ-ассистент, который их не видит.">
+  <meta name="theme-color" content="#0b0c0f">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232575fc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z'/%3E%3Cpath d='M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- SVG sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.6 6.5a3 3 0 0 0 .4-1.375"/><path d="M6 5.125A3 3 0 0 0 6.4 6.5"/><path d="M3.48 10.9a4 4 0 0 1 .58-.4"/><path d="M19.94 10.5a4 4 0 0 1 .58.4"/><path d="M6 18a4 4 0 0 1-1.97-.52"/><path d="M19.97 17.48A4 4 0 0 1 18 18"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></symbol>
+    <symbol id="i-package" viewBox="0 0 24 24"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="m2 2 20 20"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></symbol>
+  </defs>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a href="#top" class="brand" aria-label="Corthal">
+      <svg class="ic brand-ic"><use href="#i-brain"/></svg>
+      <span>Corthal</span>
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#files" data-ru="Файлы">Files</a>
+      <a href="#secrets" data-ru="Секреты">Secrets</a>
+      <a href="#assistant" data-ru="Ассистент">Assistant</a>
+      <a href="#editor" data-ru="Редактор">Editor</a>
+      <a href="#themes" data-ru="Темы">Themes</a>
+      <a href="#download" data-ru="Скачать">Download</a>
+    </nav>
+    <div class="nav-right">
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="ru" class="is-active">RU</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+      <a class="btn btn-ghost btn-sm" href="https://github.com/bnku/Corthal">
+        <svg class="ic"><use href="#i-github"/></svg><span>GitHub</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">
+        <span class="pill">v0.1.0</span>
+        <span data-ru="Для Linux · открытый код · MIT">For Linux · open source · MIT</span>
+      </p>
+      <h1 class="hero-title" data-ru="Второй мозг,<br>который хранит секреты.">A second brain<br>that keeps its secrets.</h1>
+      <p class="hero-lede" data-ru="Corthal — локальное Markdown-пространство для Linux. Заметки остаются обычными <code>.md</code>-файлами на вашем диске, пароли шифруются прямо в тексте вашим SSH-ключом, а встроенный ИИ-ассистент отвечает на вопросы, ни разу не увидев секрет в открытом виде.">
+        Corthal is a local-first Markdown workspace for Linux. Notes stay plain <code>.md</code> files on your disk, passwords are encrypted inline with your own SSH key, and the built-in AI assistant answers questions without ever seeing a plaintext secret.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#download">
+          <svg class="ic"><use href="#i-download"/></svg>
+          <span data-ru="Скачать для Linux">Download for Linux</span>
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/bnku/Corthal">
+          <svg class="ic"><use href="#i-github"/></svg><span data-ru="Исходный код">Source code</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="wrap wrap-wide">
+      <figure class="shot">
+        <div class="shot-bar">
+          <div class="theme-tabs" role="tablist" aria-label="Theme preview">
+            <button role="tab" class="theme-tab is-active" data-shot="img/hero.png" data-name="Charcoal Slate" style="--sw:#13161c;--sw2:#1b1e27">Charcoal Slate</button>
+            <button role="tab" class="theme-tab" data-shot="img/theme-violet.png" data-name="Twilight Violet" style="--sw:#110e1b;--sw2:#1e1930">Twilight Violet</button>
+            <button role="tab" class="theme-tab" data-shot="img/theme-pine.png" data-name="Pine Forest" style="--sw:#0d1411;--sw2:#17231e">Pine Forest</button>
+          </div>
+        </div>
+        <div class="shot-frame">
+          <img id="hero-shot" src="img/hero.png" width="1440" height="900"
+               alt="Corthal showing a hub tree, a Markdown runbook with masked encrypted secrets and a table, and the AI assistant answering with an encrypted secret widget">
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- FACTS STRIP -->
+  <section class="facts">
+    <div class="wrap facts-grid">
+      <div class="fact">
+        <span class="fact-k" data-ru="Формат">Format</span>
+        <span class="fact-v" data-ru="Обычные <code>.md</code>-файлы">Plain <code>.md</code> files</span>
+      </div>
+      <div class="fact">
+        <span class="fact-k" data-ru="Шифрование">Encryption</span>
+        <span class="fact-v"><code>age</code> + SSH ed25519</span>
+      </div>
+      <div class="fact">
+        <span class="fact-k" data-ru="Ядро">Core</span>
+        <span class="fact-v">Rust · Tauri v2</span>
+      </div>
+      <div class="fact">
+        <span class="fact-k" data-ru="Интерфейс">Interface</span>
+        <span class="fact-v">Svelte 5 · CodeMirror 6</span>
+      </div>
+      <div class="fact">
+        <span class="fact-k" data-ru="Лицензия">License</span>
+        <span class="fact-v">MIT</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 01 FILES -->
+  <section class="section" id="files">
+    <div class="wrap">
+      <header class="sec-head">
+        <span class="sec-num">01</span>
+        <h2 data-ru="Обычный Markdown.<br>Без базы данных и облака.">Plain Markdown.<br>No database, no cloud.</h2>
+        <p class="sec-lede" data-ru="Хранилище — это просто папка. Corthal читает и пишет файлы напрямую и следит за изменениями на диске, так что Git, rsync, grep и ваш любимый редактор продолжают работать как раньше.">
+          A vault is just a folder. Corthal reads and writes files directly and watches the disk for changes, so Git, rsync, grep and your favourite editor keep working exactly as before.
+        </p>
+      </header>
+
+      <div class="split">
+        <div class="panel panel-code">
+          <div class="panel-head">
+            <svg class="ic"><use href="#i-terminal"/></svg>
+            <span>~/dev/corthal-demo-vault</span>
+          </div>
+<pre class="tree"><span class="t-dir">00-Inbox/</span>
+└── Ideas.md
+<span class="t-dir">10-System/</span>
+├── Arch setup.md
+└── <span class="t-dir">Homelab/</span>
+    └── WireGuard gateway.md
+<span class="t-dir">20-Work/</span>
+└── <span class="t-dir">Atlas/</span>
+    └── Production runbook.md
+<span class="t-dir">30-Life/</span>
+└── Travel.md
+<span class="t-dir">40-Resources/</span>
+└── Reading list.md
+<span class="t-mute">.meta.json        </span><span class="t-cmt" data-ru="# иконки и цвета разделов"># hub icons &amp; colours</span></pre>
+        </div>
+
+        <div class="panel panel-img">
+          <div class="panel-head">
+            <svg class="ic"><use href="#i-folder"/></svg>
+            <span data-ru="То же хранилище в Corthal">The same vault in Corthal</span>
+          </div>
+          <div class="crop crop-tree"><img src="img/crop-tree.png" width="258" height="406" alt="Hub tree in Corthal: Inbox, System, Work, Life, Resources" loading="lazy"></div>
+        </div>
+      </div>
+
+      <div class="notes-grid">
+        <div class="note">
+          <h3 data-ru="Хабы вместо хаоса">Hubs, not chaos</h3>
+          <p data-ru="Разделы верхнего уровня — Inbox, System, Work, Life, Resources — получают собственные иконки и цвета из небольшого <code>.meta.json</code>. Числовые префиксы сохраняют порядок в любом файловом менеджере.">Top-level hubs — Inbox, System, Work, Life, Resources — get their own icon and colour from a small <code>.meta.json</code>. Numeric prefixes keep the order stable in any file manager.</p>
+        </div>
+        <div class="note">
+          <h3 data-ru="Связи между заметками">Linked thinking</h3>
+          <p data-ru="<code>[[wikilinks]]</code> с псевдонимами, кликабельные внутренние ссылки, вкладки и быстрый поиск по заметкам и тегам.">Aliased <code>[[wikilinks]]</code>, clickable internal links, tabs, and fast search across notes and tags.</p>
+        </div>
+        <div class="note">
+          <h3 data-ru="Никакой привязки">Zero lock-in</h3>
+          <p data-ru="Удалите Corthal завтра — останется та же папка с теми же файлами. Никаких закрытых форматов и аккаунтов.">Uninstall Corthal tomorrow and you keep the same folder of the same files. No proprietary format, no account.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 SECRETS -->
+  <section class="section section-alt" id="secrets">
+    <div class="wrap">
+      <header class="sec-head">
+        <span class="sec-num">02</span>
+        <h2 data-ru="Пароли живут рядом с контекстом.<br>Зашифрованными.">Secrets live next to their context.<br>Encrypted.</h2>
+        <p class="sec-lede" data-ru="Выделите значение и нажмите <kbd>Ctrl</kbd>&thinsp;<kbd>E</kbd>. Corthal шифрует его вашим публичным SSH-ключом с помощью <code>age</code> и заменяет компактным токеном. Ранбук остаётся читаемым — и его безопасно коммитить.">
+          Select a value and press <kbd>Ctrl</kbd>&thinsp;<kbd>E</kbd>. Corthal encrypts it to your public SSH key with <code>age</code> and replaces it with a compact token. The runbook stays readable — and safe to commit.
+        </p>
+      </header>
+
+      <ol class="steps">
+        <li class="step">
+          <div class="step-label"><span class="step-n">1</span><span data-ru="На диске">On disk</span></div>
+          <div class="panel panel-code">
+            <div class="panel-head"><svg class="ic"><use href="#i-file"/></svg><span>Production runbook.md</span></div>
+<pre class="md"><span class="m-h">## Credentials</span>
+
+- Postgres admin: <span class="m-tok">`🔒[enc:v1:YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IHNzaC1lZDI1NTE5IDNxVm5rZyBiUWpXMnJ2NkZLc0hO]`</span>
+- Grafana API key: <span class="m-tok">`🔒[enc:v1:YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IHNzaC1lZDI1NTE5IDNxVm5rZyA4dFhwTzFlbVlqcEZz]`</span></pre>
+          </div>
+          <p class="step-cap" data-ru="Обычный текст. Payload — это base64 от зашифрованного <code>age</code>-файла для получателя <code>ssh-ed25519</code>.">Plain text. The payload is a base64 <code>age</code> file addressed to an <code>ssh-ed25519</code> recipient.</p>
+        </li>
+        <li class="step">
+          <div class="step-label"><span class="step-n">2</span><span data-ru="В редакторе">In the editor</span></div>
+          <div class="panel panel-img">
+            <div class="crop crop-secrets"><img src="img/crop-secrets.png" width="352" height="128" alt="Masked secret widgets in the Corthal editor with reveal and copy buttons" loading="lazy"></div>
+          </div>
+          <p class="step-cap" data-ru="Токены превращаются в маскированные виджеты. Показать или скопировать — по клику, после ввода парольной фразы ключа.">Tokens render as masked widgets. Reveal or copy on click, after you unlock the private key.</p>
+        </li>
+      </ol>
+
+      <div class="spec-grid">
+        <div class="spec">
+          <svg class="ic ic-lg"><use href="#i-key"/></svg>
+          <h3 data-ru="Ваши существующие ключи">Keys you already have</h3>
+          <p data-ru="Используются ключи из <code>~/.ssh</code> — <code>ssh-ed25519</code> или <code>ssh-rsa</code>. Шифрование публичным ключом не требует пароля; расшифровка происходит локально.">Uses the keys in <code>~/.ssh</code> — <code>ssh-ed25519</code> or <code>ssh-rsa</code>. Encrypting to the public key needs no passphrase; decryption happens locally.</p>
+        </div>
+        <div class="spec">
+          <svg class="ic ic-lg"><use href="#i-lock"/></svg>
+          <h3 data-ru="Вы решаете, как долго">You decide how long</h3>
+          <ul class="policy">
+            <li><code>session</code> <span data-ru="— до выхода или ручной блокировки">— until exit or manual lock</span></li>
+            <li><code>timeout</code> <span data-ru="— стирается после простоя (15 мин по умолчанию)">— wiped after inactivity (15&nbsp;min default)</span></li>
+            <li><code>always</code> <span data-ru="— спрашивать каждый раз">— ask every time</span></li>
+          </ul>
+        </div>
+        <div class="spec">
+          <svg class="ic ic-lg"><use href="#i-eye-off"/></svg>
+          <h3 data-ru="Без лишних следов">Leaves little behind</h3>
+          <p data-ru="Парольная фраза затирается в памяти через <code>zeroize</code>. Поле ввода показывает случайное число точек, чтобы длину пароля нельзя было подсмотреть.">The passphrase is wiped from memory with <code>zeroize</code>. The input shows a randomised dot count, so its length can't be read over your shoulder.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 ASSISTANT -->
+  <section class="section" id="assistant">
+    <div class="wrap">
+      <header class="sec-head">
+        <span class="sec-num">03</span>
+        <h2 data-ru="ИИ-ассистент,<br>который работает вслепую.">An AI assistant<br>that works blind.</h2>
+        <p class="sec-lede" data-ru="Спросите о своих заметках — ассистент получит их как контекст, но секреты останутся зашифрованными токенами. Модель цитирует токен в ответе, а Corthal превращает его в виджет, который расшифровывается только на вашей машине.">
+          Ask about your notes and the assistant gets them as context — with secrets still encrypted. The model quotes the token back, and Corthal turns it into a widget that only decrypts on your machine.
+        </p>
+      </header>
+
+      <div class="split split-ai">
+        <ol class="flow">
+          <li>
+            <span class="flow-who" data-ru="Вы">You</span>
+            <p data-ru="«Какой пароль администратора Postgres у Atlas?»">“What is the Postgres admin password for Atlas?”</p>
+          </li>
+          <li>
+            <span class="flow-who">Corthal → LLM</span>
+            <p data-ru="Отправляет текст заметки как есть — с <code>🔒[enc:v1:…]</code> вместо пароля.">Sends the note as it is on disk — with <code>🔒[enc:v1:…]</code> in place of the password.</p>
+          </li>
+          <li>
+            <span class="flow-who">LLM → Corthal</span>
+            <p data-ru="Отвечает, возвращая тот же токен без изменений, и указывает источник.">Answers by returning the exact same token, plus a link to the source note.</p>
+          </li>
+          <li class="flow-local">
+            <span class="flow-who" data-ru="Только локально">Local only</span>
+            <p data-ru="Corthal отображает токен как маскированный виджет. Открытый текст появляется лишь после разблокировки вашего ключа.">Corthal renders the token as a masked widget. Plaintext appears only after you unlock your key.</p>
+          </li>
+        </ol>
+        <div class="panel panel-img panel-ai">
+          <div class="crop crop-assistant"><img src="img/crop-assistant.png" width="328" height="234" alt="Corthal assistant reply containing a masked encrypted secret widget and a source link" loading="lazy"></div>
+        </div>
+      </div>
+
+      <div class="providers">
+        <div class="provider">
+          <h3>Codex CLI</h3>
+          <p data-ru="Использует ваш авторизованный <code>codex</code> (вход через браузер) — подписка ChatGPT вместо оплаты за токены.">Uses your signed-in <code>codex</code> CLI (browser OAuth) — your ChatGPT plan instead of per-token billing.</p>
+        </div>
+        <div class="provider">
+          <h3>OpenRouter</h3>
+          <p data-ru="Один API-ключ для Claude, Gemini, DeepSeek и других — с поиском по живому каталогу моделей.">One API key for Claude, Gemini, DeepSeek and more, with search over the live model catalogue.</p>
+        </div>
+        <div class="provider">
+          <h3 data-ru="OpenAI-совместимый">OpenAI-compatible</h3>
+          <p data-ru="Любой сервер с <code>/v1/chat/completions</code>: Ollama, vLLM, LM Studio или собственный прокси. Полностью офлайн, если хотите.">Any <code>/v1/chat/completions</code> endpoint: Ollama, vLLM, LM Studio or your own proxy. Fully offline if you want it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 EDITOR -->
+  <section class="section section-alt" id="editor">
+    <div class="wrap">
+      <header class="sec-head">
+        <span class="sec-num">04</span>
+        <h2 data-ru="Живой Markdown,<br>который не мешает думать.">Live Markdown<br>that stays out of the way.</h2>
+        <p class="sec-lede" data-ru="Редактор на CodeMirror 6 скрывает разметку, пока курсор не на строке. Таблицы, код и секреты становятся интерактивными виджетами, а режим чтения даёт чистую типографику.">
+          Built on CodeMirror 6, the editor hides markup until your cursor is on the line. Tables, code and secrets become interactive widgets, and reading view gives you clean typography.
+        </p>
+      </header>
+
+      <div class="panel panel-img panel-table">
+        <div class="crop crop-table"><img src="img/crop-table.png" width="782" height="244" alt="A Markdown table rendered as an editable table widget in Corthal" loading="lazy"></div>
+      </div>
+
+      <div class="editor-grid">
+        <div class="note">
+          <h3 data-ru="Slash-меню">Slash menu</h3>
+          <p data-ru="Наберите <kbd>/</kbd>, чтобы вставить заголовок, список, чек-лист, цитату, блок кода, таблицу, разделитель — или новый секрет.">Type <kbd>/</kbd> to insert a heading, list, to-do, quote, code block, table, divider — or a new secret.</p>
+        </div>
+        <div class="note">
+          <h3 data-ru="Режимы Live, Source и Reading">Live, Source &amp; Reading</h3>
+          <p data-ru="Переключайтесь между гибридным редактированием, сырым исходником и режимом чтения с подсветкой кода через <code>highlight.js</code>.">Switch between hybrid editing, raw source and a reading view with <code>highlight.js</code> code highlighting.</p>
+        </div>
+        <div class="note">
+          <h3 data-ru="Клавиатура прежде всего">Keyboard first</h3>
+          <dl class="keys">
+            <div><dt><kbd>Ctrl</kbd> <kbd>B</kbd></dt><dd data-ru="жирный">bold</dd></div>
+            <div><dt><kbd>Ctrl</kbd> <kbd>I</kbd></dt><dd data-ru="курсив">italic</dd></div>
+            <div><dt><kbd>Ctrl</kbd> <kbd>K</kbd></dt><dd data-ru="ссылка">link</dd></div>
+            <div><dt><kbd>Ctrl</kbd> <kbd>E</kbd></dt><dd data-ru="зашифровать">encrypt</dd></div>
+            <div><dt><kbd>Ctrl</kbd> <kbd>S</kbd></dt><dd data-ru="сохранить">save</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 THEMES -->
+  <section class="section" id="themes">
+    <div class="wrap">
+      <header class="sec-head">
+        <span class="sec-num">05</span>
+        <h2 data-ru="Спокойные темы.<br>Или ваша системная GTK-тема.">Quiet themes.<br>Or your system GTK theme.</h2>
+        <p class="sec-lede" data-ru="11 продуманных палитр, 14 акцентных цветов и синхронизация с темой GTK&nbsp;3/4 — Corthal выглядит как часть вашего рабочего стола в Cinnamon или GNOME.">
+          11 carefully tuned palettes, 14 accent colours, and GTK&nbsp;3/4 theme sync so Corthal looks native on Cinnamon or GNOME.
+        </p>
+        <p class="theme-hint">
+          <span data-ru="Нажмите на палитру — лендинг примерит её.">Click a palette to try it on this page.</span>
+          <button type="button" class="theme-reset" id="theme-reset" hidden data-ru="Сбросить">Reset</button>
+        </p>
+      </header>
+
+      <div class="swatches" id="swatches"><!-- filled by app.js from real presets --></div>
+
+      <div class="accents">
+        <span class="accents-label" data-ru="Акценты">Accents</span>
+        <div class="accent-row" id="accents"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 STACK + NAME -->
+  <section class="section section-alt" id="stack">
+    <div class="wrap">
+      <div class="split split-stack">
+        <div>
+          <header class="sec-head sec-head-tight">
+            <span class="sec-num">06</span>
+            <h2 data-ru="Нативное ядро на Rust.">A native Rust core.</h2>
+            <p class="sec-lede" data-ru="Небольшое приложение на Tauri v2 с системным WebKit2GTK вместо встроенного Chromium.">A small Tauri v2 app on the system WebKit2GTK instead of a bundled Chromium.</p>
+          </header>
+          <dl class="stack">
+            <div><dt data-ru="Ядро">Core</dt><dd>Rust · Tauri v2</dd></div>
+            <div><dt data-ru="Криптография">Crypto</dt><dd><code>age</code> · <code>zeroize</code></dd></div>
+            <div><dt data-ru="Файлы">Files</dt><dd><code>notify</code> <span data-ru="— наблюдение за ФС">file watcher</span></dd></div>
+            <div><dt data-ru="Сеть">Network</dt><dd><code>reqwest</code> · <code>tokio</code> <span data-ru="— SSE-стриминг">SSE streaming</span></dd></div>
+            <div><dt data-ru="Интерфейс">UI</dt><dd>Svelte 5 · SvelteKit · TypeScript</dd></div>
+            <div><dt data-ru="Редактор">Editor</dt><dd>CodeMirror 6 · marked · highlight.js</dd></div>
+            <div><dt data-ru="Языки">Languages</dt><dd>Русский · English</dd></div>
+          </dl>
+        </div>
+        <aside class="name-card">
+          <p class="name-k" data-ru="Откуда название">About the name</p>
+          <p class="name-word"><b>Cor</b>tex <span>+</span> <b>Thal</b>amus</p>
+          <p data-ru="<b>Кора</b> мозга хранит долговременные, структурированные знания. <b>Таламус</b> — диспетчер, который направляет входящие сигналы в нужные отделы, как хабы направляют заметки по разделам. А ещё название созвучно слову <i>portal</i> — единая точка входа в ваше личное пространство.">
+            The <b>cortex</b> holds long-term, structured knowledge. The <b>thalamus</b> routes incoming signals to the right region — the way hubs route notes into sections. It also rhymes with <i>portal</i>: one way into your private space.
+          </p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 DOWNLOAD -->
+  <section class="section" id="download">
+    <div class="wrap">
+      <header class="sec-head">
+        <span class="sec-num">07</span>
+        <h2 data-ru="Скачать Corthal 0.1.0">Download Corthal 0.1.0</h2>
+        <p class="sec-lede" data-ru="Готовые сборки для Linux (x86_64). Выберите пакет под свой дистрибутив или скачайте отдельный нативный бинарник.">
+          Prebuilt packages for Linux (x86_64). Pick the package for your distribution or grab the standalone native binary.
+        </p>
+      </header>
+
+      <div class="dl-grid">
+        <article class="dl-card">
+          <div class="dl-top">
+            <div>
+              <h3>Debian · Ubuntu</h3>
+              <span class="dl-sub" data-ru="Linux Mint, Pop!_OS и производные">Linux Mint, Pop!_OS &amp; derivatives</span>
+            </div>
+            <span class="dl-badge">.deb · 5.7 MB</span>
+          </div>
+          <p class="dl-desc" data-ru="Системный пакет с ярлыком приложения и иконкой. Использует системный WebKit2GTK&nbsp;4.1.">
+            System package with desktop entry and icon. Uses the system WebKit2GTK&nbsp;4.1 runtime.
+          </p>
+          <a class="btn btn-primary dl-btn" href="https://github.com/bnku/Corthal/releases/download/v0.1.0/corthal_0.1.0_amd64.deb">
+            <svg class="ic"><use href="#i-download"/></svg>
+            <span>corthal_0.1.0_amd64.deb</span>
+          </a>
+          <div class="dl-cmd">
+            <code id="cmd-deb">sudo apt install ./corthal_0.1.0_amd64.deb</code>
+            <button type="button" class="copy-inline" data-copy="cmd-deb" aria-label="Copy">
+              <svg class="ic"><use href="#i-copy"/></svg>
+            </button>
+          </div>
+        </article>
+
+        <article class="dl-card">
+          <div class="dl-top">
+            <div>
+              <h3>AppImage</h3>
+              <span class="dl-sub" data-ru="Любой дистрибутив Linux">Any Linux distribution</span>
+            </div>
+            <span class="dl-badge">AppImage · 102 MB</span>
+          </div>
+          <p class="dl-desc" data-ru="Автономный образ со всеми зависимостями внутри. Запускается сразу без установки.">
+            Self-contained image with all dependencies bundled. Runs directly without installation.
+          </p>
+          <a class="btn btn-primary dl-btn" href="https://github.com/bnku/Corthal/releases/download/v0.1.0/corthal_0.1.0_amd64.AppImage">
+            <svg class="ic"><use href="#i-download"/></svg>
+            <span>corthal_0.1.0_amd64.AppImage</span>
+          </a>
+          <div class="dl-cmd">
+            <code id="cmd-appimage">chmod +x corthal_0.1.0_amd64.AppImage &amp;&amp; ./corthal_0.1.0_amd64.AppImage</code>
+            <button type="button" class="copy-inline" data-copy="cmd-appimage" aria-label="Copy">
+              <svg class="ic"><use href="#i-copy"/></svg>
+            </button>
+          </div>
+        </article>
+
+        <article class="dl-card">
+          <div class="dl-top">
+            <div>
+              <h3 data-ru="Бинарник x86_64">Binary x86_64</h3>
+              <span class="dl-sub" data-ru="Arch Linux, Fedora, ручная установка">Arch Linux, Fedora, manual install</span>
+            </div>
+            <span class="dl-badge">.tar.gz · 5.5 MB</span>
+          </div>
+          <p class="dl-desc" data-ru="Чистый скомпилированный бинарник без обёрток (требуется пакет <code>webkit2gtk-4.1</code>).">
+            Standalone compiled ELF binary without wrappers (requires <code>webkit2gtk-4.1</code>).
+          </p>
+          <a class="btn btn-primary dl-btn" href="https://github.com/bnku/Corthal/releases/download/v0.1.0/corthal_0.1.0_linux_x86_64.tar.gz">
+            <svg class="ic"><use href="#i-download"/></svg>
+            <span>corthal_0.1.0_linux_x86_64.tar.gz</span>
+          </a>
+          <div class="dl-cmd">
+            <code id="cmd-bin">tar -xzf corthal_0.1.0_linux_x86_64.tar.gz &amp;&amp; ./corthal</code>
+            <button type="button" class="copy-inline" data-copy="cmd-bin" aria-label="Copy">
+              <svg class="ic"><use href="#i-copy"/></svg>
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <div class="dl-meta">
+        <a class="dl-link" href="https://github.com/bnku/Corthal/releases/tag/v0.1.0">
+          <svg class="ic"><use href="#i-package"/></svg>
+          <span data-ru="Страница релиза v0.1.0 на GitHub">Release v0.1.0 on GitHub</span>
+        </a>
+        <span class="dl-sep">·</span>
+        <a class="dl-link" href="https://github.com/bnku/Corthal/releases/download/v0.1.0/corthal-linux-x86_64" data-ru="Прямой ELF-бинарник (12.1 MB)">Raw ELF binary (12.1 MB)</a>
+        <span class="dl-sep">·</span>
+        <a class="dl-link" href="https://github.com/bnku/Corthal/releases/download/v0.1.0/SHA256SUMS.txt">SHA256SUMS.txt</a>
+      </div>
+
+      <p class="fine" data-ru="На NVIDIA с проприетарным драйвером Corthal сам выставляет <code>WEBKIT_DISABLE_DMABUF_RENDERER=1</code>, чтобы избежать пустого окна WebKit2GTK.">On NVIDIA's proprietary driver Corthal sets <code>WEBKIT_DISABLE_DMABUF_RENDERER=1</code> itself to avoid a blank WebKit2GTK window.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <a href="#top" class="brand brand-sm"><svg class="ic brand-ic"><use href="#i-brain"/></svg><span>Corthal</span></a>
+    <span class="footer-meta" data-ru="Лицензия MIT · Сделано для Linux">MIT licensed · Made for Linux</span>
+    <a class="footer-link" href="https://github.com/bnku/Corthal">github.com/bnku/Corthal</a>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
