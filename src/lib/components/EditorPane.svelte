@@ -476,10 +476,49 @@
     };
   }
 
+  let tabsScrollArea: HTMLElement | undefined = $state();
+
+  function scrollActiveTabIntoView(smooth: boolean = true) {
+    if (!tabsScrollArea) return;
+    const activeTabEl = tabsScrollArea.querySelector(".editor-tab.active") as HTMLElement | null;
+    if (!activeTabEl) return;
+
+    const containerRect = tabsScrollArea.getBoundingClientRect();
+    const tabRect = activeTabEl.getBoundingClientRect();
+
+    if (tabRect.left < containerRect.left) {
+      const offset = tabRect.left - containerRect.left - 24;
+      tabsScrollArea.scrollBy({
+        left: offset,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    } else if (tabRect.right > containerRect.right) {
+      const offset = tabRect.right - containerRect.right + 24;
+      tabsScrollArea.scrollBy({
+        left: offset,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    }
+  }
+
+  $effect(() => {
+    const currentPath = activePath;
+    const currentTabsCount = tabs.length;
+
+    if (currentPath && currentTabsCount > 0) {
+      requestAnimationFrame(() => {
+        scrollActiveTabIntoView(true);
+      });
+    }
+  });
+
   function handleTabClick(path: string, e: MouseEvent) {
     e.stopPropagation();
     onFocusPane();
     onSelectTab(path);
+    requestAnimationFrame(() => {
+      scrollActiveTabIntoView(true);
+    });
   }
 
   function handleCloseTab(path: string, e: MouseEvent) {
@@ -529,7 +568,7 @@
 >
   <!-- TAB BAR -->
   <div class="tabs-header-bar">
-    <div class="tabs-scroll-area" onwheel={handleTabsWheel}>
+    <div class="tabs-scroll-area" bind:this={tabsScrollArea} onwheel={handleTabsWheel}>
       {#each tabs as tab (tab.path)}
         {@const isActive = tab.path === activePath}
         <div
@@ -578,12 +617,12 @@
         <!-- Insert Secret Button (visible when markdown file is open) -->
         {#if isMarkdown}
           <button
-            class="pane-action-btn secret-btn"
+            class="pane-action-btn secret-btn icon-only"
             title="Зашифровать и вставить секрет (Ctrl+E)"
+            aria-label="Зашифровать секрет"
             onclick={onOpenSecretModal}
           >
-            <Icon name="lock" size={12} color="#f59e0b" />
-            <span class="btn-text">Секрет</span>
+            <Icon name="lock" size={13} color="#f59e0b" />
           </button>
         {/if}
 
@@ -594,19 +633,19 @@
               class="mode-btn"
               class:active={!isEditing}
               onclick={() => onToggleEditing(false)}
-              title="Живой просмотр (Live Preview) — редактирование с рендерингом на лету"
+              title="Живой просмотр (Live Preview) — визуальное редактирование на лету"
+              aria-label="Живой просмотр"
             >
-              <Icon name="sparkles" size={12} />
-              <span class="btn-text">Живой просмотр</span>
+              <Icon name="eye" size={13} />
             </button>
             <button
               class="mode-btn"
               class:active={isEditing}
               onclick={() => onToggleEditing(true)}
               title="Исходный код Markdown с номерами строк"
+              aria-label="Исходный код Markdown"
             >
-              <Icon name="code" size={12} />
-              <span class="btn-text">Исходник</span>
+              <Icon name="code" size={13} />
             </button>
           {:else}
             <button
@@ -614,18 +653,18 @@
               class:active={!isEditing}
               onclick={() => onToggleEditing(false)}
               title="Режим просмотра кода"
+              aria-label="Режим просмотра кода"
             >
-              <Icon name="eye" size={12} />
-              <span class="btn-text">Просмотр</span>
+              <Icon name="eye" size={13} />
             </button>
             <button
               class="mode-btn"
               class:active={isEditing}
               onclick={() => onToggleEditing(true)}
               title="Режим правки кода"
+              aria-label="Режим правки кода"
             >
-              <Icon name="file-edit" size={12} />
-              <span class="btn-text">Правка</span>
+              <Icon name="file-edit" size={13} />
             </button>
           {/if}
         </div>
@@ -984,6 +1023,7 @@
   .pane-action-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
     padding: 4px 7px;
     height: 24px;
@@ -995,6 +1035,11 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.12s ease;
+  }
+
+  .pane-action-btn.icon-only {
+    width: 24px;
+    padding: 0;
   }
 
   .pane-action-btn:hover {
@@ -1022,6 +1067,7 @@
   /* MODE TOGGLE (View / Edit) */
   .mode-toggle-group {
     display: inline-flex;
+    align-items: center;
     background: var(--cortex-bg-input, rgba(0, 0, 0, 0.25));
     border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
     border-radius: 4px;
@@ -1032,14 +1078,14 @@
   .mode-btn {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 7px;
+    justify-content: center;
+    width: 24px;
+    height: 20px;
+    padding: 0;
     background: transparent;
     border: none;
     border-radius: 3px;
     color: var(--cortex-fg-muted, #94a3b8);
-    font-size: 0.7rem;
-    font-weight: 500;
     cursor: pointer;
     transition: all 0.12s;
   }
@@ -1051,11 +1097,6 @@
   .mode-btn.active {
     background: var(--cortex-bg-card, rgba(255, 255, 255, 0.12));
     color: var(--cortex-fg-primary, #ffffff);
-    font-weight: 600;
-  }
-
-  .btn-text {
-    font-size: 0.72rem;
   }
 
   /* PANE CONTENT BODY */
