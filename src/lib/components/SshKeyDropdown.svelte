@@ -123,7 +123,7 @@
         <span style="color: #f87171;">
           {t("ssh_dropdown.lock_btn")}
           {#if sessionStatus.remaining_seconds != null}
-            ({Math.ceil(sessionStatus.remaining_seconds / 60)} {t("common.lines").includes("строк") ? "мин" : "min"})
+            ({Math.ceil(sessionStatus.remaining_seconds / 60)} {t("common.min_short")})
           {/if}
         </span>
       </button>

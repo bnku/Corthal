@@ -86,7 +86,7 @@
       folderName = "";
       onClose();
     } catch (err: any) {
-      errorMessage = "Ошибка создания директории: " + err;
+      errorMessage = t("modals.new_folder_error") + err;
     } finally {
       isCreating = false;
     }
@@ -123,35 +123,35 @@
 
       <div class="modal-body">
         <div class="path-badge">
-          Внутри: <code>{parentFolder || "Корень базы (knowledge/)"}</code>
+          {t("modals.new_folder_inside")} <code>{parentFolder || t("modals.new_folder_root")}</code>
         </div>
 
         <!-- 1. Title -->
-        <label for="new-folder-title" class="input-label">Человекочитаемое название:</label>
+        <label for="new-folder-title" class="input-label">{t("folder_settings.name_label")}</label>
         <input
           id="new-folder-title"
           bind:this={titleInput}
           type="text"
           class="text-input"
           bind:value={folderTitle}
-          placeholder="Например: Недвижимость или Питомцы"
+          placeholder={t("modals.new_folder_title_placeholder")}
           autofocus
         />
 
         <!-- 2. Folder directory name / slug -->
-        <label for="new-folder-name" class="input-label">Имя каталога на диске:</label>
+        <label for="new-folder-name" class="input-label">{t("modals.new_folder_disk_name")}</label>
         <input
           id="new-folder-name"
           type="text"
           class="text-input slug-input"
           bind:value={folderName}
-          placeholder="Real-Estate или Pets"
+          placeholder={t("modals.new_folder_disk_placeholder")}
         />
 
         <!-- 3. Icon Picker -->
         <div class="icon-picker-section">
           <div class="section-row">
-            <span class="input-label">Иконка раздела:</span>
+            <span class="input-label">{t("folder_settings.icon_label")}</span>
             <div class="preview-badge">
               <Icon name={selectedIcon} size={18} color={selectedColor} />
               <span class="preview-name">{selectedIcon}</span>
@@ -162,7 +162,7 @@
             type="text"
             class="icon-search-input"
             bind:value={iconFilter}
-            placeholder="Поиск иконки..."
+            placeholder={t("folder_settings.icon_search_placeholder")}
           />
 
           <div class="icons-grid">
@@ -183,7 +183,7 @@
         <!-- 4. Color & Order -->
         <div class="two-cols">
           <div>
-            <span class="input-label">Цвет:</span>
+            <span class="input-label">{t("folder_settings.color_label")}</span>
             <div class="color-palette">
               {#each COLOR_PALETTE as colorItem}
                 <button
@@ -199,7 +199,7 @@
           </div>
 
           <div>
-            <label for="new-folder-order" class="input-label">Порядок:</label>
+            <label for="new-folder-order" class="input-label">{t("folder_settings.order_label")}</label>
             <input
               id="new-folder-order"
               type="number"
@@ -212,12 +212,12 @@
         </div>
 
         <!-- 5. Description -->
-        <label for="new-folder-desc" class="input-label">Описание назначения (опционально):</label>
+        <label for="new-folder-desc" class="input-label">{t("folder_settings.desc_label")}</label>
         <textarea
           id="new-folder-desc"
           class="text-input desc-textarea"
           bind:value={description}
-          placeholder="Краткое описание раздела..."
+          placeholder={t("folder_settings.desc_placeholder")}
           rows="2"
         ></textarea>
 

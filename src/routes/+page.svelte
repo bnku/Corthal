@@ -331,7 +331,7 @@
       case "cs": return "C#";
       case "go": return "Go";
       case "sql": return "SQL";
-      default: return ext ? ext.toUpperCase() : "Текст";
+      default: return ext ? ext.toUpperCase() : t("common.text_format");
     }
   }
 
@@ -365,7 +365,7 @@
   });
 
   let activeFileBreadcrumbs = $derived.by<string>(() => {
-    if (!activeFilePath) return "База знаний";
+    if (!activeFilePath) return t("header.knowledge_base");
     return activeFilePath.split("/").join("  ›  ");
   });
 
@@ -445,7 +445,7 @@
 
   // Dynamic hubs derived from root directories in vaultTree
   let hubs = $derived.by<HubItem[]>(() => {
-    const list: HubItem[] = [{ id: "all", name: "Все разделы", icon: "globe" }];
+    const list: HubItem[] = [{ id: "all", name: t("header.all_sections"), icon: "globe" }];
     if (!vaultTree) return list;
 
     const dirChildren = vaultTree.children.filter((c) => c.is_dir);
@@ -604,7 +604,11 @@
 
   function handleRequestChangeSshKey(key: SshKeyInfo) {
     pendingSshKey = key;
-    confirmKeyMessage = `Вы действительно хотите привязать SSH-ключ «${key.filename}» (${key.key_type}) к базе знаний «${activeVault?.name || "knowledge"}»?\n\nСекреты, зашифрованные старым ключом, нельзя будет расшифровать новым без повторного локального шифрования. Настройка сохранится в .meta.json текущей базы.`;
+    confirmKeyMessage = t("modals.confirm_change_ssh_key", {
+      filename: key.filename,
+      type: key.key_type,
+      vault: activeVault?.name || "knowledge",
+    });
     isConfirmKeyModalOpen = true;
   }
 
@@ -663,7 +667,7 @@
     } catch (err: any) {
       console.error("Failed to read note:", err);
       const fallback: FileCacheItem = {
-        content: `# Ошибка чтения файла\n\n${err}`,
+        content: `# ${t("common.read_error_title")}\n\n${err}`,
         originalContent: "",
         title: path.split("/").pop() || path,
         isSaving: false,
@@ -836,7 +840,7 @@
       loadVault();
     } catch (err: any) {
       if (!silent) {
-        alert("Ошибка сохранения: " + err);
+        alert(t("common.save_error") + err);
       } else {
         console.error("Autosave error:", err);
       }
@@ -1003,7 +1007,7 @@
       await loadVault();
     } catch (err: any) {
       console.error("Failed to delete path:", err);
-      alert("Ошибка при удалении: " + err);
+      alert(t("common.delete_error") + err);
     }
   }
 

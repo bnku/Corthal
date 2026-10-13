@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
 
   export interface SelectOption {
     value: string | number;
@@ -25,7 +26,7 @@
   let {
     value = $bindable(""),
     options = [],
-    placeholder = "Выберите вариант...",
+    placeholder,
     disabled = false,
     class: className = "",
     id,
@@ -227,7 +228,7 @@
           {selectedOption.label}
         </span>
       {:else}
-        <span class="trigger-placeholder">{placeholder}</span>
+        <span class="trigger-placeholder">{placeholder || t("common.select_option")}</span>
       {/if}
     </div>
 
@@ -245,7 +246,7 @@
       role="listbox"
     >
       {#if options.length === 0}
-        <div class="select-empty">Нет доступных вариантов</div>
+        <div class="select-empty">{t("common.no_options")}</div>
       {:else}
         {#each options as opt}
           {@const isSelected = opt.value === value}

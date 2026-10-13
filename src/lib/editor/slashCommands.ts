@@ -22,7 +22,7 @@ const COMMAND_DEFS: Omit<SlashCommandItem, "title" | "description">[] = [
   {
     id: "table",
     icon: "table",
-    template: "| Колонка 1 | Колонка 2 |\n|-----------|-----------|\n| Текст     | Значение  |\n",
+    template: "",
   },
   { id: "divider", icon: "minus", template: "\n---\n\n" },
   { id: "secret", icon: "lock", template: "", requiresSecretModal: true },
@@ -31,6 +31,9 @@ const COMMAND_DEFS: Omit<SlashCommandItem, "title" | "description">[] = [
 export const SLASH_COMMANDS: SlashCommandItem[] = COMMAND_DEFS.map((cmd) => {
   return {
     ...cmd,
+    get template(): string {
+      return cmd.id === "table" ? t("live_editor.table_template") : cmd.template;
+    },
     get title(): string {
       return t(`live_editor.commands.${cmd.id}_title`);
     },

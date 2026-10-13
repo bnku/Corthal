@@ -44,7 +44,7 @@
 
   // Select options for CustomSelect components
   let gtkThemeOptions = $derived<SelectOption[]>([
-    { value: "", label: "-- Не использовать GTK тему (по умолчанию) --" },
+    { value: "", label: t("settings.appearance.gtk_none_option") },
     ...themeStore.installedGtkThemes.map((gtk) => ({
       value: gtk.path,
       label: `${gtk.name} (${gtk.is_dark ? "Dark" : "Light"})`,
@@ -60,30 +60,30 @@
     }))
   );
 
-  const passphraseTimeoutOptions: SelectOption[] = [
-    { value: 5, label: "5 минут" },
-    { value: 10, label: "10 минут" },
-    { value: 15, label: "15 минут (по умолчанию)" },
-    { value: 30, label: "30 минут" },
-    { value: 60, label: "1 час" },
-    { value: 120, label: "2 часа" },
-  ];
+  let passphraseTimeoutOptions = $derived<SelectOption[]>([
+    { value: 5, label: t("settings.security.timeout_5m") },
+    { value: 10, label: t("settings.security.timeout_10m") },
+    { value: 15, label: t("settings.security.timeout_15m") },
+    { value: 30, label: t("settings.security.timeout_30m") },
+    { value: 60, label: t("settings.security.timeout_1h") },
+    { value: 120, label: t("settings.security.timeout_2h") },
+  ]);
 
-  const REASONING_EFFORT_OPTIONS: SelectOption[] = [
-    { value: "auto", label: "auto (По умолчанию / Без параметра)" },
-    { value: "low", label: "low (Низкий)" },
-    { value: "medium", label: "medium (Средний)" },
-    { value: "high", label: "high (Высокий)" },
-    { value: "xhigh", label: "xhigh / sky (Максимальный)" },
-  ];
+  let REASONING_EFFORT_OPTIONS = $derived<SelectOption[]>([
+    { value: "auto", label: t("settings.assistant_tab.effort_auto_default") },
+    { value: "low", label: t("settings.assistant_tab.effort_low") },
+    { value: "medium", label: t("settings.assistant_tab.effort_medium") },
+    { value: "high", label: t("settings.assistant_tab.effort_high") },
+    { value: "xhigh", label: t("settings.assistant_tab.effort_xhigh") },
+  ]);
 
-  const CODEX_REASONING_OPTIONS: SelectOption[] = [
-    { value: "auto", label: "auto (По умолчанию)" },
-    { value: "low", label: "low (Низкий)" },
-    { value: "medium", label: "medium (Средний)" },
-    { value: "high", label: "high (Высокий)" },
-    { value: "xhigh", label: "xhigh / sky (Максимальный)" },
-  ];
+  let CODEX_REASONING_OPTIONS = $derived<SelectOption[]>([
+    { value: "auto", label: t("settings.assistant_tab.effort_auto_codex") },
+    { value: "low", label: t("settings.assistant_tab.effort_low") },
+    { value: "medium", label: t("settings.assistant_tab.effort_medium") },
+    { value: "high", label: t("settings.assistant_tab.effort_high") },
+    { value: "xhigh", label: t("settings.assistant_tab.effort_xhigh") },
+  ]);
 
   // Security config & session status
   let securityConfig = $state<SecurityConfig>({
@@ -96,9 +96,9 @@
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     if (m > 0) {
-      return `${m} мин ${s} сек`;
+      return `${m} ${t("common.min_short")} ${s} ${t("common.sec_short")}`;
     }
-    return `${s} сек`;
+    return `${s} ${t("common.sec_short")}`;
   }
 
   async function loadSecuritySettings() {
@@ -286,7 +286,7 @@
       });
       openrouterModels = list;
     } catch (err: any) {
-      openrouterFetchError = err?.toString() || "Не удалось загрузить модели с OpenRouter";
+      openrouterFetchError = err?.toString() || t("settings.assistant_tab.fetch_openrouter_error");
     } finally {
       isOpenrouterLoading = false;
     }
@@ -302,7 +302,7 @@
       });
       openaiModels = list;
     } catch (err: any) {
-      openaiFetchError = err?.toString() || "Не удалось загрузить модели с эндпоинта";
+      openaiFetchError = err?.toString() || t("settings.assistant_tab.fetch_endpoint_error");
     } finally {
       isOpenaiLoading = false;
     }
@@ -478,24 +478,24 @@
                   <div class="preview-sidebar">
                     <div class="preview-bar-item active">
                       <span class="p-icon"></span>
-                      <span>Заметки</span>
+                      <span>{t("settings.appearance.preview_notes")}</span>
                     </div>
                     <div class="preview-bar-item">
                       <span class="p-icon"></span>
-                      <span>Проекты</span>
+                      <span>{t("settings.appearance.preview_projects")}</span>
                     </div>
                   </div>
                   <div class="preview-main">
                     <div class="preview-doc-header">
-                      <h4>Архитектура второго мозга</h4>
-                      <span class="preview-badge">Активно</span>
+                      <h4>{t("settings.appearance.preview_doc_title")}</h4>
+                      <span class="preview-badge">{t("settings.appearance.preview_badge")}</span>
                     </div>
                     <p class="preview-text">
-                      Локальная база знаний Corthal поддерживает динамические CSS токены, чистые цветовые палитры и нативную интеграцию с Linux GTK.
+                      {t("settings.appearance.preview_text")}
                     </p>
                     <div class="preview-actions">
-                      <button class="preview-btn primary">Действие</button>
-                      <button class="preview-btn secondary">Справка</button>
+                      <button class="preview-btn primary">{t("settings.appearance.preview_btn_primary")}</button>
+                      <button class="preview-btn secondary">{t("settings.appearance.preview_btn_secondary")}</button>
                     </div>
                   </div>
                 </div>
@@ -533,10 +533,10 @@
                       <div class="preset-name-row">
                         <span class="preset-name">{preset.name}</span>
                         {#if preset.category === "light"}
-                          <span class="category-badge">Светлая</span>
+                          <span class="category-badge">{t("theme_dropdown.light_category")}</span>
                         {/if}
                       </div>
-                      <span class="preset-desc">{preset.description}</span>
+                      <span class="preset-desc">{t(`themes.presets.${preset.id}`)}</span>
                     </div>
                     {#if themeStore.config.presetId === preset.id && !themeStore.config.gtkThemePath}
                       <div class="preset-check">
@@ -562,7 +562,7 @@
                       class="accent-chip"
                       class:selected={themeStore.config.accentId === accent.id && !themeStore.config.customAccentHex}
                       onclick={() => handleAccentSelect(accent.id)}
-                      title="{accent.name} ({accent.hex})"
+                      title="{t(`themes.accents.${accent.id}`)} ({accent.hex})"
                     >
                       <span class="color-dot" style="background: {accent.hex};">
                         {#if themeStore.config.accentId === accent.id && !themeStore.config.customAccentHex}
@@ -570,7 +570,7 @@
                         {/if}
                       </span>
                       <span class="accent-label">
-                        {accent.name}
+                        {t(`themes.accents.${accent.id}`)}
                         {#if accent.isSystem}
                           <span class="sys-tag">GTK</span>
                         {/if}
@@ -654,9 +654,9 @@
               <!-- Follow system theme toggle -->
               <div class="toggle-row" style="margin-top: 14px;">
                 <div class="toggle-text">
-                  <span class="toggle-label">Следовать системному режиму</span>
+                  <span class="toggle-label">{t("settings.appearance.follow_system_label")}</span>
                   <span class="toggle-sub">
-                    Автоматически переключаться между темным и светлым оформлением вслед за системой
+                    {t("settings.appearance.follow_system_desc")}
                   </span>
                 </div>
                 <button
@@ -665,7 +665,7 @@
                   onclick={() => themeStore.setUseSystemTheme(!themeStore.config.useSystemTheme)}
                   role="switch"
                   aria-checked={themeStore.config.useSystemTheme}
-                  aria-label="Следовать системному режиму"
+                  aria-label={t("settings.appearance.follow_system_label")}
                 >
                   <span class="toggle-handle"></span>
                 </button>
@@ -673,13 +673,13 @@
 
               <!-- GTK Theme list -->
               <div class="gtk-picker-box">
-                <span class="gtk-picker-label">Установленные темы GTK в системе:</span>
+                <span class="gtk-picker-label">{t("settings.appearance.installed_gtk_themes")}</span>
                 <div class="gtk-picker-controls">
                   <div class="gtk-select-wrapper">
                     <CustomSelect
                       options={gtkThemeOptions}
                       bind:value={selectedGtkPath}
-                      placeholder="-- Выберите GTK тему --"
+                      placeholder={t("settings.appearance.gtk_select_placeholder")}
                     />
                   </div>
                   <button
@@ -688,16 +688,16 @@
                     onclick={handleApplyInstalledGtk}
                   >
                     {#if themeStore.isLoadingGtk}
-                      Загрузка...
+                      {t("common.loading")}
                     {:else}
-                      Применить GTK
+                      {t("settings.appearance.apply_gtk")}
                     {/if}
                   </button>
                 </div>
 
                 <!-- Custom folder import -->
                 <div class="custom-gtk-import">
-                  <span class="gtk-picker-label">Или укажите путь к любой папке с темой (например, ~/.themes/MyTheme):</span>
+                  <span class="gtk-picker-label">{t("settings.appearance.gtk_custom_folder_label")}</span>
                   <div class="gtk-picker-controls">
                     <input
                       type="text"
@@ -710,7 +710,7 @@
                       disabled={!customGtkInput.trim() || themeStore.isLoadingGtk}
                       onclick={handleApplyCustomGtk}
                     >
-                      Импортировать
+                      {t("common.import")}
                     </button>
                   </div>
                 </div>
@@ -726,7 +726,7 @@
               <div class="security-card">
                 <div class="sec-grid-info">
                   <div class="sec-item">
-                    <span class="sec-label">Текущая база знаний:</span>
+                    <span class="sec-label">{t("settings.security.current_vault")}</span>
                     <div class="vault-sec-badge">
                       <span class="vault-sec-name">📁 {activeVault?.name || "knowledge"}</span>
                       <span class="vault-sec-path">({activeVault?.display_path || "~/knowledge"})</span>
@@ -746,13 +746,13 @@
                 </div>
 
                 <div class="sec-item">
-                  <span class="sec-label">Сменить SSH-ключ для текущей базы:</span>
+                  <span class="sec-label">{t("settings.security.change_ssh_key")}</span>
                   <div class="ssh-selector-row">
                     <div class="ssh-select-wrapper">
                       <CustomSelect
                         options={sshKeyOptions}
                         bind:value={selectedKeyPath}
-                        placeholder="Выберите SSH-ключ..."
+                        placeholder={t("settings.security.select_ssh_key_placeholder")}
                       />
                     </div>
                     <button
@@ -764,21 +764,21 @@
                         if (targetKey) onRequestChangeSshKey?.(targetKey);
                       }}
                     >
-                      Применить
+                      {t("common.apply")}
                     </button>
                   </div>
-                  <span class="sec-note">При смене ключа будет запрошено подтверждение, а файл .meta.json обновится.</span>
+                  <span class="sec-note">{t("settings.security.change_key_note")}</span>
                 </div>
 
                 <div class="sec-grid-status">
                   <div class="sec-item">
-                    <span class="sec-label">Формат токенов шифрования:</span>
+                    <span class="sec-label">{t("settings.security.token_format")}</span>
                     <code class="sec-code">🔒[enc:v1:AGE-ENCRYPTED-DATA]</code>
                   </div>
 
                   <div class="sec-item">
-                    <span class="sec-label">Статус хранилища:</span>
-                    <span class="sec-badge ok">✓ Защищено локальным ключом</span>
+                    <span class="sec-label">{t("settings.security.vault_status")}</span>
+                    <span class="sec-badge ok">{t("settings.security.vault_protected")}</span>
                   </div>
                 </div>
               </div>
@@ -809,7 +809,7 @@
                     <div class="policy-option-info">
                       <span class="policy-title">{t("settings.security.policy_session")}</span>
                       <span class="policy-desc">
-                        Пароль запрашивается один раз при первой расшифровке секрета и сохраняется в памяти до закрытия Corthal или ручной блокировки.
+                        {t("settings.security.policy_session_desc")}
                       </span>
                     </div>
                   </div>
@@ -834,7 +834,7 @@
                     <div class="policy-option-info">
                       <span class="policy-title">{t("settings.security.policy_timeout")}</span>
                       <span class="policy-desc">
-                        Пароль автоматически сбрасывается из оперативной памяти при отсутствии активности через заданное время.
+                        {t("settings.security.policy_timeout_desc")}
                       </span>
                     </div>
                   </div>
@@ -874,7 +874,7 @@
                     <div class="policy-option-info">
                       <span class="policy-title">{t("settings.security.policy_always")}</span>
                       <span class="policy-desc">
-                        Пароль не сохраняется в памяти вовсе. Каждый просмотр или копирование любого секрета требует повторного ввода пасс-фразы.
+                        {t("settings.security.policy_always_desc")}
                       </span>
                     </div>
                   </div>
@@ -899,7 +899,7 @@
                       </button>
                     {:else}
                       <span class="sec-badge locked">
-                        🔒 Память заблокирована (пароль не хранится)
+                        {t("settings.security.memory_locked")}
                       </span>
                     {/if}
                   </div>
@@ -933,16 +933,16 @@
                         <span class="provider-tag codex">ChatGPT Plus / Pro</span>
                       </div>
                       <span class="provider-hint">
-                        Использование авторизованной утилиты codex без оплаты API-токенов.
+                        {t("settings.assistant_tab.codex_hint")}
                       </span>
                     </div>
                     <div class="provider-header-status">
                       {#if codexStatus?.is_logged_in}
-                        <span class="status-chip success">✓ Авторизован в ChatGPT</span>
+                        <span class="status-chip success">{t("settings.assistant_tab.codex_status_ok")}</span>
                       {:else if codexStatus?.installed}
-                        <span class="status-chip warning">⚠ Требуется вход (codex login)</span>
+                        <span class="status-chip warning">{t("settings.assistant_tab.codex_status_login")}</span>
                       {:else}
-                        <span class="status-chip error">✕ Не найден (~/.local/bin/codex)</span>
+                        <span class="status-chip error">{t("settings.assistant_tab.codex_status_missing")}</span>
                       {/if}
                     </div>
                   </label>
@@ -951,7 +951,7 @@
                     <div class="provider-card-body">
                       <!-- Model Selection -->
                       <div class="field-row">
-                        <span class="field-label">Модель ChatGPT:</span>
+                        <span class="field-label">{t("settings.assistant_tab.codex_model_label")}</span>
                         <div class="field-control">
                           <CustomSelect
                             options={codexModelOptions}
@@ -963,7 +963,7 @@
 
                       <!-- Custom Model text input -->
                       <div class="field-row">
-                        <label class="field-label" for="codex-custom-model">Произвольная модель:</label>
+                        <label class="field-label" for="codex-custom-model">{t("settings.assistant_tab.custom_model_label")}</label>
                         <div class="field-control">
                           <input
                             id="codex-custom-model"
@@ -978,7 +978,7 @@
 
                       <!-- Reasoning Effort -->
                       <div class="field-row">
-                        <span class="field-label">Уровень рассуждений (Reasoning):</span>
+                        <span class="field-label">{t("settings.assistant_tab.reasoning_effort_label")}</span>
                         <div class="field-control">
                           <CustomSelect
                             options={CODEX_REASONING_OPTIONS}
@@ -1010,7 +1010,7 @@
                         <span class="provider-tag openrouter">Claude, Gemini, DeepSeek</span>
                       </div>
                       <span class="provider-hint">
-                        Единый шлюз к лучшим мировым LLM моделям через один API-ключ.
+                        {t("settings.assistant_tab.openrouter_hint")}
                       </span>
                     </div>
                   </label>
@@ -1019,7 +1019,7 @@
                     <div class="provider-card-body">
                       <!-- OpenRouter API Key -->
                       <div class="field-row">
-                        <label class="field-label" for="or-key">API-ключ OpenRouter:</label>
+                        <label class="field-label" for="or-key">{t("settings.assistant_tab.openrouter_key_label")}</label>
                         <div class="field-control input-with-btn">
                           <input
                             id="or-key"
@@ -1033,7 +1033,7 @@
                             type="button"
                             class="field-icon-btn"
                             onclick={() => (showOpenrouterKey = !showOpenrouterKey)}
-                            title={showOpenrouterKey ? "Скрыть" : "Показать"}
+                            title={showOpenrouterKey ? t("common.hide") : t("common.show")}
                           >
                             <Icon name={showOpenrouterKey ? "eye-off" : "eye"} size={14} />
                           </button>
@@ -1042,7 +1042,7 @@
 
                       <!-- Fetch Models Button -->
                       <div class="field-row">
-                        <span class="field-label">Каталог моделей:</span>
+                        <span class="field-label">{t("settings.assistant_tab.models_catalog_label")}</span>
                         <div class="field-control">
                           <button
                             type="button"
@@ -1051,10 +1051,10 @@
                             disabled={isOpenrouterLoading}
                           >
                             <Icon name="refresh-cw" size={13} class={isOpenrouterLoading ? "spin" : ""} />
-                            <span>{isOpenrouterLoading ? "Загрузка списка..." : "Загрузить список моделей с OpenRouter"}</span>
+                            <span>{isOpenrouterLoading ? t("settings.assistant_tab.loading_list") : t("settings.assistant_tab.fetch_openrouter_models")}</span>
                           </button>
                           {#if openrouterModels.length > 0}
-                            <span class="inline-count">Доступно: {openrouterModels.length} моделей</span>
+                            <span class="inline-count">{t("settings.assistant_tab.available_models_count", { count: openrouterModels.length })}</span>
                           {/if}
                           {#if openrouterFetchError}
                             <span class="inline-error">{openrouterFetchError}</span>
@@ -1064,7 +1064,7 @@
 
                       <!-- Model Selection -->
                       <div class="field-row">
-                        <span class="field-label">Модель:</span>
+                        <span class="field-label">{t("settings.assistant_tab.model")}</span>
                         <div class="field-control">
                           <CustomSelect
                             options={openrouterModelOptions}
@@ -1076,7 +1076,7 @@
 
                       <!-- Custom Model input -->
                       <div class="field-row">
-                        <label class="field-label" for="or-custom-model">Или ввести ID модели:</label>
+                        <label class="field-label" for="or-custom-model">{t("settings.assistant_tab.or_enter_model_id")}</label>
                         <div class="field-control">
                           <input
                             id="or-custom-model"
@@ -1091,7 +1091,7 @@
 
                       <!-- Reasoning Effort -->
                       <div class="field-row">
-                        <span class="field-label">Уровень рассуждений (Reasoning):</span>
+                        <span class="field-label">{t("settings.assistant_tab.reasoning_effort_label")}</span>
                         <div class="field-control">
                           <CustomSelect
                             options={REASONING_EFFORT_OPTIONS}
@@ -1103,7 +1103,7 @@
 
                       <!-- Temperature -->
                       <div class="field-row">
-                        <label class="field-label" for="or-temp">Температура ({assistantConfig.openrouter_temperature}):</label>
+                        <label class="field-label" for="or-temp">{t("settings.assistant_tab.temp_with_val", { val: assistantConfig.openrouter_temperature })}</label>
                         <div class="field-control range-box">
                           <input
                             id="or-temp"
@@ -1136,11 +1136,11 @@
                     />
                     <div class="provider-header-main">
                       <div class="provider-title-line">
-                        <span class="provider-label">Кастомный OpenAI-совместимый API</span>
-                        <span class="provider-tag local">Ollama, vLLM, LMStudio, Прокси</span>
+                        <span class="provider-label">{t("settings.assistant_tab.custom_api_label")}</span>
+                        <span class="provider-tag local">{t("settings.assistant_tab.custom_api_tag")}</span>
                       </div>
                       <span class="provider-hint">
-                        Подключение к любому сервису или локальной LLM с поддержкой /v1/chat/completions.
+                        {t("settings.assistant_tab.custom_api_hint")}
                       </span>
                     </div>
                   </label>
@@ -1149,7 +1149,7 @@
                     <div class="provider-card-body">
                       <!-- Base URL -->
                       <div class="field-row">
-                        <label class="field-label" for="custom-url">Базовый URL эндпоинта:</label>
+                        <label class="field-label" for="custom-url">{t("settings.assistant_tab.base_url_label")}</label>
                         <div class="field-control">
                           <input
                             id="custom-url"
@@ -1159,19 +1159,19 @@
                             onblur={saveAssistantSettings}
                             placeholder="http://localhost:11434/v1"
                           />
-                          <span class="field-tip">Например: http://localhost:11434/v1 (Ollama) или http://127.0.0.1:1234/v1 (LM Studio)</span>
+                          <span class="field-tip">{t("settings.assistant_tab.base_url_tip")}</span>
                         </div>
                       </div>
 
                       <!-- API Key -->
                       <div class="field-row">
-                        <label class="field-label" for="custom-key">API-ключ (если требуется):</label>
+                        <label class="field-label" for="custom-key">{t("settings.assistant_tab.optional_api_key_label")}</label>
                         <div class="field-control input-with-btn">
                           <input
                             id="custom-key"
                             type={showOpenaiKey ? "text" : "password"}
                             class="corthal-input"
-                            placeholder="sk-... (не требуется для Ollama)"
+                            placeholder={t("settings.assistant_tab.optional_api_key_placeholder")}
                             bind:value={assistantConfig.openai_key}
                             onblur={saveAssistantSettings}
                           />
@@ -1179,7 +1179,7 @@
                             type="button"
                             class="field-icon-btn"
                             onclick={() => (showOpenaiKey = !showOpenaiKey)}
-                            title={showOpenaiKey ? "Скрыть" : "Показать"}
+                            title={showOpenaiKey ? t("common.hide") : t("common.show")}
                           >
                             <Icon name={showOpenaiKey ? "eye-off" : "eye"} size={14} />
                           </button>
@@ -1188,7 +1188,7 @@
 
                       <!-- Fetch Models Button -->
                       <div class="field-row">
-                        <span class="field-label">Модели эндпоинта:</span>
+                        <span class="field-label">{t("settings.assistant_tab.endpoint_models_label")}</span>
                         <div class="field-control">
                           <button
                             type="button"
@@ -1197,10 +1197,10 @@
                             disabled={isOpenaiLoading}
                           >
                             <Icon name="refresh-cw" size={13} class={isOpenaiLoading ? "spin" : ""} />
-                            <span>{isOpenaiLoading ? "Опрос эндпоинта..." : "Загрузить модели с эндпоинта (/models)"}</span>
+                            <span>{isOpenaiLoading ? t("settings.assistant_tab.polling_endpoint") : t("settings.assistant_tab.fetch_endpoint_models")}</span>
                           </button>
                           {#if openaiModels.length > 0}
-                            <span class="inline-count">Найдено: {openaiModels.length} моделей</span>
+                            <span class="inline-count">{t("settings.assistant_tab.found_models_count", { count: openaiModels.length })}</span>
                           {/if}
                           {#if openaiFetchError}
                             <span class="inline-error">{openaiFetchError}</span>
@@ -1210,7 +1210,7 @@
 
                       <!-- Model Selection -->
                       <div class="field-row">
-                        <span class="field-label">Модель:</span>
+                        <span class="field-label">{t("settings.assistant_tab.model")}</span>
                         <div class="field-control">
                           {#if openaiModels.length > 0}
                             <CustomSelect
@@ -1233,7 +1233,7 @@
 
                       {#if openaiModels.length > 0}
                         <div class="field-row">
-                          <label class="field-label" for="custom-model-text">Или указать вручную:</label>
+                          <label class="field-label" for="custom-model-text">{t("settings.assistant_tab.or_specify_manually")}</label>
                           <div class="field-control">
                             <input
                               id="custom-model-text"
@@ -1249,7 +1249,7 @@
 
                       <!-- Reasoning Effort -->
                       <div class="field-row">
-                        <span class="field-label">Уровень рассуждений (Reasoning):</span>
+                        <span class="field-label">{t("settings.assistant_tab.reasoning_effort_label")}</span>
                         <div class="field-control">
                           <CustomSelect
                             options={REASONING_EFFORT_OPTIONS}
@@ -1261,7 +1261,7 @@
 
                       <!-- Temperature -->
                       <div class="field-row">
-                        <label class="field-label" for="custom-temp">Температура ({assistantConfig.openai_temperature}):</label>
+                        <label class="field-label" for="custom-temp">{t("settings.assistant_tab.temp_with_val", { val: assistantConfig.openai_temperature })}</label>
                         <div class="field-control range-box">
                           <input
                             id="custom-temp"
@@ -1283,7 +1283,7 @@
 
             <!-- Context and Prompt -->
             <section class="settings-section">
-              <h3 class="section-title">Контекст и системный промпт</h3>
+              <h3 class="section-title">{t("settings.assistant_tab.context_and_prompt_title")}</h3>
               <div class="context-toggles">
                 <label class="toggle-checkbox-row">
                   <input
@@ -1292,8 +1292,8 @@
                     onchange={saveAssistantSettings}
                   />
                   <div class="toggle-text">
-                    <span class="toggle-title">Контекст базы знаний</span>
-                    <span class="toggle-desc">Передавать путь к текущему активному хранилищу заметок.</span>
+                    <span class="toggle-title">{t("settings.assistant_tab.vault_context_title")}</span>
+                    <span class="toggle-desc">{t("settings.assistant_tab.vault_context_desc")}</span>
                   </div>
                 </label>
 
@@ -1304,14 +1304,14 @@
                     onchange={saveAssistantSettings}
                   />
                   <div class="toggle-text">
-                    <span class="toggle-title">Контекст открытой заметки</span>
-                    <span class="toggle-desc">Автоматически прикреплять текст открытого в редакторе файла к запросу.</span>
+                    <span class="toggle-title">{t("settings.assistant_tab.active_note_context_title")}</span>
+                    <span class="toggle-desc">{t("settings.assistant_tab.active_note_context_desc")}</span>
                   </div>
                 </label>
               </div>
 
               <div class="system-prompt-box">
-                <label class="field-label" for="settings-system-prompt">Системный промпт ассистента:</label>
+                <label class="field-label" for="settings-system-prompt">{t("settings.assistant_tab.system_prompt_label")}</label>
                 <textarea
                   id="settings-system-prompt"
                   class="corthal-textarea"

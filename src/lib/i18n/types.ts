@@ -34,9 +34,22 @@ export interface TranslationSchema {
     clear: string;
     open: string;
     copy_clipboard_success: string;
+    text_format: string;
+    select_option: string;
+    no_options: string;
+    show: string;
+    hide: string;
+    apply: string;
+    import: string;
+    min_short: string;
+    sec_short: string;
+    read_error_title: string;
+    save_error: string;
+    delete_error: string;
   };
   header: {
     no_vault_open: string;
+    knowledge_base: string;
     toggle_sidebar: string;
     toggle_split: string;
     toggle_assistant: string;
@@ -96,6 +109,11 @@ export interface TranslationSchema {
     slash_header: string;
     link_default_text: string;
     encrypt_error: string;
+    table_badge: string;
+    edit_table_tooltip: string;
+    secret_pill_label: string;
+    open_link_tooltip: string;
+    table_template: string;
     commands: {
       h1_title: string;
       h1_desc: string;
@@ -123,6 +141,7 @@ export interface TranslationSchema {
   };
   assistant: {
     title: string;
+    initial_greeting: string;
     model_title: string;
     model_reasoning_tooltip: string;
     reasoning: string;
@@ -144,6 +163,9 @@ export interface TranslationSchema {
     context_attached: string;
     select_file_context: string;
     error_prefix: string;
+    select_text_to_encrypt: string;
+    note_file_prefix: string;
+    note_content_prefix: string;
   };
   statusbar: {
     vault_change: string;
@@ -173,12 +195,20 @@ export interface TranslationSchema {
     };
     appearance: {
       preview_title: string;
+      preview_notes: string;
+      preview_projects: string;
+      preview_doc_title: string;
+      preview_badge: string;
+      preview_text: string;
+      preview_btn_primary: string;
+      preview_btn_secondary: string;
       palette_title: string;
       palette_desc: string;
       return_corthal_presets: string;
       accent_title: string;
       accent_desc: string;
       custom_hex: string;
+      custom_accent_name: string;
       contrast_title: string;
       high_contrast: string;
       high_contrast_desc: string;
@@ -187,24 +217,50 @@ export interface TranslationSchema {
       gtk_theme_label: string;
       system_mode_label: string;
       system_accent_label: string;
+      follow_system_label: string;
+      follow_system_desc: string;
       installed_gtk_themes: string;
+      gtk_none_option: string;
+      gtk_select_placeholder: string;
       custom_gtk_path: string;
       custom_gtk_placeholder: string;
+      gtk_custom_folder_label: string;
+      gtk_imported_desc: string;
+      gtk_dark: string;
+      gtk_light: string;
+      gtk_load_error: string;
       apply_gtk: string;
     };
     security: {
       title: string;
       desc: string;
+      current_vault: string;
       active_key: string;
+      change_ssh_key: string;
+      select_ssh_key_placeholder: string;
+      change_key_note: string;
+      token_format: string;
+      vault_status: string;
+      vault_protected: string;
       policy_title: string;
       policy_desc: string;
       policy_session: string;
+      policy_session_desc: string;
       policy_timeout: string;
+      policy_timeout_desc: string;
       policy_always: string;
+      policy_always_desc: string;
       timeout_label: string;
+      timeout_5m: string;
+      timeout_10m: string;
+      timeout_15m: string;
+      timeout_30m: string;
+      timeout_1h: string;
+      timeout_2h: string;
       session_status: string;
       unlocked_for: string;
       lock_now: string;
+      memory_locked: string;
     };
     assistant_tab: {
       title: string;
@@ -218,6 +274,47 @@ export interface TranslationSchema {
       api_key_label: string;
       api_key_placeholder: string;
       save_keys: string;
+      codex_hint: string;
+      codex_status_ok: string;
+      codex_status_login: string;
+      codex_status_missing: string;
+      codex_model_label: string;
+      custom_model_label: string;
+      reasoning_effort_label: string;
+      effort_auto_default: string;
+      effort_auto_codex: string;
+      effort_low: string;
+      effort_medium: string;
+      effort_high: string;
+      effort_xhigh: string;
+      openrouter_hint: string;
+      openrouter_key_label: string;
+      models_catalog_label: string;
+      loading_list: string;
+      fetch_openrouter_models: string;
+      available_models_count: string;
+      or_enter_model_id: string;
+      temp_with_val: string;
+      custom_api_label: string;
+      custom_api_tag: string;
+      custom_api_hint: string;
+      base_url_label: string;
+      base_url_tip: string;
+      optional_api_key_label: string;
+      optional_api_key_placeholder: string;
+      endpoint_models_label: string;
+      polling_endpoint: string;
+      fetch_endpoint_models: string;
+      found_models_count: string;
+      or_specify_manually: string;
+      context_and_prompt_title: string;
+      vault_context_title: string;
+      vault_context_desc: string;
+      active_note_context_title: string;
+      active_note_context_desc: string;
+      system_prompt_label: string;
+      fetch_openrouter_error: string;
+      fetch_endpoint_error: string;
     };
     about: {
       title: string;
@@ -227,6 +324,10 @@ export interface TranslationSchema {
       runtime: string;
       developer_notes: string;
     };
+  };
+  themes: {
+    presets: Record<string, string>;
+    accents: Record<string, string>;
   };
   context_menu: {
     configure_folder: string;
@@ -240,6 +341,7 @@ export interface TranslationSchema {
     confirm_title: string;
     confirm_delete_note: string;
     confirm_delete_folder: string;
+    confirm_change_ssh_key: string;
     dont_ask_again: string;
     passphrase_title: string;
     passphrase_desc: string;
@@ -251,8 +353,18 @@ export interface TranslationSchema {
     unlock: string;
     new_note_title: string;
     new_note_name: string;
+    new_note_folder: string;
+    new_note_placeholder: string;
+    new_note_filename: string;
+    new_note_error: string;
     new_folder_title: string;
     new_folder_name: string;
+    new_folder_inside: string;
+    new_folder_root: string;
+    new_folder_title_placeholder: string;
+    new_folder_disk_name: string;
+    new_folder_disk_placeholder: string;
+    new_folder_error: string;
     insert_secret_title: string;
     insert_secret_desc: string;
     secret_text: string;
@@ -264,6 +376,7 @@ export interface TranslationSchema {
     vault_path_label: string;
     vault_path_placeholder: string;
     quick_select: string;
+    vault_main_suggestion: string;
     vault_auto_create_note: string;
     browse: string;
   };

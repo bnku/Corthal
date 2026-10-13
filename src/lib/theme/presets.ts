@@ -1,6 +1,7 @@
 import type { ThemePreset, AccentColor } from "./types";
+import { t } from "$lib/i18n";
 
-export const THEME_PRESETS: ThemePreset[] = [
+const RAW_THEME_PRESETS: ThemePreset[] = [
   {
     id: "onyx-dark",
     name: "Onyx Dark",
@@ -223,7 +224,14 @@ export const THEME_PRESETS: ThemePreset[] = [
   },
 ];
 
-export const ACCENT_COLORS: AccentColor[] = [
+export const THEME_PRESETS: ThemePreset[] = RAW_THEME_PRESETS.map((p) => ({
+  ...p,
+  get description(): string {
+    return t(`themes.presets.${p.id}`);
+  },
+}));
+
+const RAW_ACCENT_COLORS: AccentColor[] = [
   { id: "cobalt-blue", name: "Кобальтовый синий", hex: "#2575fc" },
   { id: "neon-cyan", name: "Неоновый циан", hex: "#00d2ff" },
   { id: "seafoam-mint", name: "Морская мята", hex: "#05d59e" },
@@ -239,3 +247,10 @@ export const ACCENT_COLORS: AccentColor[] = [
   { id: "slate-chrome", name: "Хромированный сланец", hex: "#94a3b8" },
   { id: "system-accent", name: "Системный акцент", hex: "#0c75de", isSystem: true },
 ];
+
+export const ACCENT_COLORS: AccentColor[] = RAW_ACCENT_COLORS.map((a) => ({
+  ...a,
+  get name(): string {
+    return t(`themes.accents.${a.id}`);
+  },
+}));

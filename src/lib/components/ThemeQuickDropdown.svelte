@@ -76,7 +76,7 @@
                 <span class="category-badge">{t("theme_dropdown.light_category")}</span>
               {/if}
             </div>
-            <div class="theme-desc">{preset.description}</div>
+            <div class="theme-desc">{t(`themes.presets.${preset.id}`)}</div>
           </div>
 
           <div class="theme-actions">

@@ -16,7 +16,7 @@
   let isBrowsing = $state(false);
 
   let quickSuggestions = $derived([
-    { label: t("settings.about.developer_notes").includes("Arch") ? "Основная база знаний" : "Knowledge Base", path: "~/knowledge" },
+    { label: t("modals.vault_main_suggestion"), path: "~/knowledge" },
     { label: "Dotfile Vault (~/.knowledge)", path: "~/.knowledge" },
     { label: "Corthal Project (~/dev/corthal)", path: "~/dev/corthal" },
   ]);

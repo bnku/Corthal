@@ -10,6 +10,7 @@ import { RangeSetBuilder, type Range, type Extension, StateField, EditorState } 
 import { syntaxTree } from "@codemirror/language";
 import { mount, unmount } from "svelte";
 import SecretPill from "$lib/components/SecretPill.svelte";
+import { t, i18n } from "$lib/i18n";
 
 export interface LivePreviewOptions {
   onOpenNote?: (target: string) => void;
@@ -95,9 +96,9 @@ async function doCopyCode(codeContent: string, copyBtn: HTMLButtonElement) {
       document.execCommand("copy");
       document.body.removeChild(textarea);
     }
-    copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span style="color:#22c55e">Скопировано</span>`;
+    copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span style="color:#22c55e">${t("common.copied")}</span>`;
     setTimeout(() => {
-      copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Копировать</span>`;
+      copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>${t("common.copy")}</span>`;
     }, 1500);
   } catch (err) {
     console.error("Failed to copy code:", err);
@@ -108,8 +109,8 @@ function createCopyButton(codeContent: string): HTMLButtonElement {
   const copyBtn = document.createElement("button");
   copyBtn.className = "cm-live-code-copy-btn";
   copyBtn.type = "button";
-  copyBtn.title = "Копировать код";
-  copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Копировать</span>`;
+  copyBtn.title = t("editor.copy_code");
+  copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>${t("common.copy")}</span>`;
 
   copyBtn.addEventListener("mousedown", (e) => {
     e.stopPropagation();
@@ -125,12 +126,13 @@ function createCopyButton(codeContent: string): HTMLButtonElement {
 
 // 2d. Code Header Widget for fenced code blocks (inactive line)
 class CodeHeaderWidget extends WidgetType {
+  readonly locale = i18n.locale;
   constructor(readonly lang: string, readonly codeContent: string) {
     super();
   }
 
   eq(other: CodeHeaderWidget) {
-    return this.lang === other.lang && this.codeContent === other.codeContent;
+    return this.lang === other.lang && this.codeContent === other.codeContent && this.locale === other.locale;
   }
 
   toDOM(): HTMLElement {
@@ -165,12 +167,13 @@ class CodeHeaderWidget extends WidgetType {
 
 // 2e. Code Copy Button Widget (for active header line)
 class CodeCopyBtnWidget extends WidgetType {
+  readonly locale = i18n.locale;
   constructor(readonly codeContent: string) {
     super();
   }
 
   eq(other: CodeCopyBtnWidget) {
-    return this.codeContent === other.codeContent;
+    return this.codeContent === other.codeContent && this.locale === other.locale;
   }
 
   toDOM(): HTMLElement {
@@ -211,15 +214,15 @@ function formatCellHTML(raw: string): string {
   // Secrets: 🔒[enc:v1:...]
   escaped = escaped.replace(
     /🔒\[enc:v1:[^\]]+\]/g,
-    `<span class="cm-live-secret-pill" title="Зашифрованные данные"><span class="cm-live-secret-icon">🔒</span> Секрет</span>`
+    `<span class="cm-live-secret-pill" title="${escapeHTML(t("secret_pill.badge_title"))}"><span class="cm-live-secret-icon">🔒</span> ${escapeHTML(t("live_editor.secret_pill_label"))}</span>`
   );
 
   // Inline code: `code`
   escaped = escaped.replace(/`([^`]+)`/g, `<code class="cm-live-inline-code">$1</code>`);
 
   // Wikilinks: [[target|label]] or [[target]]
-  escaped = escaped.replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, `<span class="cm-live-wikilink" data-target="$1" title="Открыть: $1">$2</span>`);
-  escaped = escaped.replace(/\[\[([^\]]+)\]\]/g, `<span class="cm-live-wikilink" data-target="$1" title="Открыть: $1">$1</span>`);
+  escaped = escaped.replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, (_m, target, label) => `<span class="cm-live-wikilink" data-target="${target}" title="${escapeHTML(t("live_editor.open_link_tooltip", { target }))}">${label}</span>`);
+  escaped = escaped.replace(/\[\[([^\]]+)\]\]/g, (_m, target) => `<span class="cm-live-wikilink" data-target="${target}" title="${escapeHTML(t("live_editor.open_link_tooltip", { target }))}">${target}</span>`);
 
   // Markdown links: [label](url)
   escaped = escaped.replace(/\[([^\]]+)\]\(([^)]+)\)/g, `<a href="$2" class="cm-live-link" target="_blank" rel="noopener">$1</a>`);
@@ -321,6 +324,7 @@ function parseMarkdownTable(raw: string): ParsedTable {
 }
 
 class LiveTableWidget extends WidgetType {
+  readonly locale = i18n.locale;
   constructor(
     readonly rawMarkdown: string,
     readonly tableFrom: number,
@@ -331,7 +335,7 @@ class LiveTableWidget extends WidgetType {
   }
 
   eq(other: LiveTableWidget) {
-    return this.rawMarkdown === other.rawMarkdown && this.tableFrom === other.tableFrom;
+    return this.rawMarkdown === other.rawMarkdown && this.tableFrom === other.tableFrom && this.locale === other.locale;
   }
 
   toDOM(view: EditorView): HTMLElement {
@@ -344,13 +348,13 @@ class LiveTableWidget extends WidgetType {
 
     const badge = document.createElement("div");
     badge.className = "cm-live-table-badge";
-    badge.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg><span>ТАБЛИЦА (${this.parsed.rows.length} строк)</span>`;
+    badge.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg><span>${escapeHTML(t("live_editor.table_badge", { count: this.parsed.rows.length }))}</span>`;
 
     const editBtn = document.createElement("button");
     editBtn.className = "cm-live-table-edit-btn";
     editBtn.type = "button";
-    editBtn.title = "Редактировать разметку таблицы";
-    editBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Редактировать</span>`;
+    editBtn.title = t("live_editor.edit_table_tooltip");
+    editBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>${escapeHTML(t("common.edit"))}</span>`;
 
     toolbar.appendChild(badge);
     toolbar.appendChild(editBtn);
@@ -534,6 +538,7 @@ class SecretWidget extends WidgetType {
 
 // 4. Wikilink Widget
 class WikilinkWidget extends WidgetType {
+  readonly locale = i18n.locale;
   constructor(
     readonly target: string,
     readonly label: string,
@@ -543,14 +548,14 @@ class WikilinkWidget extends WidgetType {
   }
 
   eq(other: WikilinkWidget) {
-    return this.target === other.target && this.label === other.label;
+    return this.target === other.target && this.label === other.label && this.locale === other.locale;
   }
 
   toDOM(): HTMLElement {
     const a = document.createElement("span");
     a.className = "cm-live-wikilink";
     a.textContent = this.label;
-    a.title = `Открыть: ${this.target}`;
+    a.title = t("live_editor.open_link_tooltip", { target: this.target });
     a.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();

@@ -46,7 +46,7 @@
       fileName = "";
       onClose();
     } catch (err: any) {
-      errorMessage = "Ошибка создания заметки: " + err;
+      errorMessage = t("modals.new_note_error") + err;
     } finally {
       isCreating = false;
     }
@@ -84,7 +84,7 @@
 
       <div class="modal-body">
         <div class="folder-badge">
-          Папка: <code>{targetFolder || "knowledge/"}</code>
+          {t("modals.new_note_folder")} <code>{targetFolder || "knowledge/"}</code>
         </div>
 
         <label for="note-title-input" class="input-label">{t("modals.new_note_name")}:</label>
@@ -93,11 +93,11 @@
           type="text"
           class="text-input"
           bind:value={noteTitle}
-          placeholder="Например: Настройка AmneziaVPN"
+          placeholder={t("modals.new_note_placeholder")}
           autofocus
         />
 
-        <label for="note-filename-input" class="input-label">Имя файла (.md):</label>
+        <label for="note-filename-input" class="input-label">{t("modals.new_note_filename")}</label>
         <div class="filename-input-wrap">
           <input
             id="note-filename-input"

@@ -237,7 +237,7 @@
     {
       id: "initial",
       role: "assistant",
-      text: "Привет! Чем могу помочь? Могу разобрать заметки, ответить на вопросы или помочь с кодом.",
+      text: "__INITIAL__",
       timestamp: Date.now(),
     },
   ]);
@@ -263,7 +263,7 @@
         }
 
         if (payload.error) {
-          messages[lastIdx].text += `\n\n⚠️ **Ошибка**: ${payload.error}`;
+          messages[lastIdx].text += `\n\n⚠️ **${t("assistant.error_prefix")}**: ${payload.error}`;
         }
 
         if (payload.done) {
@@ -480,7 +480,7 @@
       updateInputState();
       richInputEl?.focus();
     } catch (err: any) {
-      alert("Не удалось зашифровать секрет: " + err);
+      alert(t("live_editor.encrypt_error") + err);
     }
   }
 
@@ -564,7 +564,7 @@
           });
           userText = userText.replace(match[0], token);
         } catch (err: any) {
-          alert("Не удалось зашифровать секрет: " + err);
+          alert(t("live_editor.encrypt_error") + err);
           return;
         }
       }
@@ -601,15 +601,15 @@
     // Prepare note context only if explicitly requested by user
     let noteContext: string | null = null;
     if (includeActiveNote && activeNotePath) {
-      noteContext = `Файл: ${activeNotePath}\n`;
+      noteContext = `${t("assistant.note_file_prefix")}: ${activeNotePath}\n`;
       if (activeNoteContent) {
-        noteContext += `Содержимое:\n${activeNoteContent.slice(0, 8000)}`;
+        noteContext += `${t("assistant.note_content_prefix")}:\n${activeNoteContent.slice(0, 8000)}`;
       }
     }
 
     // Format history for backend
     const historyPayload = messages
-      .filter((m) => m.id !== sessionId && m.id !== "initial")
+      .filter((m) => m.id !== sessionId && m.id !== "initial" && m.id !== "cleared")
       .map((m) => ({ role: m.role, content: m.text }));
 
     try {
@@ -622,7 +622,7 @@
     } catch (err: any) {
       const lastIdx = messages.length - 1;
       if (lastIdx >= 0 && messages[lastIdx].id === sessionId) {
-        messages[lastIdx].text = `⚠️ Ошибка: ${err}`;
+        messages[lastIdx].text = `⚠️ ${t("assistant.error_prefix")}: ${err}`;
         messages[lastIdx].isStreaming = false;
       }
       isGenerating = false;
@@ -642,9 +642,9 @@
   function handleClearChat() {
     messages = [
       {
-        id: "initial",
+        id: "cleared",
         role: "assistant",
-        text: t("assistant.chat_cleared"),
+        text: "__CLEARED__",
         timestamp: Date.now(),
       },
     ];
@@ -777,35 +777,41 @@
   <!-- Messages Scroll Area -->
   <div class="messages-area" bind:this={messagesContainer}>
     {#each messages as msg (msg.id)}
+      {@const msgText =
+        msg.text === "__INITIAL__"
+          ? t("assistant.initial_greeting")
+          : msg.text === "__CLEARED__"
+            ? t("assistant.chat_cleared")
+            : msg.text}
       <div class="message-row {msg.role}">
         <div class="bubble {msg.role}">
           <div class="bubble-content">
             {#if msg.role === "assistant"}
               {#if msg.isStreaming}
-                <div class="streaming-text">{msg.text}<span class="streaming-cursor">▋</span></div>
+                <div class="streaming-text">{msgText}<span class="streaming-cursor">▋</span></div>
               {:else}
-                {#key msg.text}
+                {#key msgText}
                   <div
                     class="bubble-markdown"
                     use:mountSecrets={onPassphraseNeeded}
                     onclick={handleContentClick}
                   >
-                    {@html formatMessageHtml(msg.text)}
+                    {@html formatMessageHtml(msgText)}
                   </div>
                 {/key}
               {/if}
             {:else}
-              <div class="user-text">{msg.text}</div>
+              <div class="user-text">{msgText}</div>
             {/if}
           </div>
 
           <!-- Subtle Hover Action Toolbar on Assistant Messages -->
-          {#if msg.role === "assistant" && msg.text && !msg.isStreaming}
+          {#if msg.role === "assistant" && msgText && !msg.isStreaming}
             <div class="hover-toolbar">
               <button
                 type="button"
                 class="hover-icon-btn"
-                onclick={() => copyMessage(msg.id, msg.text)}
+                onclick={() => copyMessage(msg.id, msgText)}
                 title={copiedId === msg.id ? t("assistant.copied") : t("assistant.copy")}
               >
                 <Icon
@@ -818,7 +824,7 @@
                 <button
                   type="button"
                   class="hover-icon-btn"
-                  onclick={() => insertMessage(msg.text)}
+                  onclick={() => insertMessage(msgText)}
                   title={t("assistant.insert_into_note")}
                 >
                   <Icon name="file-down" size={12} />
@@ -870,6 +876,7 @@
         bind:this={richInputEl}
         class="rich-input-box"
         class:is-empty={!hasInputContent}
+        data-placeholder={t("assistant.input_placeholder")}
         contenteditable="true"
         role="textbox"
         tabindex="0"
@@ -900,7 +907,7 @@
             </button>
             {#if showEncryptTooltip}
               <div class="encrypt-tooltip">
-                Выделите текст для шифрования
+                {t("assistant.select_text_to_encrypt")}
               </div>
             {/if}
           </div>
@@ -1542,7 +1549,7 @@
   }
 
   .rich-input-box.is-empty::before {
-    content: "Спросите ассистента...";
+    content: attr(data-placeholder);
     position: absolute;
     left: 0;
     top: 0;

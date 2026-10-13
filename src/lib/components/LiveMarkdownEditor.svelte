@@ -11,7 +11,7 @@
   import { createLivePreviewPlugin } from "$lib/editor/livePreviewExtension";
   import { SLASH_COMMANDS, type SlashCommandItem } from "$lib/editor/slashCommands";
   import Icon from "./Icon.svelte";
-  import { t } from "$lib/i18n";
+  import { t, i18n } from "$lib/i18n";
 
   interface Props {
     content: string;
@@ -769,8 +769,9 @@
     }
   });
 
-  // Synchronize when mode changes (live preview <-> source mode)
+  // Synchronize when mode or locale changes (live preview <-> source mode)
   $effect(() => {
+    const _locale = i18n.locale;
     if (editorView) {
       const isLive = mode === "live";
       editorView.dispatch({

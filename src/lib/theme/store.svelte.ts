@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { THEME_PRESETS, ACCENT_COLORS } from "./presets";
+import { t } from "$lib/i18n";
 import type {
   ThemePreset,
   AccentColor,
@@ -31,7 +32,9 @@ class ThemeStore {
       return {
         id: "custom-gtk",
         name: g.name,
-        description: `Импортированная GTK-тема (${g.is_dark ? "тёмная" : "светлая"})`,
+        description: t("settings.appearance.gtk_imported_desc", {
+          mode: g.is_dark ? t("settings.appearance.gtk_dark") : t("settings.appearance.gtk_light"),
+        }),
         category: "system",
         colors: {
           bgMain: g.bg_main,
@@ -50,26 +53,33 @@ class ThemeStore {
       };
     }
 
-    const found = THEME_PRESETS.find((p) => p.id === this.config.presetId);
-    return found || THEME_PRESETS[1]; // default charcoal-slate
+    const found = THEME_PRESETS.find((p) => p.id === this.config.presetId) || THEME_PRESETS[1];
+    return {
+      ...found,
+      description: t(`themes.presets.${found.id}`),
+    };
   });
 
   currentAccent = $derived.by<AccentColor>(() => {
     if (this.config.customAccentHex) {
       return {
         id: "custom",
-        name: "Пользовательский",
+        name: t("settings.appearance.custom_accent_name"),
         hex: this.config.customAccentHex,
       };
     }
-    const found = ACCENT_COLORS.find((a) => a.id === this.config.accentId);
+    const found = ACCENT_COLORS.find((a) => a.id === this.config.accentId) || ACCENT_COLORS[0];
     if (found?.isSystem && this.systemInfo?.system_accent) {
       return {
         ...found,
+        name: t(`themes.accents.${found.id}`),
         hex: this.systemInfo.system_accent,
       };
     }
-    return found || ACCENT_COLORS[0];
+    return {
+      ...found,
+      name: t(`themes.accents.${found.id}`),
+    };
   });
 
   constructor() {
@@ -161,7 +171,7 @@ class ThemeStore {
       this.applyCss();
     } catch (err) {
       console.error("Failed to parse GTK theme:", err);
-      alert("Не удалось загрузить тему GTK: " + err);
+      alert(t("settings.appearance.gtk_load_error") + err);
     } finally {
       this.isLoadingGtk = false;
     }

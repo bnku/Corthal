@@ -329,7 +329,7 @@
         }
       }, 50);
     } catch (err: any) {
-      alert("Не удалось зашифровать секрет: " + err);
+      alert(t("live_editor.encrypt_error") + err);
     } finally {
       floatingEncrypt.isEncrypting = false;
     }
