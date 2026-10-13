@@ -29,6 +29,7 @@
     isSplit: boolean;
     canCloseSplit?: boolean;
     onFocusPane: () => void;
+    onDocumentAreaClick?: () => void;
     onSelectTab: (path: string) => void;
     onCloseTab: (path: string) => void;
     onToggleEditing: (isEditing: boolean) => void;
@@ -60,6 +61,7 @@
     isSplit,
     canCloseSplit = false,
     onFocusPane,
+    onDocumentAreaClick,
     onSelectTab,
     onCloseTab,
     onToggleEditing,
@@ -684,7 +686,12 @@
   </div>
 
   <!-- PANE BODY -->
-  <div class="pane-content-body">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="pane-content-body"
+    onclick={() => onDocumentAreaClick?.()}
+    onpointerdown={() => onDocumentAreaClick?.()}
+  >
     {#if activePath}
       {#if isMarkdown}
         <!-- MARKDOWN: Hybrid Live Preview & Source Editor -->

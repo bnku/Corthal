@@ -96,22 +96,27 @@
   }
 
   let scrollTreeTimer: ReturnType<typeof setTimeout> | null = null;
-  function scrollTreeToSelected(smooth: boolean = true) {
+  function scrollTreeToSelected(smooth: boolean = true, retries = 2) {
     if (scrollTreeTimer) clearTimeout(scrollTreeTimer);
     scrollTreeTimer = setTimeout(() => {
       const treeContainer = document.querySelector(".tree-container") as HTMLElement | null;
       if (!treeContainer) return;
       const selectedEl = treeContainer.querySelector(".file-item.selected, .dir-item.selected") as HTMLElement | null;
-      if (!selectedEl) return;
+      if (!selectedEl) {
+        if (retries > 0) {
+          scrollTreeToSelected(smooth, retries - 1);
+        }
+        return;
+      }
 
       const containerRect = treeContainer.getBoundingClientRect();
       const elRect = selectedEl.getBoundingClientRect();
 
       if (elRect.top < containerRect.top) {
-        const offset = elRect.top - containerRect.top - 20;
+        const offset = elRect.top - containerRect.top - 24;
         treeContainer.scrollBy({ top: offset, behavior: smooth ? "smooth" : "auto" });
       } else if (elRect.bottom > containerRect.bottom) {
-        const offset = elRect.bottom - containerRect.bottom + 20;
+        const offset = elRect.bottom - containerRect.bottom + 24;
         treeContainer.scrollBy({ top: offset, behavior: smooth ? "smooth" : "auto" });
       }
     }, 60);
@@ -275,15 +280,14 @@
     return paneLeftActive || (isSplit ? paneRightActive : null);
   });
 
+  // Keep tree selection in sync when active file changes, without auto-scrolling
+  let lastActiveFilePath: string | null = null;
   $effect(() => {
-    if (activeFilePath) {
-      revealPathAncestors(activeFilePath);
+    const current = activeFilePath;
+    if (current && current !== lastActiveFilePath) {
+      lastActiveFilePath = current;
       if (!selectedTreeNode?.is_dir) {
-        selectedTreePath = activeFilePath;
-        if (vaultTree) {
-          selectedTreeNode = findNodeByPath(vaultTree, activeFilePath);
-        }
-        scrollTreeToSelected();
+        selectedTreePath = current;
       }
     }
   });
@@ -692,7 +696,6 @@
       selectedTreeNode = findNodeByPath(vaultTree, path);
     }
     revealPathAncestors(path);
-    scrollTreeToSelected();
   }
 
   function findNoteInTree(node: VaultNode, target: string): string | null {
@@ -796,7 +799,6 @@
       selectedTreePath = currentActive;
       selectedTreeNode = vaultTree ? findNodeByPath(vaultTree, currentActive) : null;
       revealPathAncestors(currentActive);
-      scrollTreeToSelected();
     } else {
       selectedTreePath = null;
       selectedTreeNode = null;
@@ -864,11 +866,27 @@
 
   function handleFocusPane(pane: "left" | "right") {
     focusedPane = pane;
+  }
+
+  function handleTabSelect(path: string, pane: "left" | "right") {
+    openNote(path, pane);
+    revealPathAncestors(path);
+    selectedTreePath = path;
+    if (vaultTree) {
+      selectedTreeNode = findNodeByPath(vaultTree, path);
+    }
+    scrollTreeToSelected();
+  }
+
+  function handleDocumentAreaClick(pane: "left" | "right") {
+    focusedPane = pane;
     const current = pane === "left" ? paneLeftActive : paneRightActive;
     if (current) {
-      selectedTreePath = current;
-      selectedTreeNode = vaultTree ? findNodeByPath(vaultTree, current) : null;
       revealPathAncestors(current);
+      selectedTreePath = current;
+      if (vaultTree) {
+        selectedTreeNode = findNodeByPath(vaultTree, current);
+      }
       scrollTreeToSelected();
     }
   }
@@ -1435,7 +1453,8 @@
           {isSplit}
           canCloseSplit={false}
           onFocusPane={() => handleFocusPane("left")}
-          onSelectTab={(p) => openNote(p, "left")}
+          onDocumentAreaClick={() => handleDocumentAreaClick("left")}
+          onSelectTab={(p) => handleTabSelect(p, "left")}
           onCloseTab={(p) => closeTab("left", p)}
           onToggleEditing={(v) => (paneLeftEditing = v)}
           onSaveNote={() => saveNote(paneLeftActive || undefined)}
@@ -1485,7 +1504,8 @@
             {isSplit}
             canCloseSplit={true}
             onFocusPane={() => handleFocusPane("right")}
-            onSelectTab={(p) => openNote(p, "right")}
+            onDocumentAreaClick={() => handleDocumentAreaClick("right")}
+            onSelectTab={(p) => handleTabSelect(p, "right")}
             onCloseTab={(p) => closeTab("right", p)}
             onToggleEditing={(v) => (paneRightEditing = v)}
             onSaveNote={() => saveNote(paneRightActive || undefined)}
