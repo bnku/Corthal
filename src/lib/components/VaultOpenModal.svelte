@@ -18,7 +18,7 @@
   let quickSuggestions = $derived([
     { label: t("settings.about.developer_notes").includes("Arch") ? "Основная база знаний" : "Knowledge Base", path: "~/knowledge" },
     { label: "Dotfile Vault (~/.knowledge)", path: "~/.knowledge" },
-    { label: "Cortex Project (~/dev/cortex)", path: "~/dev/cortex" },
+    { label: "Corthal Project (~/dev/cortex)", path: "~/dev/cortex" },
   ]);
 
   $effect(() => {

@@ -1,7 +1,7 @@
 {
-  "name": "cortex",
+  "name": "corthal",
   "version": "0.1.0",
-  "description": "",
+  "description": "Corthal — Local-First Second Brain & Zero-Knowledge Vault",
   "type": "module",
   "scripts": {
     "dev": "vite dev",

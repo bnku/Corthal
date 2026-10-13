@@ -189,12 +189,12 @@
   let ResolvedComponent = $derived(iconRegistry[name] || Folder);
 </script>
 
-<span class="cortex-icon {className}">
+<span class="corthal-icon {className}">
   <ResolvedComponent {size} {color} />
 </span>
 
 <style>
-  .cortex-icon {
+  .corthal-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;

@@ -1,7 +1,71 @@
-# Tauri + SvelteKit + TypeScript
+# Corthal
 
-This template should help get you started developing with Tauri, SvelteKit and TypeScript in Vite.
+**Corthal** — персональный легковесный Desktop-клиент для локальной базы знаний («Второго мозга») на Linux, объединяющий быстрый Markdown-редактор с живым предпросмотром, Zero-Knowledge шифрование секретов на базе SSH-ключей (`age` + `ed25519`) и встроенного ИИ-ассистента с защитой от утечек паролей.
 
-## Recommended IDE Setup
+---
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
+## 🧠 Происхождение названия (Naming & Etymology)
+
+Название **Corthal** (произносится *Ко́р-тал*) образовано на стыке нейробиологии и архитектуры персональных баз знаний:
+
+1. **Cor**tex (*кора головного мозга*) — главный центр высшего мышления и долговременной памяти, где хранятся структурированные знания, опыт и смысловые связи («Второй мозг»).
+2. **Thal**amus (*таламус*) — центральный диспетчер и маршрутизатор информационных потоков мозга, который принимает сигналы и распределяет их по нужным отделам коры (прямая метафора функциональных **Хабов** базы знаний: `00-Inbox`, `10-System`, `20-Work`, `30-Life`, `40-Resources`).
+3. Фонетическое созвучие со словом **Portal** (*портал*) — единая точка входа в личное цифровое пространство и защищённое хранилище заметок.
+
+---
+
+## ✨ Ключевые возможности
+
+* **Local-First & Zero Lock-in**: Прямая работа с обычными `.md` файлами в файловой системе (`~/knowledge/`). Никаких закрытых баз данных или облачной привязки.
+* **Два режима просмотра и редактирования**:
+  * **Просмотр и редактирование (Live / Source)**: живой гибридный Markdown-редактор на базе CodeMirror 6 с мгновенным скрытием разметки, горячими клавишами (`Ctrl+B`, `Ctrl+I`, `Ctrl+Shift+X`, ``Ctrl+` ``, `Ctrl+K`, `Ctrl+E`), Slash-меню (`/`) и интерактивными виджетами.
+  * **Режим чтения (Reading View)**: чистая типографика с поддержкой таблиц, подсветки кода и кликабельных внутренних ссылок.
+* **Zero-Knowledge шифрование секретов (`Age` + `SSH ed25519`)**:
+  * Чувствительные данные (пароли, токены, приватные ключи) хранятся прямо в тексте заметок в виде зашифрованных литералов `🔒[enc:v1:...]`.
+  * Шифрование выполняется публичным ключом `~/.ssh/id_ed25519.pub` без запроса пароля, а расшифровка — локально в оперативной памяти (`zeroize`) через приватный ключ с гибкой политикой кэширования сессии и защитой от подглядывания (`Shoulder-surfing guard`).
+* **Слепой ИИ-ассистент (Blind AI Agent)**:
+  * Поддержка `Codex CLI`, `OpenRouter` и локальных `OpenAI-совместимых` серверов (`Ollama` и др.).
+  * Секреты никогда не отправляются в открытом виде во внешние LLM: модель оперирует зашифрованными токенами `🔒[enc:v1:...]`, которые клиент Corthal автоматически превращает в интерактивные виджеты прямо в чате.
+* **Нативная интеграция с Linux GTK и мультиязычность (`RU` / `EN`)**:
+  * Полная реактивная локализация интерфейса (Русский / Английский).
+  * 10 встроенных цветовых палитр и синхронизация с системными темами GTK (Cinnamon / GNOME).
+
+---
+
+## 🛠️ Стек технологий
+
+* **Backend**: Rust, Tauri v2, `age` (SSH `ed25519`/`x25519`), `notify` (FS Watcher), `reqwest` + `tokio` (SSE-стриминг).
+* **Frontend**: Svelte 5 (Runes), SvelteKit, TypeScript, CodeMirror 6, `marked` + `highlight.js`.
+
+---
+
+## 🚀 Разработка и сборка
+
+```bash
+# Установка зависимостей фронтенда
+npm install
+
+# Проверка типов Svelte / TypeScript
+npm run check
+
+# Запуск в режиме разработки
+WEBKIT_DISABLE_DMABUF_RENDERER=1 npm run tauri dev
+
+# Сборка релизного бинарника
+npm run tauri build
+```
+
+> **Примечание для Linux + NVIDIA**: Приложение автоматически активирует `WEBKIT_DISABLE_DMABUF_RENDERER=1` при старте на Linux для предотвращения ошибки буфера GBM в WebKit2GTK на проприетарных драйверах NVIDIA.
+
+---
+
+## 📚 Документация и спецификации (SDD)
+
+Архитектурные спецификации проекта находятся в каталоге [`docs/spec/`](docs/spec/):
+* [`00_VISION_AND_ARCHITECTURE.md`](docs/spec/00_VISION_AND_ARCHITECTURE.md) — Видение, нейминг и архитектура Corthal
+* [`01_KNOWLEDGE_VAULT_SPEC.md`](docs/spec/01_KNOWLEDGE_VAULT_SPEC.md) — Спецификация хранилища знаний и Хабов
+* [`02_CRYPTO_AND_SECRETS_SPEC.md`](docs/spec/02_CRYPTO_AND_SECRETS_SPEC.md) — Криптография Age + SSH и защита секретов
+* [`03_TAURI_IPC_SPEC.md`](docs/spec/03_TAURI_IPC_SPEC.md) — Контракты IPC между Rust и Svelte
+* [`04_FRONTEND_AND_UI_SPEC.md`](docs/spec/04_FRONTEND_AND_UI_SPEC.md) — Архитектура UI и редактора
+* [`05_AI_ASSISTANT_SPEC.md`](docs/spec/05_AI_ASSISTANT_SPEC.md) — Спецификация ИИ-ассистента
+* [`06_ROADMAP_AND_TODO.md`](docs/spec/06_ROADMAP_AND_TODO.md) — Дорожная карта и трекер задач

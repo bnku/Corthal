@@ -10,7 +10,8 @@ import type {
   ThemeColors,
 } from "./types";
 
-const STORAGE_KEY = "cortex_theme_config";
+const STORAGE_KEY = "corthal_theme_config";
+const LEGACY_STORAGE_KEY = "cortex_theme_config";
 
 class ThemeStore {
   config = $state<UserThemeConfig>({
@@ -79,7 +80,7 @@ class ThemeStore {
   private loadFromStorage() {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         this.config = { ...this.config, ...parsed };
@@ -235,35 +236,35 @@ class ThemeStore {
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     };
 
-    root.style.setProperty("--cortex-bg-main", colors.bgMain);
-    root.style.setProperty("--cortex-bg-sidebar", colors.bgSidebar);
-    root.style.setProperty("--cortex-bg-header", colors.bgHeader);
-    root.style.setProperty("--cortex-bg-card", colors.bgCard);
-    root.style.setProperty("--cortex-bg-input", colors.bgInput);
-    root.style.setProperty("--cortex-bg-hover", colors.bgHover);
-    root.style.setProperty("--cortex-bg-active", colors.bgActive);
+    root.style.setProperty("--corthal-bg-main", colors.bgMain);
+    root.style.setProperty("--corthal-bg-sidebar", colors.bgSidebar);
+    root.style.setProperty("--corthal-bg-header", colors.bgHeader);
+    root.style.setProperty("--corthal-bg-card", colors.bgCard);
+    root.style.setProperty("--corthal-bg-input", colors.bgInput);
+    root.style.setProperty("--corthal-bg-hover", colors.bgHover);
+    root.style.setProperty("--corthal-bg-active", colors.bgActive);
 
     // Text & high contrast adjustments
     if (isHc) {
-      root.style.setProperty("--cortex-fg-primary", "#ffffff");
-      root.style.setProperty("--cortex-fg-secondary", "#e2e8f0");
-      root.style.setProperty("--cortex-fg-muted", "#cbd5e1");
-      root.style.setProperty("--cortex-border", "rgba(255, 255, 255, 0.28)");
-      root.style.setProperty("--cortex-border-subtle", "rgba(255, 255, 255, 0.18)");
+      root.style.setProperty("--corthal-fg-primary", "#ffffff");
+      root.style.setProperty("--corthal-fg-secondary", "#e2e8f0");
+      root.style.setProperty("--corthal-fg-muted", "#cbd5e1");
+      root.style.setProperty("--corthal-border", "rgba(255, 255, 255, 0.28)");
+      root.style.setProperty("--corthal-border-subtle", "rgba(255, 255, 255, 0.18)");
     } else {
-      root.style.setProperty("--cortex-fg-primary", colors.fgPrimary);
-      root.style.setProperty("--cortex-fg-secondary", colors.fgSecondary);
-      root.style.setProperty("--cortex-fg-muted", colors.fgMuted);
-      root.style.setProperty("--cortex-border", colors.border);
-      root.style.setProperty("--cortex-border-subtle", colors.borderSubtle);
+      root.style.setProperty("--corthal-fg-primary", colors.fgPrimary);
+      root.style.setProperty("--corthal-fg-secondary", colors.fgSecondary);
+      root.style.setProperty("--corthal-fg-muted", colors.fgMuted);
+      root.style.setProperty("--corthal-border", colors.border);
+      root.style.setProperty("--corthal-border-subtle", colors.borderSubtle);
     }
 
     // Accent variables
-    root.style.setProperty("--cortex-accent", accent.hex);
-    root.style.setProperty("--cortex-accent-subtle", hexToRgba(accent.hex, 0.15));
-    root.style.setProperty("--cortex-accent-subtle-hover", hexToRgba(accent.hex, 0.25));
-    root.style.setProperty("--cortex-accent-border", hexToRgba(accent.hex, 0.35));
-    root.style.setProperty("--cortex-accent-fg", "#ffffff");
+    root.style.setProperty("--corthal-accent", accent.hex);
+    root.style.setProperty("--corthal-accent-subtle", hexToRgba(accent.hex, 0.15));
+    root.style.setProperty("--corthal-accent-subtle-hover", hexToRgba(accent.hex, 0.25));
+    root.style.setProperty("--corthal-accent-border", hexToRgba(accent.hex, 0.35));
+    root.style.setProperty("--corthal-accent-fg", "#ffffff");
 
     // Also set color-scheme for native inputs / scrollbars
     root.style.colorScheme = preset.category === "light" ? "light" : "dark";

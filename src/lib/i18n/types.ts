@@ -175,7 +175,7 @@ export interface TranslationSchema {
       preview_title: string;
       palette_title: string;
       palette_desc: string;
-      return_cortex_presets: string;
+      return_corthal_presets: string;
       accent_title: string;
       accent_desc: string;
       custom_hex: string;

@@ -407,7 +407,7 @@
     // Replace secrets inside code or text with inline secret mount point
     const regex = /(?:<code>\s*)?(🔒\[enc:v1:[^\]]+\])(?:\s*<\/code>)?/g;
     return html.replace(regex, (_match, token) => {
-      return `<span class="cortex-secret-mount" data-token="${token}"></span>`;
+      return `<span class="corthal-secret-mount" data-token="${token}"></span>`;
     });
   });
 
@@ -444,7 +444,7 @@
       }
       instances = [];
 
-      const placeholders = node.querySelectorAll<HTMLElement>(".cortex-secret-mount");
+      const placeholders = node.querySelectorAll<HTMLElement>(".corthal-secret-mount");
       for (const el of placeholders) {
         const token = el.getAttribute("data-token");
         if (token) {
@@ -591,7 +591,7 @@
           onkeydown={(e) => (e.key === "Enter" || e.code === "Enter") && handleTabClick(tab.path, e as any)}
         >
           <span class="tab-icon">
-            <Icon name={getFileIcon(tab.path)} size={13} color={isActive ? "var(--cortex-accent)" : "var(--cortex-fg-muted)"} />
+            <Icon name={getFileIcon(tab.path)} size={13} color={isActive ? "var(--corthal-accent)" : "var(--corthal-fg-muted)"} />
           </span>
           <span class="tab-title" title={tab.path}>{tab.title}</span>
 
@@ -781,7 +781,7 @@
                   disabled={floatingEncrypt.isEncrypting}
                   title={t("editor.encrypt_tooltip")}
                 >
-                  <Icon name="lock" size={12} color="var(--cortex-accent, #38bdf8)" />
+                  <Icon name="lock" size={12} color="var(--corthal-accent, #38bdf8)" />
                   <span>{floatingEncrypt.isEncrypting ? t("editor.encrypting") : t("editor.encrypt_selection")}</span>
                 </button>
               </div>
@@ -792,7 +792,7 @@
           <div class="code-viewer-container">
             <div class="code-viewer-toolbar">
               <div class="lang-pill">
-                <Icon name="file-code" size={13} color="var(--cortex-accent)" />
+                <Icon name="file-code" size={13} color="var(--corthal-accent)" />
                 <span>{detectedLang.toUpperCase()}</span>
               </div>
               <span class="code-meta-lines">{t("editor.lines_count", { count: lineNumbers.length })}</span>
@@ -817,7 +817,7 @@
       <!-- VS Code Style Welcome / Watermark State -->
       <div class="empty-welcome-workspace">
         <div class="watermark-logo">
-          <Icon name="brain" size={96} color="var(--cortex-accent, #38bdf8)" />
+          <Icon name="brain" size={96} color="var(--corthal-accent, #38bdf8)" />
         </div>
 
         <div class="welcome-shortcuts-list">
@@ -899,7 +899,7 @@
     height: 100%;
     min-width: 0;
     flex: 1;
-    background: var(--cortex-bg-main, #0f172a);
+    background: var(--corthal-bg-main, #0f172a);
     position: relative;
     outline: none;
   }
@@ -913,8 +913,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--cortex-bg-header, #0b1120);
-    border-bottom: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-header, #0b1120);
+    border-bottom: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     height: 36px;
     user-select: none;
     flex-shrink: 0;
@@ -943,9 +943,9 @@
     height: 35px;
     padding: 0 11px;
     background: transparent;
-    border-right: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.05));
+    border-right: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.05));
     border-bottom: 2px solid transparent;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     font-size: 0.78rem;
     font-weight: 500;
     cursor: pointer;
@@ -956,14 +956,14 @@
   }
 
   .editor-tab:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.04));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.04));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .editor-tab.active {
-    background: var(--cortex-bg-main, #0f172a);
-    color: var(--cortex-fg-primary, #ffffff);
-    border-bottom: 2px solid var(--cortex-accent, #38bdf8);
+    background: var(--corthal-bg-main, #0f172a);
+    color: var(--corthal-fg-primary, #ffffff);
+    border-bottom: 2px solid var(--corthal-accent, #38bdf8);
     font-weight: 600;
   }
 
@@ -980,7 +980,7 @@
   }
 
   .dirty-indicator {
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-size: 0.75rem;
     line-height: 1;
   }
@@ -994,7 +994,7 @@
     border-radius: 4px;
     background: transparent;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     opacity: 0.7;
     transition: all 0.12s;
@@ -1038,7 +1038,7 @@
     background: transparent;
     border: 1px solid transparent;
     border-radius: 4px;
-    color: var(--cortex-fg-secondary, #94a3b8);
+    color: var(--corthal-fg-secondary, #94a3b8);
     font-size: 0.72rem;
     font-weight: 500;
     cursor: pointer;
@@ -1051,15 +1051,15 @@
   }
 
   .pane-action-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
-    color: var(--cortex-fg-primary, #ffffff);
-    border-color: var(--cortex-border-subtle, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--corthal-fg-primary, #ffffff);
+    border-color: var(--corthal-border-subtle, rgba(255, 255, 255, 0.1));
   }
 
   .pane-action-btn.active {
-    color: var(--cortex-accent, #38bdf8);
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
-    border-color: var(--cortex-accent-border, rgba(56, 189, 248, 0.3));
+    color: var(--corthal-accent, #38bdf8);
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
+    border-color: var(--corthal-accent-border, rgba(56, 189, 248, 0.3));
   }
 
   .pane-action-btn.secret-btn {
@@ -1076,8 +1076,8 @@
   .mode-toggle-group {
     display: inline-flex;
     align-items: center;
-    background: var(--cortex-bg-input, rgba(0, 0, 0, 0.25));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-input, rgba(0, 0, 0, 0.25));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     border-radius: 4px;
     padding: 1px;
     height: 24px;
@@ -1093,18 +1093,18 @@
     background: transparent;
     border: none;
     border-radius: 3px;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     transition: all 0.12s;
   }
 
   .mode-btn:hover {
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .mode-btn.active {
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.12));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-card, rgba(255, 255, 255, 0.12));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   /* PANE CONTENT BODY */
@@ -1120,7 +1120,7 @@
     display: flex;
     height: 100%;
     width: 100%;
-    background: var(--cortex-bg-main, #0f172a);
+    background: var(--corthal-bg-main, #0f172a);
     overflow: hidden;
     position: relative;
   }
@@ -1131,8 +1131,8 @@
     padding: 16px 12px 16px 0;
     text-align: right;
     box-sizing: border-box;
-    background: var(--cortex-bg-main, #0f172a);
-    border-right: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-main, #0f172a);
+    border-right: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.08));
     overflow-y: hidden;
     user-select: none;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -1142,13 +1142,13 @@
   .gutter-line {
     height: 22px;
     line-height: 22px;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     font-variant-numeric: tabular-nums;
     transition: color 0.1s ease;
   }
 
   .gutter-line.active {
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-weight: 700;
   }
 
@@ -1159,7 +1159,7 @@
     box-sizing: border-box;
     background: transparent;
     border: none;
-    color: var(--cortex-fg-primary, #f1f5f9);
+    color: var(--corthal-fg-primary, #f1f5f9);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.88rem;
     line-height: 22px;
@@ -1184,13 +1184,13 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: var(--cortex-bg-header, #080c14);
-    border: 1px solid var(--cortex-accent, #38bdf8);
+    background: var(--corthal-bg-header, #080c14);
+    border: 1px solid var(--corthal-accent, #38bdf8);
     border-radius: 6px;
     padding: 3px 9px;
     font-size: 0.73rem;
     font-weight: 500;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
     cursor: pointer;
     transition: all 0.12s ease;
@@ -1198,7 +1198,7 @@
   }
 
   .floating-encrypt-btn:hover:not(:disabled) {
-    background: var(--cortex-bg-card, #141b2a);
+    background: var(--corthal-bg-card, #141b2a);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
     transform: translateY(-1px);
   }
@@ -1213,7 +1213,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--cortex-bg-main, #0f172a);
+    background: var(--corthal-bg-main, #0f172a);
     overflow: hidden;
   }
 
@@ -1222,8 +1222,8 @@
     align-items: center;
     gap: 10px;
     padding: 6px 16px;
-    background: var(--cortex-bg-header, rgba(0, 0, 0, 0.2));
-    border-bottom: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.06));
+    background: var(--corthal-bg-header, rgba(0, 0, 0, 0.2));
+    border-bottom: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.06));
     user-select: none;
     flex-shrink: 0;
   }
@@ -1233,10 +1233,10 @@
     align-items: center;
     gap: 6px;
     padding: 2px 7px;
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
-    border: 1px solid var(--cortex-accent-border, rgba(56, 189, 248, 0.25));
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
+    border: 1px solid var(--corthal-accent-border, rgba(56, 189, 248, 0.25));
     border-radius: 4px;
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-size: 0.68rem;
     font-weight: 600;
     letter-spacing: 0.5px;
@@ -1244,7 +1244,7 @@
 
   .code-meta-lines {
     font-size: 0.72rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .copy-code-btn {
@@ -1254,17 +1254,17 @@
     gap: 5px;
     padding: 3px 8px;
     background: transparent;
-    border: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.1));
     border-radius: 4px;
-    color: var(--cortex-fg-secondary, #cbd5e1);
+    color: var(--corthal-fg-secondary, #cbd5e1);
     font-size: 0.72rem;
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
   .copy-code-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .code-viewer-workspace {
@@ -1272,7 +1272,7 @@
     flex: 1;
     overflow: auto;
     position: relative;
-    background: var(--cortex-bg-main, #0f172a);
+    background: var(--corthal-bg-main, #0f172a);
   }
 
   .code-viewer-gutter {
@@ -1318,7 +1318,7 @@
     height: 100%;
     width: 100%;
     overflow: hidden;
-    background: var(--cortex-bg-main, #0f172a);
+    background: var(--corthal-bg-main, #0f172a);
     position: relative;
   }
 
@@ -1345,7 +1345,7 @@
   }
 
   .markdown-preview-content {
-    color: var(--cortex-fg-primary, #e2e8f0);
+    color: var(--corthal-fg-primary, #e2e8f0);
     line-height: 1.65;
     font-size: 0.95rem;
     user-select: text;
@@ -1353,7 +1353,7 @@
   }
 
   .markdown-preview-content :global(a) {
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     text-decoration: underline;
     text-underline-offset: 2px;
     cursor: pointer;
@@ -1367,7 +1367,7 @@
   .markdown-preview-content :global(h2),
   .markdown-preview-content :global(h3),
   .markdown-preview-content :global(h4) {
-    color: var(--cortex-fg-primary, #f8fafc);
+    color: var(--corthal-fg-primary, #f8fafc);
     font-weight: 600;
     margin-top: 1.5em;
     margin-bottom: 0.6em;
@@ -1376,7 +1376,7 @@
 
   .markdown-preview-content :global(h1) {
     font-size: 1.6rem;
-    border-bottom: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+    border-bottom: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.08));
     padding-bottom: 0.3em;
   }
 
@@ -1409,14 +1409,14 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.85em;
     padding: 0.15em 0.4em;
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-card, rgba(255, 255, 255, 0.08));
     border-radius: 4px;
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
   }
 
   .markdown-preview-content :global(pre) {
-    background: var(--cortex-bg-sidebar, #090e17);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-sidebar, #090e17);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     border-radius: 8px;
     padding: 14px 16px;
     overflow-x: auto;
@@ -1431,14 +1431,14 @@
   }
 
   .markdown-preview-content :global(blockquote) {
-    border-left: 3px solid var(--cortex-accent, #38bdf8);
+    border-left: 3px solid var(--corthal-accent, #38bdf8);
     padding-left: 14px;
     margin-left: 0;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     font-style: italic;
   }
 
-  :global(.cortex-secret-mount) {
+  :global(.corthal-secret-mount) {
     display: inline-flex;
     vertical-align: middle;
     margin: 0 4px;
@@ -1493,18 +1493,18 @@
   }
 
   .shortcut-action-row:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.06));
   }
 
   .shortcut-label {
     font-size: 0.83rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     transition: color 0.15s;
     font-weight: 500;
   }
 
   .shortcut-action-row:hover .shortcut-label {
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .shortcut-keys {
@@ -1512,17 +1512,17 @@
     align-items: center;
     gap: 4px;
     font-size: 0.72rem;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
   }
 
   .shortcut-keys kbd {
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.08));
-    border: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-card, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.12));
     border-radius: 4px;
     padding: 1px 6px;
     font-family: inherit;
     font-size: 0.72rem;
-    color: var(--cortex-fg-secondary, #cbd5e1);
+    color: var(--corthal-fg-secondary, #cbd5e1);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 </style>

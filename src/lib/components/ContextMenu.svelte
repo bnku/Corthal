@@ -135,8 +135,8 @@
   .context-menu {
     position: fixed;
     z-index: 2000;
-    background: var(--cortex-bg-card, #0f172a);
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
+    background: var(--corthal-bg-card, #0f172a);
+    border: 1px solid var(--corthal-border, rgba(148, 163, 184, 0.25));
     border-radius: 8px;
     padding: 4px;
     min-width: 220px;
@@ -151,7 +151,7 @@
     align-items: center;
     gap: 6px;
     padding: 6px 8px;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     font-weight: 500;
     font-size: 0.76rem;
   }
@@ -164,7 +164,7 @@
 
   .menu-divider {
     height: 1px;
-    background: var(--cortex-border-subtle, rgba(148, 163, 184, 0.12));
+    background: var(--corthal-border-subtle, rgba(148, 163, 184, 0.12));
     margin: 3px 0;
   }
 
@@ -176,7 +176,7 @@
     padding: 6px 10px;
     border: none;
     background: transparent;
-    color: var(--cortex-fg-primary, #e2e8f0);
+    color: var(--corthal-fg-primary, #e2e8f0);
     border-radius: 5px;
     font-size: 0.82rem;
     text-align: left;
@@ -185,14 +185,14 @@
   }
 
   .menu-item:hover {
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.15));
-    color: var(--cortex-accent, #ffffff);
+    background: var(--corthal-accent-subtle, rgba(59, 130, 246, 0.15));
+    color: var(--corthal-accent, #ffffff);
   }
 
   .menu-shortcut {
     margin-left: auto;
     font-size: 0.72rem;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     padding-left: 12px;
   }
 

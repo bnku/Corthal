@@ -203,7 +203,7 @@
 <div
   bind:this={containerEl}
   {id}
-  class="cortex-custom-select {className}"
+  class="corthal-custom-select {className}"
   class:is-open={isOpen}
   class:is-disabled={disabled}
   class:placement-up={placement === "up"}
@@ -232,7 +232,7 @@
     </div>
 
     <div class="trigger-chevron" class:flipped={isOpen}>
-      <Icon name="chevron-down" size={14} color="var(--cortex-fg-muted, #94a3b8)" />
+      <Icon name="chevron-down" size={14} color="var(--corthal-fg-muted, #94a3b8)" />
     </div>
   </button>
 
@@ -272,7 +272,7 @@
 
             {#if isSelected}
               <div class="option-check">
-                <Icon name="check" size={14} color="var(--cortex-accent, #38bdf8)" />
+                <Icon name="check" size={14} color="var(--corthal-accent, #38bdf8)" />
               </div>
             {/if}
           </div>
@@ -283,7 +283,7 @@
 </div>
 
 <style>
-  .cortex-custom-select {
+  .corthal-custom-select {
     position: relative;
     width: 100%;
     min-width: 0;
@@ -299,10 +299,10 @@
     justify-content: space-between;
     gap: 8px;
     padding: 7px 11px;
-    background: var(--cortex-bg-main, #13161c);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-main, #13161c);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
     border-radius: 6px;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     font-size: 0.82rem;
     text-align: left;
     cursor: pointer;
@@ -312,16 +312,16 @@
   }
 
   .select-trigger:hover:not(:disabled) {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.04));
-    border-color: var(--cortex-border-hover, rgba(255, 255, 255, 0.22));
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.04));
+    border-color: var(--corthal-border-hover, rgba(255, 255, 255, 0.22));
   }
 
-  .cortex-custom-select.is-open .select-trigger {
-    border-color: var(--cortex-accent, #3b82f6);
-    box-shadow: 0 0 0 1px var(--cortex-accent, #3b82f6);
+  .corthal-custom-select.is-open .select-trigger {
+    border-color: var(--corthal-accent, #3b82f6);
+    box-shadow: 0 0 0 1px var(--corthal-accent, #3b82f6);
   }
 
-  .cortex-custom-select.is-disabled .select-trigger {
+  .corthal-custom-select.is-disabled .select-trigger {
     opacity: 0.5;
     cursor: not-allowed;
   }
@@ -340,17 +340,17 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-weight: 450;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .trigger-placeholder {
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     font-style: italic;
   }
 
   .trigger-badge {
     background: rgba(59, 130, 246, 0.15);
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-size: 0.68rem;
     font-weight: 700;
     padding: 1px 5px;
@@ -375,8 +375,8 @@
     position: absolute;
     left: 0;
     z-index: 10000;
-    background: var(--cortex-bg-card, #1a1d26);
-    border: 1px solid var(--cortex-border-hover, rgba(255, 255, 255, 0.16));
+    background: var(--corthal-bg-card, #1a1d26);
+    border: 1px solid var(--corthal-border-hover, rgba(255, 255, 255, 0.16));
     border-radius: 8px;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
     overflow-y: auto;
@@ -424,7 +424,7 @@
     padding: 10px;
     text-align: center;
     font-size: 0.78rem;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
   }
 
   .select-option-item {
@@ -442,7 +442,7 @@
 
   .select-option-item:hover,
   .select-option-item:focus {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.06));
   }
 
   .select-option-item.is-selected {
@@ -450,7 +450,7 @@
   }
 
   .select-option-item.is-selected .option-label {
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-weight: 550;
   }
 
@@ -471,7 +471,7 @@
 
   .option-badge {
     background: rgba(59, 130, 246, 0.15);
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-size: 0.65rem;
     font-weight: 700;
     padding: 1px 4px;
@@ -481,7 +481,7 @@
 
   .option-label {
     font-size: 0.8rem;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -489,7 +489,7 @@
 
   .option-desc {
     font-size: 0.7rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -510,10 +510,10 @@
     background: transparent;
   }
   .custom-scroll::-webkit-scrollbar-thumb {
-    background: var(--cortex-border, rgba(255, 255, 255, 0.15));
+    background: var(--corthal-border, rgba(255, 255, 255, 0.15));
     border-radius: 3px;
   }
   .custom-scroll::-webkit-scrollbar-thumb:hover {
-    background: var(--cortex-border-hover, rgba(255, 255, 255, 0.25));
+    background: var(--corthal-border-hover, rgba(255, 255, 255, 0.25));
   }
 </style>

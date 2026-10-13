@@ -111,8 +111,8 @@
   }
 
   .modal-window {
-    background: var(--cortex-bg-card, #0f172a);
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
+    background: var(--corthal-bg-card, #0f172a);
+    border: 1px solid var(--corthal-border, rgba(148, 163, 184, 0.25));
     border-radius: 12px;
     width: 90%;
     max-width: 480px;
@@ -127,8 +127,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 18px;
-    border-bottom: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.15));
-    background: var(--cortex-bg-header, rgba(30, 41, 59, 0.3));
+    border-bottom: 1px solid var(--corthal-border-subtle, rgba(148, 163, 184, 0.15));
+    background: var(--corthal-bg-header, rgba(30, 41, 59, 0.3));
   }
 
   .title-wrap {
@@ -145,13 +145,13 @@
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #f1f5f9);
+    color: var(--corthal-fg-primary, #f1f5f9);
   }
 
   .close-btn {
     background: none;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     font-size: 1rem;
     cursor: pointer;
     padding: 4px;
@@ -160,7 +160,7 @@
   }
 
   .close-btn:hover {
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .modal-body {
@@ -168,39 +168,39 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background: var(--cortex-bg-main, transparent);
+    background: var(--corthal-bg-main, transparent);
   }
 
   .desc {
     margin: 0;
     font-size: 0.82rem;
-    color: var(--cortex-fg-secondary, #94a3b8);
+    color: var(--corthal-fg-secondary, #94a3b8);
     line-height: 1.4;
   }
 
   .desc code {
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.7));
+    background: var(--corthal-bg-card, rgba(30, 41, 59, 0.7));
     padding: 1px 4px;
     border-radius: 3px;
     font-size: 0.8rem;
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
   }
 
   .input-label {
     font-size: 0.82rem;
     font-weight: 500;
-    color: var(--cortex-fg-secondary, #cbd5e1);
+    color: var(--corthal-fg-secondary, #cbd5e1);
     margin-top: 4px;
   }
 
   .secret-textarea {
     width: 100%;
     box-sizing: border-box;
-    background: var(--cortex-bg-input, rgba(15, 23, 42, 0.8));
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
+    background: var(--corthal-bg-input, rgba(15, 23, 42, 0.8));
+    border: 1px solid var(--corthal-border, rgba(148, 163, 184, 0.25));
     border-radius: 6px;
     padding: 10px;
-    color: var(--cortex-fg-primary, #f8fafc);
+    color: var(--corthal-fg-primary, #f8fafc);
     font-family: inherit;
     font-size: 0.88rem;
     resize: vertical;
@@ -209,7 +209,7 @@
   }
 
   .secret-textarea:focus {
-    border-color: var(--cortex-accent, #3b82f6);
+    border-color: var(--corthal-accent, #3b82f6);
   }
 
   .error-msg {
@@ -226,14 +226,14 @@
     justify-content: flex-end;
     gap: 10px;
     padding: 12px 18px;
-    background: var(--cortex-bg-header, rgba(30, 41, 59, 0.2));
-    border-top: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.12));
+    background: var(--corthal-bg-header, rgba(30, 41, 59, 0.2));
+    border-top: 1px solid var(--corthal-border-subtle, rgba(148, 163, 184, 0.12));
   }
 
   .cancel-btn {
     background: transparent;
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
-    color: var(--cortex-fg-secondary, #94a3b8);
+    border: 1px solid var(--corthal-border, rgba(148, 163, 184, 0.25));
+    color: var(--corthal-fg-secondary, #94a3b8);
     padding: 6px 14px;
     border-radius: 6px;
     font-size: 0.84rem;
@@ -242,14 +242,14 @@
   }
 
   .cancel-btn:hover {
-    color: var(--cortex-fg-primary, #f1f5f9);
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.05));
+    color: var(--corthal-fg-primary, #f1f5f9);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.05));
   }
 
   .submit-btn {
-    background: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-accent, #3b82f6);
     border: none;
-    color: var(--cortex-accent-fg, #ffffff);
+    color: var(--corthal-accent-fg, #ffffff);
     padding: 6px 16px;
     border-radius: 6px;
     font-size: 0.84rem;

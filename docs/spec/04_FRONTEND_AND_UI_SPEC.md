@@ -1,4 +1,4 @@
-# CORTEX: Frontend & UI Specification
+# CORTHAL: Frontend & UI Specification
 
 ## 1. UI Layout (Трехпанельный макет)
 Интерфейс разделен на 3 адаптивные колонки:

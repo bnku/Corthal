@@ -136,7 +136,7 @@
     onclick={toggleDropdown}
     aria-label={t("header.filter_hubs_aria")}
   >
-    <Icon name="list-filter" size={13} color="var(--cortex-accent, #38bdf8)" />
+    <Icon name="list-filter" size={13} color="var(--corthal-accent, #38bdf8)" />
     <span class="trigger-label">{buttonLabel}</span>
     <span class="chevron-icon" class:open={isOpen}>
       <Icon name="chevron-down" size={12} />
@@ -147,7 +147,7 @@
     <div class="filter-popover" onclick={(e) => e.stopPropagation()} role="dialog" tabindex="-1">
       <div class="popover-header">
         <div class="popover-title">
-          <Icon name="folder" size={14} color="var(--cortex-accent)" />
+          <Icon name="folder" size={14} color="var(--corthal-accent)" />
           <span>{t("header.all_sections")}</span>
           <span class="count-badge">{realHubs.length}</span>
         </div>
@@ -160,7 +160,7 @@
 
       {#if realHubs.length > 6}
         <div class="filter-search-box">
-          <Icon name="search" size={12} color="var(--cortex-fg-muted)" />
+          <Icon name="search" size={12} color="var(--corthal-fg-muted)" />
           <input
             type="text"
             placeholder={t("common.search") + "..."}
@@ -183,7 +183,7 @@
             {/if}
           </span>
           <span class="hub-row-icon">
-            <Icon name="globe" size={14} color="var(--cortex-accent)" />
+            <Icon name="globe" size={14} color="var(--corthal-accent)" />
           </span>
           <span class="hub-row-name">{t("header.all_sections")}</span>
           <span class="hub-row-badge">{realHubs.length}</span>
@@ -205,7 +205,7 @@
               {/if}
             </span>
             <span class="hub-row-icon">
-              <Icon name={hub.icon || "folder"} size={14} color={hub.color || "var(--cortex-fg-muted)"} />
+              <Icon name={hub.icon || "folder"} size={14} color={hub.color || "var(--corthal-fg-muted)"} />
             </span>
             <span class="hub-row-name">{hub.name}</span>
             <span class="hub-row-id">{hub.id}</span>
@@ -228,10 +228,10 @@
     align-items: center;
     gap: 7px;
     padding: 4px 10px;
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-bg-card, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.1));
     border-radius: 6px;
-    color: var(--cortex-fg-primary, #e2e8f0);
+    color: var(--corthal-fg-primary, #e2e8f0);
     font-size: 0.78rem;
     font-weight: 500;
     cursor: pointer;
@@ -241,17 +241,17 @@
   }
 
   .filter-trigger-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.1));
-    border-color: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.1));
+    border-color: var(--corthal-accent, #38bdf8);
   }
 
   .filter-trigger-btn.active {
-    border-color: var(--cortex-accent, #38bdf8);
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
+    border-color: var(--corthal-accent, #38bdf8);
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
   }
 
   .filter-trigger-btn.filtered {
-    border-color: var(--cortex-accent, #38bdf8);
+    border-color: var(--corthal-accent, #38bdf8);
   }
 
   .trigger-label {
@@ -264,7 +264,7 @@
   .chevron-icon {
     display: flex;
     align-items: center;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     transition: transform 0.2s ease;
   }
 
@@ -278,8 +278,8 @@
     top: calc(100% + 6px);
     left: 0;
     width: 260px;
-    background: var(--cortex-bg-sidebar, #0d1117);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-sidebar, #0d1117);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
     border-radius: 8px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
     z-index: 10000;
@@ -308,8 +308,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 9px 12px;
-    background: var(--cortex-bg-header, rgba(255, 255, 255, 0.03));
-    border-bottom: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.06));
+    background: var(--corthal-bg-header, rgba(255, 255, 255, 0.03));
+    border-bottom: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.06));
   }
 
   .popover-title {
@@ -318,12 +318,12 @@
     gap: 7px;
     font-size: 0.78rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .count-badge {
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.15));
-    color: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.15));
+    color: var(--corthal-accent, #38bdf8);
     font-size: 0.65rem;
     padding: 1px 5px;
     border-radius: 4px;
@@ -340,7 +340,7 @@
   .text-action-btn {
     background: none;
     border: none;
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     cursor: pointer;
     padding: 2px 4px;
     border-radius: 3px;
@@ -352,7 +352,7 @@
   }
 
   .sep {
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
   }
 
   .filter-search-box {
@@ -360,15 +360,15 @@
     align-items: center;
     gap: 6px;
     padding: 6px 10px;
-    border-bottom: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.06));
-    background: var(--cortex-bg-input, rgba(0, 0, 0, 0.2));
+    border-bottom: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.06));
+    background: var(--corthal-bg-input, rgba(0, 0, 0, 0.2));
   }
 
   .filter-search-input {
     width: 100%;
     background: none;
     border: none;
-    color: var(--cortex-fg-primary, #e2e8f0);
+    color: var(--corthal-fg-primary, #e2e8f0);
     font-size: 0.75rem;
     outline: none;
   }
@@ -390,7 +390,7 @@
     background: transparent;
     border: none;
     border-radius: 5px;
-    color: var(--cortex-fg-secondary, #cbd5e1);
+    color: var(--corthal-fg-secondary, #cbd5e1);
     font-size: 0.78rem;
     cursor: pointer;
     text-align: left;
@@ -399,26 +399,26 @@
   }
 
   .hub-row:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.06));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .checkbox-box {
     width: 14px;
     height: 14px;
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.2));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.2));
     border-radius: 3px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--cortex-bg-input, rgba(0, 0, 0, 0.2));
+    background: var(--corthal-bg-input, rgba(0, 0, 0, 0.2));
     flex-shrink: 0;
     transition: all 0.12s;
   }
 
   .checkbox-box.checked {
-    background: var(--cortex-accent, #38bdf8);
-    border-color: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-accent, #38bdf8);
+    border-color: var(--corthal-accent, #38bdf8);
   }
 
   .hub-row-icon {
@@ -438,18 +438,18 @@
 
   .hub-row-id {
     font-size: 0.65rem;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     font-family: monospace;
   }
 
   .hub-row-badge {
     font-size: 0.68rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .divider {
     height: 1px;
-    background: var(--cortex-border-subtle, rgba(255, 255, 255, 0.06));
+    background: var(--corthal-border-subtle, rgba(255, 255, 255, 0.06));
     margin: 4px 6px;
   }
 </style>

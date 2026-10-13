@@ -234,8 +234,8 @@
   }
 
   .modal-window {
-    background: var(--cortex-bg-card, #0f172a);
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
+    background: var(--corthal-bg-card, #0f172a);
+    border: 1px solid var(--corthal-border, rgba(148, 163, 184, 0.25));
     border-radius: 12px;
     width: 90%;
     max-width: 500px;
@@ -250,8 +250,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 18px;
-    border-bottom: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.15));
-    background: var(--cortex-bg-header, rgba(30, 41, 59, 0.3));
+    border-bottom: 1px solid var(--corthal-border-subtle, rgba(148, 163, 184, 0.15));
+    background: var(--corthal-bg-header, rgba(30, 41, 59, 0.3));
   }
 
   .title-wrap {
@@ -264,13 +264,13 @@
     margin: 0;
     font-size: 0.98rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #f1f5f9);
+    color: var(--corthal-fg-primary, #f1f5f9);
   }
 
   .close-btn {
     background: none;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     font-size: 1rem;
     cursor: pointer;
     padding: 4px;
@@ -278,7 +278,7 @@
   }
 
   .close-btn:hover {
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .modal-body {
@@ -288,38 +288,38 @@
     gap: 10px;
     max-height: 75vh;
     overflow-y: auto;
-    background: var(--cortex-bg-main, transparent);
+    background: var(--corthal-bg-main, transparent);
   }
 
   .path-badge {
     font-size: 0.78rem;
-    color: var(--cortex-fg-secondary, #94a3b8);
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.5));
+    color: var(--corthal-fg-secondary, #94a3b8);
+    background: var(--corthal-bg-card, rgba(30, 41, 59, 0.5));
     padding: 5px 8px;
     border-radius: 6px;
-    border: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.1));
+    border: 1px solid var(--corthal-border-subtle, rgba(148, 163, 184, 0.1));
   }
 
   .path-badge code {
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-family: monospace;
   }
 
   .input-label {
     font-size: 0.8rem;
     font-weight: 500;
-    color: var(--cortex-fg-secondary, #cbd5e1);
+    color: var(--corthal-fg-secondary, #cbd5e1);
     margin-top: 2px;
   }
 
   .text-input {
     width: 100%;
     box-sizing: border-box;
-    background: var(--cortex-bg-input, rgba(15, 23, 42, 0.8));
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
+    background: var(--corthal-bg-input, rgba(15, 23, 42, 0.8));
+    border: 1px solid var(--corthal-border, rgba(148, 163, 184, 0.25));
     border-radius: 6px;
     padding: 7px 10px;
-    color: var(--cortex-fg-primary, #f8fafc);
+    color: var(--corthal-fg-primary, #f8fafc);
     font-family: inherit;
     font-size: 0.85rem;
     outline: none;
@@ -327,7 +327,7 @@
   }
 
   .text-input:focus {
-    border-color: var(--cortex-accent, #3b82f6);
+    border-color: var(--corthal-accent, #3b82f6);
   }
 
   .desc-textarea {
@@ -336,8 +336,8 @@
 
   /* ICON PICKER */
   .icon-picker-section {
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.3));
-    border: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.15));
+    background: var(--corthal-bg-card, rgba(30, 41, 59, 0.3));
+    border: 1px solid var(--corthal-border-subtle, rgba(148, 163, 184, 0.15));
     border-radius: 8px;
     padding: 10px;
     display: flex;
@@ -355,27 +355,27 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: var(--cortex-bg-input, rgba(15, 23, 42, 0.7));
+    background: var(--corthal-bg-input, rgba(15, 23, 42, 0.7));
     padding: 3px 8px;
     border-radius: 5px;
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
+    border: 1px solid var(--corthal-border, rgba(148, 163, 184, 0.2));
   }
 
   .preview-name {
     font-size: 0.75rem;
-    color: var(--cortex-fg-secondary, #94a3b8);
+    color: var(--corthal-fg-secondary, #94a3b8);
     font-family: monospace;
   }
 
   .icon-search-input {
     width: 100%;
     box-sizing: border-box;
-    background: var(--cortex-bg-input, rgba(15, 23, 42, 0.6));
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.2));
+    background: var(--corthal-bg-input, rgba(15, 23, 42, 0.6));
+    border: 1px solid var(--corthal-border, rgba(148, 163, 184, 0.2));
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 0.78rem;
-    color: var(--cortex-fg-primary, #f1f5f9);
+    color: var(--corthal-fg-primary, #f1f5f9);
     outline: none;
   }
 
@@ -393,23 +393,23 @@
     align-items: center;
     justify-content: center;
     height: 32px;
-    background: var(--cortex-bg-input, rgba(15, 23, 42, 0.5));
+    background: var(--corthal-bg-input, rgba(15, 23, 42, 0.5));
     border: 1px solid transparent;
     border-radius: 5px;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     transition: all 0.12s;
   }
 
   .icon-choice-btn:hover {
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.2));
-    color: var(--cortex-accent, #ffffff);
+    background: var(--corthal-accent-subtle, rgba(59, 130, 246, 0.2));
+    color: var(--corthal-accent, #ffffff);
   }
 
   .icon-choice-btn.selected {
-    background: var(--cortex-accent, #3b82f6);
-    color: var(--cortex-accent-fg, #ffffff);
-    border-color: var(--cortex-accent, #60a5fa);
+    background: var(--corthal-accent, #3b82f6);
+    color: var(--corthal-accent-fg, #ffffff);
+    border-color: var(--corthal-accent, #60a5fa);
   }
 
   /* COLOR & ORDER */
@@ -440,8 +440,8 @@
   }
 
   .color-btn.selected {
-    border-color: var(--cortex-fg-primary, #ffffff);
-    box-shadow: 0 0 6px var(--cortex-accent, rgba(255, 255, 255, 0.5));
+    border-color: var(--corthal-fg-primary, #ffffff);
+    box-shadow: 0 0 6px var(--corthal-accent, rgba(255, 255, 255, 0.5));
   }
 
   .order-input {
@@ -462,14 +462,14 @@
     justify-content: flex-end;
     gap: 10px;
     padding: 12px 18px;
-    background: var(--cortex-bg-header, rgba(30, 41, 59, 0.2));
-    border-top: 1px solid var(--cortex-border-subtle, rgba(148, 163, 184, 0.12));
+    background: var(--corthal-bg-header, rgba(30, 41, 59, 0.2));
+    border-top: 1px solid var(--corthal-border-subtle, rgba(148, 163, 184, 0.12));
   }
 
   .cancel-btn {
     background: transparent;
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
-    color: var(--cortex-fg-secondary, #94a3b8);
+    border: 1px solid var(--corthal-border, rgba(148, 163, 184, 0.25));
+    color: var(--corthal-fg-secondary, #94a3b8);
     padding: 6px 14px;
     border-radius: 6px;
     font-size: 0.84rem;
@@ -478,14 +478,14 @@
   }
 
   .cancel-btn:hover {
-    color: var(--cortex-fg-primary, #f1f5f9);
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.05));
+    color: var(--corthal-fg-primary, #f1f5f9);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.05));
   }
 
   .submit-btn {
-    background: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-accent, #3b82f6);
     border: none;
-    color: var(--cortex-accent-fg, #ffffff);
+    color: var(--corthal-accent-fg, #ffffff);
     padding: 6px 16px;
     border-radius: 6px;
     font-size: 0.84rem;

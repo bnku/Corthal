@@ -7,7 +7,7 @@
   import { languages } from "@codemirror/language-data";
   import { GFM } from "@lezer/markdown";
   import { invoke } from "@tauri-apps/api/core";
-  import { cortexEditorTheme, cortexSyntax } from "$lib/editor/theme";
+  import { corthalEditorTheme, corthalSyntax } from "$lib/editor/theme";
   import { createLivePreviewPlugin } from "$lib/editor/livePreviewExtension";
   import { SLASH_COMMANDS, type SlashCommandItem } from "$lib/editor/slashCommands";
   import Icon from "./Icon.svelte";
@@ -703,8 +703,8 @@
     const isLive = mode === "live";
 
     return [
-      cortexEditorTheme,
-      cortexSyntax,
+      corthalEditorTheme,
+      corthalSyntax,
       history(),
       EditorView.lineWrapping,
       markdown({
@@ -790,7 +790,7 @@
   });
 </script>
 
-<div class="cortex-live-editor" bind:this={editorContainerEl}>
+<div class="corthal-live-editor" bind:this={editorContainerEl}>
   <!-- FLOATING SELECTION BUBBLE TOOLBAR (Obsidian / Typora style) -->
   {#if bubbleVisible}
     <div
@@ -889,7 +889,7 @@
             role="menuitem"
           >
             <div class="slash-icon">
-              <Icon name={cmd.icon} size={15} color={isSelected ? "var(--cortex-accent, #38bdf8)" : "#94a3b8"} />
+              <Icon name={cmd.icon} size={15} color={isSelected ? "var(--corthal-accent, #38bdf8)" : "#94a3b8"} />
             </div>
             <div class="slash-info">
               <div class="slash-title">{cmd.title}</div>
@@ -903,7 +903,7 @@
 </div>
 
 <style>
-  .cortex-live-editor {
+  .corthal-live-editor {
     position: relative;
     width: 100%;
     height: 100%;
@@ -929,9 +929,9 @@
     -webkit-appearance: none;
     width: 16px;
     height: 16px;
-    border: 1.5px solid var(--cortex-border, #475569);
+    border: 1.5px solid var(--corthal-border, #475569);
     border-radius: 4px;
-    background: var(--cortex-bg-card, #1e293b);
+    background: var(--corthal-bg-card, #1e293b);
     cursor: pointer;
     position: relative;
     outline: none;
@@ -939,8 +939,8 @@
   }
 
   :global(.cm-live-task-checkbox:checked) {
-    background: var(--cortex-accent, #38bdf8);
-    border-color: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-accent, #38bdf8);
+    border-color: var(--corthal-accent, #38bdf8);
   }
 
   :global(.cm-live-task-checkbox:checked::after) {
@@ -962,7 +962,7 @@
   :global(.cm-live-hr) {
     border: none;
     height: 1px;
-    background: var(--cortex-border, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-border, rgba(255, 255, 255, 0.1));
     margin: 0;
   }
 
@@ -981,8 +981,8 @@
     gap: 2px;
     padding: 4px 6px;
     border-radius: 8px;
-    background: var(--cortex-bg-card, #131b2e);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-card, #131b2e);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
     animation: bubbleFadeIn 0.15s ease-out;
   }
@@ -1004,7 +1004,7 @@
     justify-content: center;
     background: transparent;
     border: none;
-    color: var(--cortex-fg-secondary, #94a3b8);
+    color: var(--corthal-fg-secondary, #94a3b8);
     height: 26px;
     min-width: 26px;
     padding: 0 6px;
@@ -1016,11 +1016,11 @@
 
   .bubble-btn:hover {
     background: rgba(255, 255, 255, 0.08);
-    color: var(--cortex-fg-primary, #f8fafc);
+    color: var(--corthal-fg-primary, #f8fafc);
   }
 
   .bubble-btn.active {
-    background: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-accent, #3b82f6);
     color: #ffffff;
   }
 
@@ -1042,7 +1042,7 @@
   .bubble-divider {
     width: 1px;
     height: 16px;
-    background: var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-border, rgba(255, 255, 255, 0.12));
     margin: 0 4px;
   }
 
@@ -1065,8 +1065,8 @@
     width: 280px;
     max-height: 320px;
     overflow-y: auto;
-    background: var(--cortex-bg-card, #131b2e);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-card, #131b2e);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
     border-radius: 10px;
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
     padding: 6px;
@@ -1077,7 +1077,7 @@
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.05em;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     padding: 6px 10px 4px 10px;
     text-transform: uppercase;
   }
@@ -1131,12 +1131,12 @@
   .slash-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #f1f5f9);
+    color: var(--corthal-fg-primary, #f1f5f9);
   }
 
   .slash-desc {
     font-size: 11px;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

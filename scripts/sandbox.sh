@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# cortex-sandbox.sh - Isolated Headless GUI & VNC Sandbox for Development
+# corthal-sandbox.sh - Isolated Headless GUI & VNC Sandbox for Development
 # ==============================================================================
 set -euo pipefail
 
@@ -11,7 +11,7 @@ LOCK_FILE="/tmp/.X${DISPLAY_NUM#:}-lock"
 SOCKET_FILE="/tmp/.X11-unix/X${DISPLAY_NUM#:}"
 
 start_sandbox() {
-    echo "🚀 Запуск изолированного стенда Cortex (DISPLAY=${DISPLAY_NUM}, VNC=${VNC_PORT})..."
+    echo "🚀 Запуск изолированного стенда Corthal (DISPLAY=${DISPLAY_NUM}, VNC=${VNC_PORT})..."
 
     # 1. Проверяем наличие необходимых утилит
     local missing=()

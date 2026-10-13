@@ -1,7 +1,7 @@
-# CORTEX: Knowledge Vault Specification
+# CORTHAL: Knowledge Vault Specification
 
 ## 1. Vault Location & Hubs
-По умолчанию Cortex работает с директорией:
+По умолчанию Corthal работает с директорией:
 `$HOME/knowledge/`
 
 Каталог строго структурирован по хабам:

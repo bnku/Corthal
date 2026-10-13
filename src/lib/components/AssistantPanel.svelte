@@ -48,7 +48,7 @@
     // 3. Replace secret tokens `🔒[enc:v1:...]` or 🔒[enc:v1:...] (even inside code tags) with mount points
     const regex = /(?:<code>\s*)?(🔒\[enc:v1:[^\]]+\])(?:\s*<\/code>)?/g;
     return html.replace(regex, (_match, token) => {
-      return `<span class="cortex-secret-mount" data-token="${token}"></span>`;
+      return `<span class="corthal-secret-mount" data-token="${token}"></span>`;
     });
   }
 
@@ -62,7 +62,7 @@
       }
       instances = [];
 
-      const placeholders = node.querySelectorAll<HTMLElement>(".cortex-secret-mount");
+      const placeholders = node.querySelectorAll<HTMLElement>(".corthal-secret-mount");
       for (const el of placeholders) {
         const token = el.getAttribute("data-token");
         if (token) {
@@ -145,7 +145,7 @@
     openai_key: null,
     openai_model: "llama3",
     openai_temperature: 0.7,
-    system_prompt: "Ты — встроенный AI-ассистент Cortex...",
+    system_prompt: "Ты — встроенный AI-ассистент Corthal...",
     include_vault_context: true,
     include_active_note: true,
   });
@@ -359,7 +359,7 @@
         result += child.textContent || "";
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         const el = child as HTMLElement;
-        if (el.classList.contains("cortex-secret-mount") || el.hasAttribute("data-token")) {
+        if (el.classList.contains("corthal-secret-mount") || el.hasAttribute("data-token")) {
           const token = el.getAttribute("data-token");
           result += `🔒[${token}]`;
         } else if (el.tagName === "BR") {
@@ -445,7 +445,7 @@
       });
 
       const mountSpan = document.createElement("span");
-      mountSpan.className = "cortex-secret-mount input-secret-badge";
+      mountSpan.className = "corthal-secret-mount input-secret-badge";
       mountSpan.contentEditable = "false";
       mountSpan.setAttribute("data-token", token);
 
@@ -512,7 +512,7 @@
       }
       const token = match[1];
       const mountSpan = document.createElement("span");
-      mountSpan.className = "cortex-secret-mount input-secret-badge";
+      mountSpan.className = "corthal-secret-mount input-secret-badge";
       mountSpan.contentEditable = "false";
       mountSpan.setAttribute("data-token", token);
       mount(SecretPill, {
@@ -682,7 +682,7 @@
   <div class="header">
     <div class="header-left">
       <div class="title-block">
-        <Icon name="bot" size={16} color="var(--cortex-accent, #38bdf8)" />
+        <Icon name="bot" size={16} color="var(--corthal-accent, #38bdf8)" />
         <span class="panel-heading">{t("assistant.title")}</span>
       </div>
 
@@ -723,7 +723,7 @@
                 >
                   <span class="model-item-name">{modelName}</span>
                   {#if currentModel === modelName}
-                    <Icon name="check" size={13} color="var(--cortex-accent, #38bdf8)" />
+                    <Icon name="check" size={13} color="var(--corthal-accent, #38bdf8)" />
                   {/if}
                 </button>
               {/each}
@@ -744,7 +744,7 @@
                   step="1"
                   value={effortIndex}
                   oninput={(e) => handleEffortChange(parseInt(e.currentTarget.value, 10))}
-                  class="cortex-slider"
+                  class="corthal-slider"
                 />
                 <div class="slider-ticks">
                   <span class:active={effortIndex === 0}>auto</span>
@@ -811,7 +811,7 @@
                 <Icon
                   name={copiedId === msg.id ? "check" : "copy"}
                   size={12}
-                  color={copiedId === msg.id ? "var(--cortex-accent, #38bdf8)" : "currentColor"}
+                  color={copiedId === msg.id ? "var(--corthal-accent, #38bdf8)" : "currentColor"}
                 />
               </button>
               {#if onInsertText}
@@ -838,7 +838,7 @@
       <div class="context-bar">
         {#if includeActiveNote}
           <div class="context-chip attached">
-            <Icon name="file-text" size={11} color="var(--cortex-accent, #38bdf8)" />
+            <Icon name="file-text" size={11} color="var(--corthal-accent, #38bdf8)" />
             <span class="context-name" title={activeNotePath}>{activeFileName}</span>
             <span class="context-tag">{t("assistant.in_context")}</span>
             <button
@@ -932,7 +932,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--cortex-bg-sidebar, #0a111a);
+    background: var(--corthal-bg-sidebar, #0a111a);
     user-select: text;
     -webkit-user-select: text;
     min-width: 0;
@@ -954,8 +954,8 @@
     justify-content: space-between;
     height: 38px;
     padding: 0 10px 0 12px;
-    background: var(--cortex-bg-header, #080c14);
-    border-bottom: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-header, #080c14);
+    border-bottom: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     flex-shrink: 0;
     user-select: none;
   }
@@ -978,7 +978,7 @@
     margin: 0;
     font-size: 0.82rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     letter-spacing: -0.2px;
     white-space: nowrap;
   }
@@ -993,28 +993,28 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.04));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-bg-card, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.1));
     border-radius: 14px;
     padding: 2px 8px;
     font-size: 0.72rem;
-    color: var(--cortex-fg-secondary, #cbd5e1);
+    color: var(--corthal-fg-secondary, #cbd5e1);
     cursor: pointer;
     transition: all 0.12s ease;
     max-width: 170px;
   }
 
   .model-pill:hover {
-    border-color: var(--cortex-accent, #38bdf8);
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
-    color: var(--cortex-fg-primary, #ffffff);
+    border-color: var(--corthal-accent, #38bdf8);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .provider-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--cortex-fg-muted, #64748b);
+    background: var(--corthal-fg-muted, #64748b);
     flex-shrink: 0;
   }
 
@@ -1024,8 +1024,8 @@
   }
 
   .model-badge {
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
-    color: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
+    color: var(--corthal-accent, #38bdf8);
     padding: 1px 5px;
     border-radius: 6px;
     font-size: 0.65rem;
@@ -1037,7 +1037,7 @@
   }
 
   .model-pill :global(.chevron-icon) {
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     flex-shrink: 0;
   }
 
@@ -1047,8 +1047,8 @@
     top: calc(100% + 6px);
     left: 0;
     width: 250px;
-    background: var(--cortex-bg-card, #0f172a);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-card, #0f172a);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
     border-radius: 8px;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
     z-index: 1000;
@@ -1065,7 +1065,7 @@
   .popover-title {
     font-size: 0.68rem;
     font-weight: 600;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -1092,23 +1092,23 @@
   }
 
   .model-item-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.06));
   }
 
   .model-item-btn.active {
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
   }
 
   .model-item-name {
     font-size: 0.78rem;
     font-weight: 500;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     font-family: monospace;
   }
 
   .popover-divider {
     height: 1px;
-    background: var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-border-subtle, rgba(255, 255, 255, 0.08));
     margin: 8px 0;
   }
 
@@ -1127,14 +1127,14 @@
 
   .effort-title {
     font-size: 0.7rem;
-    color: var(--cortex-fg-secondary, #cbd5e1);
+    color: var(--corthal-fg-secondary, #cbd5e1);
   }
 
   .effort-badge {
     font-size: 0.65rem;
     font-weight: 600;
-    color: var(--cortex-accent, #38bdf8);
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
+    color: var(--corthal-accent, #38bdf8);
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
     padding: 1px 6px;
     border-radius: 4px;
     font-family: monospace;
@@ -1147,30 +1147,30 @@
     gap: 4px;
   }
 
-  .cortex-slider {
+  .corthal-slider {
     -webkit-appearance: none;
     appearance: none;
     width: 100%;
     height: 4px;
     border-radius: 2px;
-    background: var(--cortex-border, rgba(255, 255, 255, 0.15));
+    background: var(--corthal-border, rgba(255, 255, 255, 0.15));
     outline: none;
     cursor: pointer;
   }
 
-  .cortex-slider::-webkit-slider-thumb {
+  .corthal-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-accent, #38bdf8);
     cursor: pointer;
     box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
     transition: transform 0.1s ease;
   }
 
-  .cortex-slider::-webkit-slider-thumb:hover {
+  .corthal-slider::-webkit-slider-thumb:hover {
     transform: scale(1.15);
   }
 
@@ -1178,12 +1178,12 @@
     display: flex;
     justify-content: space-between;
     font-size: 0.6rem;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     user-select: none;
   }
 
   .slider-ticks span.active {
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-weight: 600;
   }
 
@@ -1199,7 +1199,7 @@
     background: transparent;
     border: 1px solid transparent;
     border-radius: 4px;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     width: 26px;
     height: 26px;
     cursor: pointer;
@@ -1210,8 +1210,8 @@
   }
 
   .action-icon-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   /* 3. MESSAGES AREA */
@@ -1250,15 +1250,15 @@
   }
 
   .bubble.user {
-    background: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-accent, #38bdf8);
     color: #ffffff;
     border-bottom-right-radius: 2px;
   }
 
   .bubble.assistant {
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.04));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.09));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-card, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.09));
+    color: var(--corthal-fg-primary, #ffffff);
     border-bottom-left-radius: 2px;
   }
 
@@ -1274,7 +1274,7 @@
 
   .streaming-cursor {
     display: inline-block;
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     animation: blink 0.8s infinite;
     margin-left: 2px;
   }
@@ -1287,8 +1287,8 @@
     display: flex;
     align-items: center;
     gap: 3px;
-    background: var(--cortex-bg-header, #080c14);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-header, #080c14);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
     border-radius: 6px;
     padding: 2px 4px;
     opacity: 0;
@@ -1314,14 +1314,14 @@
     border-radius: 4px;
     background: transparent;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     transition: all 0.1s ease;
   }
 
   .hover-icon-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.1));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.1));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   /* Markdown Typography inside Assistant Messages */
@@ -1342,25 +1342,25 @@
     font-size: 0.95rem;
     font-weight: 600;
     margin: 8px 0 4px;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .bubble-markdown :global(h2) {
     font-size: 0.88rem;
     font-weight: 600;
     margin: 6px 0 3px;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .bubble-markdown :global(h3) {
     font-size: 0.82rem;
     font-weight: 600;
     margin: 5px 0 2px;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .bubble-markdown :global(a) {
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     text-decoration: underline;
     text-underline-offset: 2px;
     cursor: pointer;
@@ -1376,14 +1376,14 @@
     border-radius: 3px;
     font-family: monospace;
     font-size: 0.84em;
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
   }
 
   .bubble-markdown :global(pre) {
-    background: var(--cortex-bg-main, #090d16);
+    background: var(--corthal-bg-main, #090d16);
     padding: 8px 10px;
     border-radius: 6px;
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     overflow-x: auto;
     margin: 6px 0;
   }
@@ -1391,7 +1391,7 @@
   .bubble-markdown :global(pre code) {
     background: transparent;
     padding: 0;
-    color: var(--cortex-fg-primary, #e2e8f0);
+    color: var(--corthal-fg-primary, #e2e8f0);
     font-size: 0.78rem;
   }
 
@@ -1408,12 +1408,12 @@
   .bubble-markdown :global(blockquote) {
     margin: 6px 0;
     padding: 4px 10px;
-    border-left: 2px solid var(--cortex-accent, #38bdf8);
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.06));
-    color: var(--cortex-fg-secondary, #cbd5e1);
+    border-left: 2px solid var(--corthal-accent, #38bdf8);
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.06));
+    color: var(--corthal-fg-secondary, #cbd5e1);
   }
 
-  .bubble-markdown :global(.cortex-secret-mount) {
+  .bubble-markdown :global(.corthal-secret-mount) {
     display: inline-flex;
     vertical-align: middle;
   }
@@ -1421,8 +1421,8 @@
   /* 4. INPUT AREA & CONTEXT CHIP */
   .input-container {
     padding: 8px 10px 10px;
-    background: var(--cortex-bg-header, #080c14);
-    border-top: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-header, #080c14);
+    border-top: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -1439,12 +1439,12 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.1));
     border-radius: 12px;
     padding: 2px 7px;
     font-size: 0.68rem;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .context-name {
@@ -1457,7 +1457,7 @@
 
   .context-tag {
     font-size: 0.6rem;
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     background: rgba(56, 189, 248, 0.15);
     padding: 0 4px;
     border-radius: 3px;
@@ -1469,7 +1469,7 @@
     justify-content: center;
     background: none;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     padding: 1px;
     border-radius: 50%;
@@ -1484,24 +1484,24 @@
     align-items: center;
     gap: 4px;
     background: transparent;
-    border: 1px dashed var(--cortex-border, rgba(255, 255, 255, 0.15));
+    border: 1px dashed var(--corthal-border, rgba(255, 255, 255, 0.15));
     border-radius: 12px;
     padding: 2px 8px;
     font-size: 0.68rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     transition: all 0.12s ease;
   }
 
   .context-attach-btn:hover {
-    border-color: var(--cortex-accent, #38bdf8);
-    color: var(--cortex-accent, #38bdf8);
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.08));
+    border-color: var(--corthal-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.08));
   }
 
   .context-attach-btn strong {
     font-weight: 500;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   /* Input Card */
@@ -1509,23 +1509,23 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    background: var(--cortex-bg-input, rgba(0, 0, 0, 0.25));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-bg-input, rgba(0, 0, 0, 0.25));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.1));
     border-radius: 8px;
     padding: 7px 9px 6px;
     transition: border-color 0.12s ease, box-shadow 0.12s ease;
   }
 
   .input-card:focus-within {
-    border-color: var(--cortex-accent, #38bdf8);
-    box-shadow: 0 0 0 1px var(--cortex-accent-subtle, rgba(56, 189, 248, 0.2));
+    border-color: var(--corthal-accent, #38bdf8);
+    box-shadow: 0 0 0 1px var(--corthal-accent-subtle, rgba(56, 189, 248, 0.2));
   }
 
   .rich-input-box {
     width: 100%;
     background: transparent;
     border: none;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     font-size: 0.82rem;
     line-height: 1.45;
     outline: none;
@@ -1546,12 +1546,12 @@
     position: absolute;
     left: 0;
     top: 0;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     pointer-events: none;
     user-select: none;
   }
 
-  .rich-input-box :global(.cortex-secret-mount.input-secret-badge) {
+  .rich-input-box :global(.corthal-secret-mount.input-secret-badge) {
     display: inline-flex;
     vertical-align: middle;
     margin: 0 2px;
@@ -1573,15 +1573,15 @@
     background: transparent;
     border: 1px solid transparent;
     border-radius: 6px;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     transition: all 0.12s ease;
   }
 
   .encrypt-action-btn:hover:not(:disabled) {
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
-    border-color: var(--cortex-accent, #38bdf8);
-    color: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
+    border-color: var(--corthal-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
   }
 
   .encrypt-action-btn:disabled {
@@ -1593,12 +1593,12 @@
     position: absolute;
     bottom: calc(100% + 6px);
     right: 0;
-    background: var(--cortex-bg-header, #080c14);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.15));
+    background: var(--corthal-bg-header, #080c14);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.15));
     border-radius: 5px;
     padding: 4px 8px;
     font-size: 0.68rem;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     white-space: nowrap;
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
     z-index: 100;
@@ -1615,7 +1615,7 @@
 
   .input-hint {
     font-size: 0.65rem;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     user-select: none;
   }
 
@@ -1631,7 +1631,7 @@
     justify-content: center;
     width: 26px;
     height: 26px;
-    background: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-accent, #38bdf8);
     border: none;
     border-radius: 6px;
     color: #ffffff;
@@ -1647,7 +1647,7 @@
   .send-btn:disabled {
     opacity: 0.35;
     cursor: not-allowed;
-    background: var(--cortex-fg-muted, #64748b);
+    background: var(--corthal-fg-muted, #64748b);
   }
 
   .stop-btn {

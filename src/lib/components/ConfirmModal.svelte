@@ -199,7 +199,7 @@
   }
 
   .modal-checkbox {
-    accent-color: var(--cortex-accent, #38bdf8);
+    accent-color: var(--corthal-accent, #38bdf8);
     cursor: pointer;
     width: 15px;
     height: 15px;

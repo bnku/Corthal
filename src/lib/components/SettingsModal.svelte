@@ -163,7 +163,7 @@
     openai_model: "llama3",
     openai_reasoning_effort: "auto",
     openai_temperature: 0.7,
-    system_prompt: "Ты — встроенный AI-ассистент базы знаний Cortex. Ты помогаешь формулировать мысли, структурировать заметки и связывать концепции. Все секреты, переданные в формате 🔒[enc:...], являются защищенными токенами шифрования Age — сохраняй их в неизменном виде.",
+    system_prompt: "Ты — встроенный AI-ассистент базы знаний Corthal. Ты помогаешь формулировать мысли, структурировать заметки и связывать концепции. Все секреты, переданные в формате 🔒[enc:...], являются защищенными токенами шифрования Age — сохраняй их в неизменном виде.",
     include_vault_context: true,
     include_active_note: true,
   });
@@ -364,7 +364,7 @@
       <!-- Header -->
       <header class="modal-header">
         <div class="header-left">
-          <Icon name="settings" size={20} color="var(--cortex-accent)" />
+          <Icon name="settings" size={20} color="var(--corthal-accent)" />
           <h2 id="settings-title">{t("settings.modal_title")}</h2>
         </div>
         <button class="close-btn" onclick={handleDone} aria-label={t("common.close")}>
@@ -435,7 +435,7 @@
                   </div>
                   {#if i18n.locale === "ru"}
                     <div class="lang-check">
-                      <Icon name="check" size={16} color="var(--cortex-accent)" />
+                      <Icon name="check" size={16} color="var(--corthal-accent)" />
                     </div>
                   {/if}
                 </button>
@@ -453,7 +453,7 @@
                   </div>
                   {#if i18n.locale === "en"}
                     <div class="lang-check">
-                      <Icon name="check" size={16} color="var(--cortex-accent)" />
+                      <Icon name="check" size={16} color="var(--corthal-accent)" />
                     </div>
                   {/if}
                 </button>
@@ -491,7 +491,7 @@
                       <span class="preview-badge">Активно</span>
                     </div>
                     <p class="preview-text">
-                      Локальная база знаний Cortex поддерживает динамические CSS токены, чистые цветовые палитры и нативную интеграцию с Linux GTK.
+                      Локальная база знаний Corthal поддерживает динамические CSS токены, чистые цветовые палитры и нативную интеграцию с Linux GTK.
                     </p>
                     <div class="preview-actions">
                       <button class="preview-btn primary">Действие</button>
@@ -508,7 +508,7 @@
                 <h3 class="section-title">{t("settings.appearance.palette_title")}</h3>
                 {#if themeStore.config.gtkThemePath}
                   <button class="reset-link" onclick={() => themeStore.clearGtkTheme()}>
-                    {t("settings.appearance.return_cortex_presets")}
+                    {t("settings.appearance.return_corthal_presets")}
                   </button>
                 {/if}
               </div>
@@ -540,7 +540,7 @@
                     </div>
                     {#if themeStore.config.presetId === preset.id && !themeStore.config.gtkThemePath}
                       <div class="preset-check">
-                        <Icon name="check" size={14} color="var(--cortex-accent)" />
+                        <Icon name="check" size={14} color="var(--corthal-accent)" />
                       </div>
                     {/if}
                   </button>
@@ -809,7 +809,7 @@
                     <div class="policy-option-info">
                       <span class="policy-title">{t("settings.security.policy_session")}</span>
                       <span class="policy-desc">
-                        Пароль запрашивается один раз при первой расшифровке секрета и сохраняется в памяти до закрытия Cortex или ручной блокировки.
+                        Пароль запрашивается один раз при первой расшифровке секрета и сохраняется в памяти до закрытия Corthal или ручной блокировки.
                       </span>
                     </div>
                   </div>
@@ -968,7 +968,7 @@
                           <input
                             id="codex-custom-model"
                             type="text"
-                            class="cortex-input"
+                            class="corthal-input"
                             bind:value={assistantConfig.codex_model}
                             onblur={saveAssistantSettings}
                             placeholder="gpt-6.1-sol"
@@ -1024,7 +1024,7 @@
                           <input
                             id="or-key"
                             type={showOpenrouterKey ? "text" : "password"}
-                            class="cortex-input"
+                            class="corthal-input"
                             placeholder="sk-or-v1-..."
                             bind:value={assistantConfig.openrouter_key}
                             onblur={saveAssistantSettings}
@@ -1081,7 +1081,7 @@
                           <input
                             id="or-custom-model"
                             type="text"
-                            class="cortex-input"
+                            class="corthal-input"
                             bind:value={assistantConfig.openrouter_model}
                             onblur={saveAssistantSettings}
                             placeholder="anthropic/claude-3.7-sonnet"
@@ -1154,7 +1154,7 @@
                           <input
                             id="custom-url"
                             type="text"
-                            class="cortex-input"
+                            class="corthal-input"
                             bind:value={assistantConfig.openai_base_url}
                             onblur={saveAssistantSettings}
                             placeholder="http://localhost:11434/v1"
@@ -1170,7 +1170,7 @@
                           <input
                             id="custom-key"
                             type={showOpenaiKey ? "text" : "password"}
-                            class="cortex-input"
+                            class="corthal-input"
                             placeholder="sk-... (не требуется для Ollama)"
                             bind:value={assistantConfig.openai_key}
                             onblur={saveAssistantSettings}
@@ -1222,7 +1222,7 @@
                             <input
                               id="custom-model-select"
                               type="text"
-                              class="cortex-input"
+                              class="corthal-input"
                               bind:value={assistantConfig.openai_model}
                               onblur={saveAssistantSettings}
                               placeholder="llama3, mistral, qwen2.5..."
@@ -1238,7 +1238,7 @@
                             <input
                               id="custom-model-text"
                               type="text"
-                              class="cortex-input"
+                              class="corthal-input"
                               bind:value={assistantConfig.openai_model}
                               onblur={saveAssistantSettings}
                               placeholder="llama3"
@@ -1314,7 +1314,7 @@
                 <label class="field-label" for="settings-system-prompt">Системный промпт ассистента:</label>
                 <textarea
                   id="settings-system-prompt"
-                  class="cortex-textarea"
+                  class="corthal-textarea"
                   rows="4"
                   bind:value={assistantConfig.system_prompt}
                   onblur={saveAssistantSettings}
@@ -1366,8 +1366,8 @@
   }
 
   .modal-window {
-    background: var(--cortex-bg-sidebar, #0e1015);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-sidebar, #0e1015);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
     border-radius: 12px;
     width: 860px;
     max-width: 95vw;
@@ -1386,8 +1386,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 16px 22px;
-    background: var(--cortex-bg-header, #171a22);
-    border-bottom: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-bg-header, #171a22);
+    border-bottom: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.1));
   }
 
   .header-left {
@@ -1400,13 +1400,13 @@
     margin: 0;
     font-size: 1.15rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .close-btn {
     background: transparent;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     padding: 6px;
     border-radius: 6px;
@@ -1417,8 +1417,8 @@
   }
 
   .close-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.1));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.1));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .modal-body {
@@ -1431,8 +1431,8 @@
 
   /* SETTINGS NAV */
   .settings-nav {
-    background: var(--cortex-bg-sidebar, #0e1015);
-    border-right: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-sidebar, #0e1015);
+    border-right: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     padding: 16px 10px;
     display: flex;
     flex-direction: column;
@@ -1447,7 +1447,7 @@
     border-radius: 6px;
     background: transparent;
     border: none;
-    color: var(--cortex-fg-secondary, #9ca3af);
+    color: var(--corthal-fg-secondary, #9ca3af);
     font-size: 0.88rem;
     text-align: left;
     cursor: pointer;
@@ -1455,19 +1455,19 @@
   }
 
   .nav-item:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.05));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.05));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .nav-item.active {
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.15));
-    color: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-accent-subtle, rgba(59, 130, 246, 0.15));
+    color: var(--corthal-accent, #3b82f6);
     font-weight: 500;
   }
 
   /* TAB CONTENT */
   .tab-content {
-    background: var(--cortex-bg-main, #13161c);
+    background: var(--corthal-bg-main, #13161c);
     padding: 22px 28px;
     overflow-y: auto;
     display: flex;
@@ -1491,13 +1491,13 @@
     margin: 0;
     font-size: 0.98rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .reset-link {
     background: transparent;
     border: none;
-    color: var(--cortex-accent, #3b82f6);
+    color: var(--corthal-accent, #3b82f6);
     font-size: 0.8rem;
     cursor: pointer;
     text-decoration: underline;
@@ -1506,26 +1506,26 @@
   .section-desc {
     margin: 0;
     font-size: 0.82rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     line-height: 1.4;
   }
 
   /* PREVIEW CARD */
   .preview-card {
-    background: var(--cortex-bg-card, #1b1e27);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-card, #1b1e27);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   }
 
   .preview-header {
-    background: var(--cortex-bg-header, #171a22);
+    background: var(--corthal-bg-header, #171a22);
     padding: 8px 14px;
     display: flex;
     align-items: center;
     gap: 12px;
-    border-bottom: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    border-bottom: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
   }
 
   .preview-dots {
@@ -1544,7 +1544,7 @@
 
   .preview-title {
     font-size: 0.78rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     font-weight: 500;
   }
 
@@ -1555,9 +1555,9 @@
   }
 
   .preview-sidebar {
-    background: var(--cortex-bg-sidebar, #0e1015);
+    background: var(--corthal-bg-sidebar, #0e1015);
     padding: 10px;
-    border-right: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    border-right: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -1570,12 +1570,12 @@
     padding: 5px 8px;
     border-radius: 4px;
     font-size: 0.75rem;
-    color: var(--cortex-fg-secondary, #9ca3af);
+    color: var(--corthal-fg-secondary, #9ca3af);
   }
 
   .preview-bar-item.active {
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.15));
-    color: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-accent-subtle, rgba(59, 130, 246, 0.15));
+    color: var(--corthal-accent, #3b82f6);
     font-weight: 600;
   }
 
@@ -1591,7 +1591,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: var(--cortex-bg-main, #13161c);
+    background: var(--corthal-bg-main, #13161c);
   }
 
   .preview-doc-header {
@@ -1603,13 +1603,13 @@
   .preview-doc-header h4 {
     margin: 0;
     font-size: 0.92rem;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .preview-badge {
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.15));
-    color: var(--cortex-accent, #3b82f6);
-    border: 1px solid var(--cortex-accent-border, rgba(59, 130, 246, 0.35));
+    background: var(--corthal-accent-subtle, rgba(59, 130, 246, 0.15));
+    color: var(--corthal-accent, #3b82f6);
+    border: 1px solid var(--corthal-accent-border, rgba(59, 130, 246, 0.35));
     padding: 2px 7px;
     border-radius: 4px;
     font-size: 0.68rem;
@@ -1619,7 +1619,7 @@
   .preview-text {
     margin: 0;
     font-size: 0.8rem;
-    color: var(--cortex-fg-secondary, #9ca3af);
+    color: var(--corthal-fg-secondary, #9ca3af);
     line-height: 1.4;
   }
 
@@ -1637,16 +1637,16 @@
   }
 
   .preview-btn.primary {
-    background: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-accent, #3b82f6);
     color: #ffffff;
     border: none;
     font-weight: 500;
   }
 
   .preview-btn.secondary {
-    background: var(--cortex-bg-card, #1b1e27);
-    color: var(--cortex-fg-primary, #ffffff);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.15));
+    background: var(--corthal-bg-card, #1b1e27);
+    color: var(--corthal-fg-primary, #ffffff);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.15));
   }
 
   /* LANGUAGE SELECTOR */
@@ -1657,8 +1657,8 @@
   }
 
   .lang-card {
-    background: var(--cortex-bg-card, #1b1e27);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-bg-card, #1b1e27);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.1));
     border-radius: 8px;
     padding: 12px 14px;
     display: flex;
@@ -1671,13 +1671,13 @@
   }
 
   .lang-card:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
-    border-color: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.06));
+    border-color: var(--corthal-accent, #3b82f6);
   }
 
   .lang-card.selected {
-    border-color: var(--cortex-accent, #3b82f6);
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.1));
+    border-color: var(--corthal-accent, #3b82f6);
+    background: var(--corthal-accent-subtle, rgba(59, 130, 246, 0.1));
   }
 
   .lang-flag {
@@ -1697,12 +1697,12 @@
   .lang-name {
     font-size: 0.88rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .lang-sub {
     font-size: 0.74rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .lang-check {
@@ -1719,8 +1719,8 @@
   }
 
   .preset-card {
-    background: var(--cortex-bg-card, #1b1e27);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-bg-card, #1b1e27);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.1));
     border-radius: 8px;
     padding: 10px 12px;
     display: flex;
@@ -1733,13 +1733,13 @@
   }
 
   .preset-card:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
-    border-color: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.06));
+    border-color: var(--corthal-accent, #3b82f6);
   }
 
   .preset-card.selected {
-    border-color: var(--cortex-accent, #3b82f6);
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.1));
+    border-color: var(--corthal-accent, #3b82f6);
+    background: var(--corthal-accent-subtle, rgba(59, 130, 246, 0.1));
   }
 
   .preset-swatches {
@@ -1773,12 +1773,12 @@
   .preset-name {
     font-size: 0.86rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .category-badge {
     background: rgba(255, 255, 255, 0.1);
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     font-size: 0.65rem;
     padding: 1px 5px;
     border-radius: 3px;
@@ -1786,7 +1786,7 @@
 
   .preset-desc {
     font-size: 0.74rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .preset-check {
@@ -1816,8 +1816,8 @@
     align-items: center;
     gap: 8px;
     padding: 6px 9px;
-    background: var(--cortex-bg-card, #1b1e27);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-card, #1b1e27);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     border-radius: 6px;
     cursor: pointer;
     text-align: left;
@@ -1827,13 +1827,13 @@
   }
 
   .accent-chip:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.06));
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.06));
     border-color: rgba(255, 255, 255, 0.2);
   }
 
   .accent-chip.selected {
-    border-color: var(--cortex-accent, #3b82f6);
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.12));
+    border-color: var(--corthal-accent, #3b82f6);
+    background: var(--corthal-accent-subtle, rgba(59, 130, 246, 0.12));
   }
 
   .color-dot {
@@ -1848,7 +1848,7 @@
 
   .accent-label {
     font-size: 0.75rem;
-    color: var(--cortex-fg-secondary, #cbd5e1);
+    color: var(--corthal-fg-secondary, #cbd5e1);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1876,7 +1876,7 @@
     align-items: center;
     gap: 8px;
     font-size: 0.8rem;
-    color: var(--cortex-fg-secondary, #94a3b8);
+    color: var(--corthal-fg-secondary, #94a3b8);
     cursor: pointer;
     position: relative;
   }
@@ -1899,8 +1899,8 @@
   .custom-hex-val {
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 0.78rem;
-    color: var(--cortex-accent, #3b82f6);
-    background: var(--cortex-accent-subtle, rgba(59, 130, 246, 0.15));
+    color: var(--corthal-accent, #3b82f6);
+    background: var(--corthal-accent-subtle, rgba(59, 130, 246, 0.15));
     padding: 2px 6px;
     border-radius: 4px;
   }
@@ -1910,8 +1910,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--cortex-bg-card, #1b1e27);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-card, #1b1e27);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     padding: 12px 16px;
     border-radius: 8px;
   }
@@ -1925,12 +1925,12 @@
   .toggle-label {
     font-size: 0.88rem;
     font-weight: 500;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .toggle-sub {
     font-size: 0.76rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .toggle-switch {
@@ -1946,7 +1946,7 @@
   }
 
   .toggle-switch.active {
-    background: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-accent, #3b82f6);
   }
 
   .toggle-handle {
@@ -1967,8 +1967,8 @@
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
-    background: var(--cortex-bg-card, #1b1e27);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-card, #1b1e27);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     border-radius: 8px;
     padding: 12px 16px;
   }
@@ -1981,11 +1981,11 @@
   }
 
   .sys-label {
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .sys-value {
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     font-weight: 600;
   }
 
@@ -2006,15 +2006,15 @@
     flex-direction: column;
     gap: 10px;
     margin-top: 14px;
-    background: var(--cortex-bg-card, #1b1e27);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-card, #1b1e27);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     border-radius: 8px;
     padding: 14px 16px;
   }
 
   .gtk-picker-label {
     font-size: 0.78rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .gtk-picker-controls {
@@ -2032,10 +2032,10 @@
 
   .custom-path-input {
     flex: 1;
-    background: var(--cortex-bg-input, #212530);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-input, #212530);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
     border-radius: 6px;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     padding: 7px 10px;
     font-size: 0.82rem;
     outline: none;
@@ -2043,7 +2043,7 @@
   }
 
   .apply-gtk-btn {
-    background: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-accent, #3b82f6);
     border: none;
     color: #ffffff;
     font-size: 0.78rem;
@@ -2069,13 +2069,13 @@
     flex-direction: column;
     gap: 6px;
     padding-top: 10px;
-    border-top: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.05));
+    border-top: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.05));
   }
 
   /* SECURITY & ABOUT CARDS */
   .security-card, .about-card {
-    background: var(--cortex-bg-card, #1b1e27);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-card, #1b1e27);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     border-radius: 8px;
     padding: 16px;
     display: flex;
@@ -2100,7 +2100,7 @@
 
   .sec-label {
     font-size: 0.78rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .sec-code {
@@ -2109,7 +2109,7 @@
     border-radius: 4px;
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 0.82rem;
-    color: var(--cortex-accent, #3b82f6);
+    color: var(--corthal-accent, #3b82f6);
     width: fit-content;
   }
 
@@ -2120,20 +2120,20 @@
     background: rgba(255, 255, 255, 0.04);
     padding: 6px 10px;
     border-radius: 6px;
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     font-size: 0.82rem;
     overflow: hidden;
   }
 
   .vault-sec-name {
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     white-space: nowrap;
   }
 
   .vault-sec-path {
     font-family: ui-monospace, SFMono-Regular, monospace;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     font-size: 0.78rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2150,7 +2150,7 @@
 
   .key-badge {
     background: rgba(59, 130, 246, 0.15);
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-size: 0.68rem;
     font-weight: 700;
     padding: 2px 6px;
@@ -2160,7 +2160,7 @@
 
   .key-comment-tag {
     font-size: 0.76rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     font-family: ui-monospace, SFMono-Regular, monospace;
   }
 
@@ -2179,7 +2179,7 @@
 
   .apply-key-btn {
     flex-shrink: 0;
-    background: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-accent, #3b82f6);
     border: none;
     color: #ffffff;
     font-size: 0.8rem;
@@ -2196,7 +2196,7 @@
   }
 
   .apply-key-btn:hover:not(:disabled) {
-    background: var(--cortex-accent-hover, #2563eb);
+    background: var(--corthal-accent-hover, #2563eb);
   }
 
   .apply-key-btn:disabled {
@@ -2206,7 +2206,7 @@
 
   .sec-note {
     font-size: 0.72rem;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
   }
 
   .sec-badge.ok {
@@ -2227,7 +2227,7 @@
     gap: 8px;
     padding: 12px 14px;
     background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -2236,11 +2236,11 @@
 
   .policy-option-row:hover {
     background: rgba(255, 255, 255, 0.04);
-    border-color: var(--cortex-border-hover, rgba(255, 255, 255, 0.18));
+    border-color: var(--corthal-border-hover, rgba(255, 255, 255, 0.18));
   }
 
   .policy-option-row.selected {
-    border-color: var(--cortex-accent, #38bdf8);
+    border-color: var(--corthal-accent, #38bdf8);
     background: rgba(56, 189, 248, 0.06);
   }
 
@@ -2256,7 +2256,7 @@
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    border: 2px solid var(--cortex-border-hover, rgba(255, 255, 255, 0.3));
+    border: 2px solid var(--corthal-border-hover, rgba(255, 255, 255, 0.3));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2266,7 +2266,7 @@
   }
 
   .custom-radio-circle.checked {
-    border-color: var(--cortex-accent, #38bdf8);
+    border-color: var(--corthal-accent, #38bdf8);
     background: transparent;
   }
 
@@ -2274,7 +2274,7 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-accent, #38bdf8);
   }
 
   .policy-option-info {
@@ -2288,16 +2288,16 @@
   .policy-title {
     font-size: 0.85rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .policy-option-row.selected .policy-title {
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
   }
 
   .policy-desc {
     font-size: 0.77rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     line-height: 1.35;
   }
 
@@ -2308,12 +2308,12 @@
     margin-left: 30px;
     margin-top: 4px;
     padding-top: 8px;
-    border-top: 1px dashed var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+    border-top: 1px dashed var(--corthal-border-subtle, rgba(255, 255, 255, 0.08));
   }
 
   .timeout-label {
     font-size: 0.78rem;
-    color: var(--cortex-fg-secondary, #cbd5e1);
+    color: var(--corthal-fg-secondary, #cbd5e1);
     white-space: nowrap;
   }
 
@@ -2324,7 +2324,7 @@
 
   .session-status-row {
     padding-top: 8px;
-    border-top: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+    border-top: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.08));
   }
 
   .session-status-controls {
@@ -2357,7 +2357,7 @@
   .about-card p {
     margin: 0;
     font-size: 0.84rem;
-    color: var(--cortex-fg-secondary, #9ca3af);
+    color: var(--corthal-fg-secondary, #9ca3af);
     line-height: 1.5;
   }
 
@@ -2369,15 +2369,15 @@
   }
 
   .provider-card-accordion {
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.1));
     border-radius: 8px;
-    background: var(--cortex-bg-card, #131720);
+    background: var(--corthal-bg-card, #131720);
     overflow: hidden;
     transition: border-color 0.15s, background-color 0.15s;
   }
 
   .provider-card-accordion.selected {
-    border-color: var(--cortex-accent, #3b82f6);
+    border-color: var(--corthal-accent, #3b82f6);
     background: rgba(59, 130, 246, 0.04);
   }
 
@@ -2391,7 +2391,7 @@
   }
 
   .provider-card-header input[type="radio"] {
-    accent-color: var(--cortex-accent, #3b82f6);
+    accent-color: var(--corthal-accent, #3b82f6);
     width: 16px;
     height: 16px;
     cursor: pointer;
@@ -2415,7 +2415,7 @@
   .provider-label {
     font-size: 0.92rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .provider-tag {
@@ -2446,7 +2446,7 @@
 
   .provider-hint {
     font-size: 0.76rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .provider-header-status {
@@ -2480,7 +2480,7 @@
 
   .provider-card-body {
     padding: 16px;
-    border-top: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.08));
+    border-top: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.08));
     background: rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
@@ -2497,7 +2497,7 @@
   .field-label {
     font-size: 0.8rem;
     font-weight: 500;
-    color: var(--cortex-fg-primary, #cbd5e1);
+    color: var(--corthal-fg-primary, #cbd5e1);
   }
 
   .field-control {
@@ -2508,31 +2508,31 @@
 
   .field-tip {
     font-size: 0.72rem;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
   }
 
-  .cortex-input,
-  .cortex-textarea {
+  .corthal-input,
+  .corthal-textarea {
     width: 100%;
     box-sizing: border-box;
-    background: var(--cortex-bg-main, #0b0f17);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.14));
+    background: var(--corthal-bg-main, #0b0f17);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.14));
     border-radius: 6px;
     padding: 7px 12px;
-    color: var(--cortex-fg-primary, #f1f5f9);
+    color: var(--corthal-fg-primary, #f1f5f9);
     font-size: 0.84rem;
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
     font-family: inherit;
   }
 
-  .cortex-input:focus,
-  .cortex-textarea:focus {
-    border-color: var(--cortex-accent, #3b82f6);
-    box-shadow: 0 0 0 2px var(--cortex-accent-subtle, rgba(59, 130, 246, 0.2));
+  .corthal-input:focus,
+  .corthal-textarea:focus {
+    border-color: var(--corthal-accent, #3b82f6);
+    box-shadow: 0 0 0 2px var(--corthal-accent-subtle, rgba(59, 130, 246, 0.2));
   }
 
-  .cortex-textarea {
+  .corthal-textarea {
     resize: vertical;
     line-height: 1.45;
   }
@@ -2543,7 +2543,7 @@
     align-items: center;
   }
 
-  .input-with-btn .cortex-input {
+  .input-with-btn .corthal-input {
     padding-right: 36px;
   }
 
@@ -2552,7 +2552,7 @@
     right: 8px;
     background: transparent;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -2562,7 +2562,7 @@
   }
 
   .field-icon-btn:hover {
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     background: rgba(255, 255, 255, 0.08);
   }
 
@@ -2571,9 +2571,9 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.06));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.14));
-    color: var(--cortex-fg-primary, #cbd5e1);
+    background: var(--corthal-bg-card, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.14));
+    color: var(--corthal-fg-primary, #cbd5e1);
     padding: 6px 12px;
     border-radius: 6px;
     font-size: 0.78rem;
@@ -2583,8 +2583,8 @@
   }
 
   .action-secondary-btn:hover:not(:disabled) {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.12));
-    border-color: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.12));
+    border-color: var(--corthal-accent, #3b82f6);
     color: #ffffff;
   }
 
@@ -2612,14 +2612,14 @@
 
   .range-box input[type="range"] {
     flex: 1;
-    accent-color: var(--cortex-accent, #3b82f6);
+    accent-color: var(--corthal-accent, #3b82f6);
   }
 
   .range-display {
     font-family: ui-monospace, monospace;
     font-size: 0.8rem;
     font-weight: 600;
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     min-width: 32px;
     text-align: right;
   }
@@ -2636,15 +2636,15 @@
     align-items: flex-start;
     gap: 10px;
     padding: 10px 14px;
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.04));
-    border: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.06));
+    background: var(--corthal-bg-card, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.06));
     border-radius: 8px;
     cursor: pointer;
   }
 
   .toggle-checkbox-row input[type="checkbox"] {
     margin-top: 3px;
-    accent-color: var(--cortex-accent, #3b82f6);
+    accent-color: var(--corthal-accent, #3b82f6);
     width: 15px;
     height: 15px;
     cursor: pointer;
@@ -2659,12 +2659,12 @@
   .toggle-title {
     font-size: 0.84rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .toggle-desc {
     font-size: 0.74rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .system-prompt-box {
@@ -2688,12 +2688,12 @@
     align-items: center;
     justify-content: flex-end;
     padding: 12px 22px;
-    background: var(--cortex-bg-header, #171a22);
-    border-top: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-bg-header, #171a22);
+    border-top: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.1));
   }
 
   .close-done-btn {
-    background: var(--cortex-accent, #3b82f6);
+    background: var(--corthal-accent, #3b82f6);
     color: #ffffff;
     border: none;
     font-size: 0.84rem;

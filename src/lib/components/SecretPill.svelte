@@ -190,7 +190,7 @@
       disabled={isLoading}
     >
       {#if copyFeedback}
-        <Icon name="check" size={11} color="var(--cortex-accent, #38bdf8)" />
+        <Icon name="check" size={11} color="var(--corthal-accent, #38bdf8)" />
       {:else}
         <Icon name="copy" size={11} />
       {/if}
@@ -207,12 +207,12 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    background: var(--cortex-bg-card, rgba(30, 41, 59, 0.85));
-    border: 1px solid var(--cortex-border, rgba(148, 163, 184, 0.25));
+    background: var(--corthal-bg-card, rgba(30, 41, 59, 0.85));
+    border: 1px solid var(--corthal-border, rgba(148, 163, 184, 0.25));
     border-radius: 6px;
     padding: 2px 5px 2px 4px;
     font-size: 0.82rem;
-    font-family: var(--cortex-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    font-family: var(--corthal-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
     vertical-align: middle;
     transition: all 0.2s ease;
     user-select: none;
@@ -229,9 +229,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
-    color: var(--cortex-accent, #38bdf8);
-    border: 1px solid var(--cortex-accent-border, rgba(56, 189, 248, 0.25));
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
+    color: var(--corthal-accent, #38bdf8);
+    border: 1px solid var(--corthal-accent-border, rgba(56, 189, 248, 0.25));
     width: 18px;
     height: 18px;
     border-radius: 4px;
@@ -245,7 +245,7 @@
   }
 
   .value {
-    color: var(--cortex-fg-primary, #cbd5e1);
+    color: var(--corthal-fg-primary, #cbd5e1);
     font-weight: 500;
     padding: 0 4px;
     font-size: 0.82rem;
@@ -255,7 +255,7 @@
 
   .masked-text {
     letter-spacing: 0.1em;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .revealed-text {
@@ -278,7 +278,7 @@
     height: 20px;
     background: transparent;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     padding: 0;
     border-radius: 4px;
@@ -286,8 +286,8 @@
   }
 
   .action-btn:hover:not(:disabled) {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.1));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.1));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .action-btn:active:not(:disabled) {
@@ -306,10 +306,10 @@
   }
 
   :global(.spin) {
-    animation: cortex-spin 1s linear infinite;
+    animation: corthal-spin 1s linear infinite;
   }
 
-  @keyframes cortex-spin {
+  @keyframes corthal-spin {
     from {
       transform: rotate(0deg);
     }

@@ -1,7 +1,7 @@
-# CORTEX: Cryptography & Secrets Specification
+# CORTHAL: Cryptography & Secrets Specification
 
 ## 1. Zero-Knowledge Cryptographic Model
-Cortex использует асимметричное шифрование на базе существующего SSH-ключа пользователя:
+Corthal использует асимметричное шифрование на базе существующего SSH-ключа пользователя:
 * **Публичный ключ**: `~/.ssh/id_ed25519.pub` (или указанный пользователем).
 * **Приватный ключ**: `~/.ssh/id_ed25519` (защищен пасс-фразой).
 

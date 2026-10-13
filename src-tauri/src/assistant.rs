@@ -45,7 +45,7 @@ impl Default for AssistantConfig {
             openai_model: "llama3".to_string(),
             openai_reasoning_effort: Some("auto".to_string()),
             openai_temperature: 0.7,
-            system_prompt: "Ты — встроенный AI-ассистент персональной базы знаний Cortex. Ты помогаешь формулировать мысли, структурировать заметки, связывать концепции и находить информацию.\n\nПРАВИЛА ВЫДАЧИ ПАРОЛЕЙ И СЕКРЕТОВ:\n1. Если пользователь запрашивает пароль, токен или секрет из базы знаний (например, «найди пароль от...», «какой у меня пароль от...»), ты ОБЯЗАН СРАЗУ выдать в своём ответе найденный токен шифрования в формате `🔒[enc:v1:...]` вместе с названием и ссылкой на заметку.\n2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО отвечать «пароль зашифрован, открой заметку в Cortex, чтобы посмотреть его». В приложении Cortex встроен модуль расшифровки: любой токен `🔒[enc:v1:...]` в твоём ответе автоматически превращается в интерактивный виджет и расшифровывается локальным SSH-ключом пользователя прямо в чате! Всегда выводи сам токен `🔒[enc:v1:...]`.\n3. Ссылки на заметки всегда оформляй как Markdown-ссылки с относительным путем от корня базы (например [Пароль от Яндекса](00-Inbox/yandex-password.md)) или wiki-ссылки [[00-Inbox/yandex-password.md]].\n4. Все токены `🔒[enc:v1:...]` сохраняй в неизменном виде без сокращений.".to_string(),
+            system_prompt: "Ты — встроенный AI-ассистент персональной базы знаний Corthal. Ты помогаешь формулировать мысли, структурировать заметки, связывать концепции и находить информацию.\n\nПРАВИЛА ВЫДАЧИ ПАРОЛЕЙ И СЕКРЕТОВ:\n1. Если пользователь запрашивает пароль, токен или секрет из базы знаний (например, «найди пароль от...», «какой у меня пароль от...»), ты ОБЯЗАН СРАЗУ выдать в своём ответе найденный токен шифрования в формате `🔒[enc:v1:...]` вместе с названием и ссылкой на заметку.\n2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО отвечать «пароль зашифрован, открой заметку в Corthal, чтобы посмотреть его». В приложении Corthal встроен модуль расшифровки: любой токен `🔒[enc:v1:...]` в твоём ответе автоматически превращается в интерактивный виджет и расшифровывается локальным SSH-ключом пользователя прямо в чате! Всегда выводи сам токен `🔒[enc:v1:...]`.\n3. Ссылки на заметки всегда оформляй как Markdown-ссылки с относительным путем от корня базы (например [Пароль от Яндекса](00-Inbox/yandex-password.md)) или wiki-ссылки [[00-Inbox/yandex-password.md]].\n4. Все токены `🔒[enc:v1:...]` сохраняй в неизменном виде без сокращений.".to_string(),
             include_vault_context: true,
             include_active_note: true,
         }
@@ -81,7 +81,7 @@ static ACTIVE_CANCELLATIONS: LazyLock<Arc<RwLock<HashMap<String, tokio::sync::on
 
 fn get_config_path() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    home.join(".config").join("cortex").join("assistant_config.json")
+    home.join(".config").join("corthal").join("assistant_config.json")
 }
 
 pub fn load_assistant_config() -> AssistantConfig {
@@ -228,8 +228,8 @@ pub async fn fetch_models(base_url: String, api_key: Option<String>) -> Result<V
     }
 
     if url.contains("openrouter.ai") {
-        req = req.header("HTTP-Referer", "https://cortex.local")
-                 .header("X-Title", "Cortex Personal Knowledge Base");
+        req = req.header("HTTP-Referer", "https://corthal.local")
+                 .header("X-Title", "Corthal Personal Knowledge Base");
     }
 
     let resp = req.send().await.map_err(|e| format!("Не удалось связаться с сервером ({}): {}", url, e))?;
@@ -304,7 +304,7 @@ pub async fn send_assistant_message(
     if !full_system.contains("ПРАВИЛА ВЫДАЧИ ПАРОЛЕЙ") {
         full_system.push_str("\n\nВАЖНЕЙШИЕ ПРАВИЛА ВЫДАЧИ ПАРОЛЕЙ И СЕКРЕТОВ:\n\
         1. Если пользователь запрашивает пароль, токен или секрет из базы знаний — ты ОБЯЗАН СРАЗУ выдать найденный токен шифрования в формате `🔒[enc:v1:...]` в своём ответе со ссылкой на заметку.\n\
-        2. НИКОГДА не отвечай «пароль зашифрован, открой заметку в Cortex, чтобы посмотреть его». Клиент Cortex автоматически преобразует токен `🔒[enc:v1:...]` в твоем ответе в интерактивный виджет и расшифрует его прямо в чате! Всегда выводи сам токен `🔒[enc:v1:...]`.\n\
+        2. НИКОГДА не отвечай «пароль зашифрован, открой заметку в Corthal, чтобы посмотреть его». Клиент Corthal автоматически преобразует токен `🔒[enc:v1:...]` в твоем ответе в интерактивный виджет и расшифрует его прямо в чате! Всегда выводи сам токен `🔒[enc:v1:...]`.\n\
         3. Ссылки на заметки оформляй как Markdown-ссылки с относительным путем (например [Пароль от Яндекса](00-Inbox/yandex-password.md)) или wiki-ссылки [[00-Inbox/yandex-password.md]].\n");
     }
     if config.include_vault_context {
@@ -563,8 +563,8 @@ async fn stream_openrouter(
     let resp = client
         .post("https://openrouter.ai/api/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", key.trim()))
-        .header("HTTP-Referer", "https://cortex.local")
-        .header("X-Title", "Cortex Personal Knowledge Base")
+        .header("HTTP-Referer", "https://corthal.local")
+        .header("X-Title", "Corthal Personal Knowledge Base")
         .header("Content-Type", "application/json")
         .json(&body)
         .send()

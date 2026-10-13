@@ -1,4 +1,4 @@
-# CORTEX: Tauri IPC Commands & Events Specification
+# CORTHAL: Tauri IPC Commands & Events Specification
 
 ## 1. Vault Commands (Работа с базой)
 

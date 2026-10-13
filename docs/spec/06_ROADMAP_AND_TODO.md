@@ -1,6 +1,6 @@
-# CORTEX: Roadmap & Task Tracker (SDD)
+# CORTHAL: Roadmap & Task Tracker (SDD)
 
-> Данный документ является официальным трекером дорожной карты и задач проекта Cortex в соответствии с методологией Spec-Driven Development (SDD).
+> Данный документ является официальным трекером дорожной карты и задач проекта Corthal в соответствии с методологией Spec-Driven Development (SDD).
 
 ---
 

@@ -97,7 +97,7 @@ pub fn expand_path(p: &str) -> PathBuf {
 
 fn get_config_dir() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    home.join(".config").join("cortex")
+    home.join(".config").join("corthal")
 }
 
 fn get_vaults_config_path() -> PathBuf {

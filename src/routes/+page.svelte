@@ -232,11 +232,11 @@
 
     try {
       if (target === "explorer") {
-        localStorage.setItem("cortex_explorer_width", String(explorerWidth));
+        localStorage.setItem("corthal_explorer_width", String(explorerWidth));
       } else if (target === "assistant") {
-        localStorage.setItem("cortex_assistant_width", String(assistantWidth));
+        localStorage.setItem("corthal_assistant_width", String(assistantWidth));
       } else if (target === "split") {
-        localStorage.setItem("cortex_split_ratio", String(splitRatio));
+        localStorage.setItem("corthal_split_ratio", String(splitRatio));
       }
     } catch (_) {}
   }
@@ -244,13 +244,13 @@
   function resetWidth(target: "explorer" | "split" | "assistant") {
     if (target === "explorer") {
       explorerWidth = 260;
-      try { localStorage.setItem("cortex_explorer_width", "260"); } catch (_) {}
+      try { localStorage.setItem("corthal_explorer_width", "260"); } catch (_) {}
     } else if (target === "assistant") {
       assistantWidth = 340;
-      try { localStorage.setItem("cortex_assistant_width", "340"); } catch (_) {}
+      try { localStorage.setItem("corthal_assistant_width", "340"); } catch (_) {}
     } else if (target === "split") {
       splitRatio = 0.5;
-      try { localStorage.setItem("cortex_split_ratio", "0.5"); } catch (_) {}
+      try { localStorage.setItem("corthal_split_ratio", "0.5"); } catch (_) {}
     }
   }
 
@@ -358,10 +358,10 @@
 
   // Human-readable title and breadcrumb for center header
   let activeFileTitle = $derived.by<string>(() => {
-    if (!activeFilePath) return "Cortex";
+    if (!activeFilePath) return "Corthal";
     if (activeFile?.title) return activeFile.title;
     const base = activeFilePath.split("/").pop()?.replace(/\.md$/, "");
-    return base || "Cortex";
+    return base || "Corthal";
   });
 
   let activeFileBreadcrumbs = $derived.by<string>(() => {
@@ -1188,17 +1188,17 @@
 
     // Restore saved panel dimensions
     try {
-      const savedExp = localStorage.getItem("cortex_explorer_width");
+      const savedExp = localStorage.getItem("corthal_explorer_width") ?? localStorage.getItem("cortex_explorer_width");
       if (savedExp) {
         const n = parseInt(savedExp, 10);
         if (!isNaN(n) && n >= 180 && n <= 700) explorerWidth = n;
       }
-      const savedAst = localStorage.getItem("cortex_assistant_width");
+      const savedAst = localStorage.getItem("corthal_assistant_width") ?? localStorage.getItem("cortex_assistant_width");
       if (savedAst) {
         const n = parseInt(savedAst, 10);
         if (!isNaN(n) && n >= 240 && n <= 850) assistantWidth = n;
       }
-      const savedSplit = localStorage.getItem("cortex_split_ratio");
+      const savedSplit = localStorage.getItem("corthal_split_ratio") ?? localStorage.getItem("cortex_split_ratio");
       if (savedSplit) {
         const f = parseFloat(savedSplit);
         if (!isNaN(f) && f >= 0.15 && f <= 0.85) splitRatio = f;
@@ -1238,14 +1238,14 @@
   });
 </script>
 
-<div class="cortex-app-root" class:modal-open={isAnyModalOpen} class:is-resizing={resizingTarget !== null}>
+<div class="corthal-app-root" class:modal-open={isAnyModalOpen} class:is-resizing={resizingTarget !== null}>
   <!-- 1. UNIFIED APP TOP TITLEBAR (Across full window) -->
   <header class="app-titlebar">
     <!-- Left: Brand + Multi-select Folder Hubs Filter -->
     <div class="titlebar-left">
       <div class="brand">
-        <Icon name="brain" size={18} color="var(--cortex-accent, #38bdf8)" />
-        <h1 class="brand-title">Cortex</h1>
+        <Icon name="brain" size={18} color="var(--corthal-accent, #38bdf8)" />
+        <h1 class="brand-title">Corthal</h1>
       </div>
 
       <FolderFilterDropdown
@@ -1378,7 +1378,7 @@
         <!-- Search Box -->
         <div class="search-box">
           <div class="search-input-wrap">
-            <Icon name="search" size={13} color="var(--cortex-fg-muted, #64748b)" class="search-icon" />
+            <Icon name="search" size={13} color="var(--corthal-fg-muted, #64748b)" class="search-icon" />
             <input
               type="text"
               placeholder={t("explorer.search_placeholder")}
@@ -1584,7 +1584,7 @@
           }}
           aria-label={t("statusbar.vault_change")}
         >
-          <Icon name="folder" size={13} color="var(--cortex-accent, #38bdf8)" />
+          <Icon name="folder" size={13} color="var(--corthal-accent, #38bdf8)" />
           <span class="vault-label">{activeVault?.display_path || "~/knowledge"}</span>
         </button>
 
@@ -1610,7 +1610,7 @@
           }}
           aria-label={t("statusbar.ssh_key_select")}
         >
-          <Icon name="shield-check" size={13} color="var(--cortex-accent, #38bdf8)" />
+          <Icon name="shield-check" size={13} color="var(--corthal-accent, #38bdf8)" />
           <span>{activeSshKey ? activeSshKey.filename.replace(/\.pub$/, '') : 'SSH X25519'}</span>
         </button>
 
@@ -1677,7 +1677,7 @@
           }}
           aria-label={t("statusbar.theme_change")}
         >
-          <span class="theme-dot" style="background: var(--cortex-accent, #38bdf8);"></span>
+          <span class="theme-dot" style="background: var(--corthal-accent, #38bdf8);"></span>
           <span>{themeStore.currentPreset.name}</span>
         </button>
 
@@ -1834,8 +1834,8 @@
     margin: 0;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: var(--cortex-bg-main, #090d16);
-    color: var(--cortex-fg-primary, #e2e8f0);
+    background: var(--corthal-bg-main, #090d16);
+    color: var(--corthal-fg-primary, #e2e8f0);
     overflow: hidden;
   }
 
@@ -1853,13 +1853,13 @@
 
   :global(::-webkit-scrollbar-thumb),
   :global(*::-webkit-scrollbar-thumb) {
-    background: var(--cortex-border, rgba(255, 255, 255, 0.18));
+    background: var(--corthal-border, rgba(255, 255, 255, 0.18));
     border-radius: 3px;
   }
 
   :global(::-webkit-scrollbar-thumb:hover),
   :global(*::-webkit-scrollbar-thumb:hover) {
-    background: var(--cortex-border-hover, rgba(255, 255, 255, 0.32));
+    background: var(--corthal-border-hover, rgba(255, 255, 255, 0.32));
   }
 
   :global(::-webkit-scrollbar-corner),
@@ -1867,24 +1867,24 @@
     background: transparent;
   }
 
-  .cortex-app-root {
+  .corthal-app-root {
     display: flex;
     flex-direction: column;
     height: 100vh;
     width: 100vw;
     overflow: hidden;
-    background: var(--cortex-bg-main, #090d16);
+    background: var(--corthal-bg-main, #090d16);
   }
 
-  .cortex-app-root.modal-open {
+  .corthal-app-root.modal-open {
     pointer-events: none;
     user-select: none;
   }
 
   /* When modal is open, completely disable scrolling and hide any background scrollbars */
-  :global(.cortex-app-root.modal-open .sidebar-explorer .tree-container),
-  :global(.cortex-app-root.modal-open .pane-content-body),
-  :global(.cortex-app-root.modal-open .workspace-area) {
+  :global(.corthal-app-root.modal-open .sidebar-explorer .tree-container),
+  :global(.corthal-app-root.modal-open .pane-content-body),
+  :global(.corthal-app-root.modal-open .workspace-area) {
     overflow: hidden !important;
   }
 
@@ -1895,8 +1895,8 @@
     align-items: center;
     justify-content: space-between;
     height: 38px;
-    background: var(--cortex-bg-header, #080c14);
-    border-bottom: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-header, #080c14);
+    border-bottom: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     padding: 0 12px;
     flex-shrink: 0;
     user-select: none;
@@ -1920,7 +1920,7 @@
     margin: 0;
     font-size: 0.95rem;
     font-weight: 700;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     letter-spacing: -0.3px;
   }
 
@@ -1946,7 +1946,7 @@
   .doc-title-main {
     font-size: 0.82rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1956,7 +1956,7 @@
 
   .doc-path-sub {
     font-size: 0.68rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1967,7 +1967,7 @@
 
   .titlebar-placeholder {
     font-size: 0.8rem;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
   }
 
   .titlebar-right {
@@ -1981,8 +1981,8 @@
     display: flex;
     align-items: center;
     gap: 2px;
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-card, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     border-radius: 6px;
     padding: 2px;
   }
@@ -1996,31 +1996,31 @@
     border-radius: 4px;
     background: transparent;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     transition: all 0.12s ease;
   }
 
   .layout-btn:hover {
-    color: var(--cortex-fg-primary, #ffffff);
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--corthal-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.08));
   }
 
   .layout-btn.active {
-    color: var(--cortex-accent, #38bdf8);
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.14));
+    color: var(--corthal-accent, #38bdf8);
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.14));
   }
 
   .settings-btn {
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
-    background: var(--cortex-bg-card, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-card, rgba(255, 255, 255, 0.05));
     border-radius: 6px;
   }
 
   .divider-v {
     width: 1px;
     height: 18px;
-    background: var(--cortex-border-subtle, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-border-subtle, rgba(255, 255, 255, 0.1));
   }
 
   /* 2. MAIN APP BODY */
@@ -2035,7 +2035,7 @@
 
   /* EXPLORER SIDEBAR */
   .sidebar-explorer {
-    background: var(--cortex-bg-sidebar, #0a111a);
+    background: var(--corthal-bg-sidebar, #0a111a);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2047,14 +2047,14 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    border-bottom: 1px solid var(--cortex-border-subtle, rgba(255, 255, 255, 0.05));
+    border-bottom: 1px solid var(--corthal-border-subtle, rgba(255, 255, 255, 0.05));
   }
 
   .explorer-title {
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.5px;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .explorer-actions {
@@ -2072,14 +2072,14 @@
     border-radius: 4px;
     background: transparent;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     transition: all 0.12s;
   }
 
   .icon-action-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .icon-action-btn.spinning :global(svg) {
@@ -2097,7 +2097,7 @@
 
   .search-box {
     padding: 8px 10px;
-    background: var(--cortex-bg-sidebar, #0a111a);
+    background: var(--corthal-bg-sidebar, #0a111a);
   }
 
   .search-input-wrap {
@@ -2114,11 +2114,11 @@
 
   .search-input-wrap input {
     width: 100%;
-    background: var(--cortex-bg-input, rgba(0, 0, 0, 0.25));
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.1));
+    background: var(--corthal-bg-input, rgba(0, 0, 0, 0.25));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.1));
     border-radius: 6px;
     padding: 5px 26px 5px 28px;
-    color: var(--cortex-fg-primary, #f8fafc);
+    color: var(--corthal-fg-primary, #f8fafc);
     font-size: 0.78rem;
     box-sizing: border-box;
     outline: none;
@@ -2126,7 +2126,7 @@
   }
 
   .search-input-wrap input:focus {
-    border-color: var(--cortex-accent, #38bdf8);
+    border-color: var(--corthal-accent, #38bdf8);
   }
 
   .clear-search-btn {
@@ -2134,7 +2134,7 @@
     right: 6px;
     background: none;
     border: none;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     cursor: pointer;
     padding: 2px;
     display: flex;
@@ -2142,7 +2142,7 @@
   }
 
   .clear-search-btn:hover {
-    color: var(--cortex-fg-primary, #cbd5e1);
+    color: var(--corthal-fg-primary, #cbd5e1);
   }
 
   .tree-container {
@@ -2153,7 +2153,7 @@
 
   .loading {
     padding: 16px;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
     font-size: 0.85rem;
   }
 
@@ -2163,7 +2163,7 @@
     display: flex;
     min-width: 0;
     overflow: hidden;
-    background: var(--cortex-bg-main, #090d16);
+    background: var(--corthal-bg-main, #090d16);
   }
 
   .panes-container {
@@ -2191,7 +2191,7 @@
   .resizer-handle {
     position: relative;
     width: 2px;
-    background: var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-border, rgba(255, 255, 255, 0.08));
     cursor: col-resize;
     user-select: none;
     touch-action: none;
@@ -2213,8 +2213,8 @@
 
   .resizer-handle:hover,
   .resizer-handle.active {
-    background: var(--cortex-accent, #38bdf8);
-    box-shadow: 0 0 6px var(--cortex-accent-subtle, rgba(56, 189, 248, 0.4));
+    background: var(--corthal-accent, #38bdf8);
+    box-shadow: 0 0 6px var(--corthal-accent-subtle, rgba(56, 189, 248, 0.4));
   }
 
   .resizer-handle.resizer-left {
@@ -2229,23 +2229,23 @@
     width: 2px;
   }
 
-  .cortex-app-root.is-resizing {
+  .corthal-app-root.is-resizing {
     cursor: col-resize !important;
     user-select: none !important;
   }
 
-  .cortex-app-root.is-resizing * {
+  .corthal-app-root.is-resizing * {
     user-select: none !important;
     pointer-events: none !important;
   }
 
-  .cortex-app-root.is-resizing .resizer-handle {
+  .corthal-app-root.is-resizing .resizer-handle {
     pointer-events: auto !important;
   }
 
   /* ASSISTANT SIDEBAR */
   .sidebar-assistant {
-    background: var(--cortex-bg-sidebar, #0a111a);
+    background: var(--corthal-bg-sidebar, #0a111a);
     flex-shrink: 0;
     overflow: hidden;
     display: flex;
@@ -2260,11 +2260,11 @@
     align-items: center;
     justify-content: space-between;
     height: 24px;
-    background: var(--cortex-bg-header, #080c14);
-    border-top: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-header, #080c14);
+    border-top: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     padding: 0 10px;
     font-size: 0.72rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     flex-shrink: 0;
     user-select: none;
     z-index: 100;
@@ -2278,7 +2278,7 @@
 
   .vault-btn {
     font-weight: 500;
-    color: var(--cortex-fg-primary, #ffffff);
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .vault-label {
@@ -2303,7 +2303,7 @@
   .statusbar-btn {
     background: transparent;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     padding: 2px 5px;
     border-radius: 3px;
@@ -2312,18 +2312,18 @@
   }
 
   .statusbar-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .security-badge {
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-weight: 500;
   }
 
   .filter-tag {
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
-    color: var(--cortex-accent, #38bdf8);
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
+    color: var(--corthal-accent, #38bdf8);
     padding: 1px 6px;
     border-radius: 3px;
     font-size: 0.68rem;

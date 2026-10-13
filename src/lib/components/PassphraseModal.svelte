@@ -73,7 +73,7 @@
       <div class="modal-header">
         <div class="header-left">
           <div class="shield-badge" class:pulse={pulseTrigger}>
-            <Icon name="lock" size={18} color="var(--cortex-accent, #38bdf8)" />
+            <Icon name="lock" size={18} color="var(--corthal-accent, #38bdf8)" />
           </div>
           <div>
             <h3 class="modal-title">{t("modals.passphrase_title")}</h3>
@@ -183,8 +183,8 @@
   .modal-card {
     width: 480px;
     max-width: 92vw;
-    background: var(--cortex-bg-card, #131b26);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
+    background: var(--corthal-bg-card, #131b26);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
     border-radius: 12px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     overflow: hidden;
@@ -198,7 +198,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 16px 20px;
-    border-bottom: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    border-bottom: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     background: rgba(0, 0, 0, 0.15);
   }
 
@@ -212,8 +212,8 @@
     width: 36px;
     height: 36px;
     border-radius: 8px;
-    background: var(--cortex-accent-subtle, rgba(56, 189, 248, 0.12));
-    border: 1px solid var(--cortex-accent, rgba(56, 189, 248, 0.3));
+    background: var(--corthal-accent-subtle, rgba(56, 189, 248, 0.12));
+    border: 1px solid var(--corthal-accent, rgba(56, 189, 248, 0.3));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -229,18 +229,18 @@
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
-    color: var(--cortex-fg-primary, #f8fafc);
+    color: var(--corthal-fg-primary, #f8fafc);
   }
 
   .modal-subtitle {
     font-size: 0.75rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .close-btn {
     background: transparent;
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     cursor: pointer;
     padding: 6px;
     border-radius: 6px;
@@ -251,8 +251,8 @@
   }
 
   .close-btn:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
-    color: var(--cortex-fg-primary, #ffffff);
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--corthal-fg-primary, #ffffff);
   }
 
   .modal-body {
@@ -270,15 +270,15 @@
     background: rgba(0, 0, 0, 0.2);
     padding: 8px 12px;
     border-radius: 6px;
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.06));
   }
 
   .info-label {
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
   }
 
   .key-path {
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     font-family: ui-monospace, monospace;
     font-size: 0.75rem;
   }
@@ -291,7 +291,7 @@
 
   .input-label {
     font-size: 0.82rem;
-    color: var(--cortex-fg-primary, #cbd5e1);
+    color: var(--corthal-fg-primary, #cbd5e1);
     font-weight: 500;
   }
 
@@ -300,8 +300,8 @@
     display: flex;
     align-items: center;
     height: 44px;
-    background: var(--cortex-bg-input, #0b1118);
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.15));
+    background: var(--corthal-bg-input, #0b1118);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.15));
     border-radius: 8px;
     padding: 0 12px;
     cursor: text;
@@ -309,8 +309,8 @@
   }
 
   .stealth-input-wrap:focus-within {
-    border-color: var(--cortex-accent, #38bdf8);
-    box-shadow: 0 0 0 2px var(--cortex-accent-subtle, rgba(56, 189, 248, 0.15));
+    border-color: var(--corthal-accent, #38bdf8);
+    box-shadow: 0 0 0 2px var(--corthal-accent-subtle, rgba(56, 189, 248, 0.15));
   }
 
   .real-password-input {
@@ -334,7 +334,7 @@
 
   .placeholder-text {
     font-size: 0.85rem;
-    color: var(--cortex-fg-muted, #64748b);
+    color: var(--corthal-fg-muted, #64748b);
   }
 
   .decoy-bullets {
@@ -342,7 +342,7 @@
     align-items: center;
     gap: 5px;
     letter-spacing: 2px;
-    color: var(--cortex-accent, #38bdf8);
+    color: var(--corthal-accent, #38bdf8);
     transition: transform 0.1s ease;
   }
 
@@ -353,7 +353,7 @@
   .decoy-dot {
     font-size: 0.8rem;
     line-height: 1;
-    filter: drop-shadow(0 0 2px var(--cortex-accent, rgba(56, 189, 248, 0.4)));
+    filter: drop-shadow(0 0 2px var(--corthal-accent, rgba(56, 189, 248, 0.4)));
   }
 
   .clear-input-btn {
@@ -361,7 +361,7 @@
     z-index: 3;
     background: rgba(255, 255, 255, 0.08);
     border: none;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     border-radius: 50%;
     width: 20px;
     height: 20px;
@@ -394,12 +394,12 @@
 
   .guard-text {
     font-size: 0.72rem;
-    color: var(--cortex-fg-muted, #94a3b8);
+    color: var(--corthal-fg-muted, #94a3b8);
     line-height: 1.35;
   }
 
   .guard-text strong {
-    color: var(--cortex-fg-primary, #cbd5e1);
+    color: var(--corthal-fg-primary, #cbd5e1);
   }
 
   .modal-footer {
@@ -408,7 +408,7 @@
     justify-content: flex-end;
     gap: 10px;
     padding: 14px 20px;
-    border-top: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.08));
+    border-top: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.08));
     background: rgba(0, 0, 0, 0.15);
   }
 
@@ -426,17 +426,17 @@
 
   .btn-secondary {
     background: transparent;
-    border: 1px solid var(--cortex-border, rgba(255, 255, 255, 0.12));
-    color: var(--cortex-fg-primary, #cbd5e1);
+    border: 1px solid var(--corthal-border, rgba(255, 255, 255, 0.12));
+    color: var(--corthal-fg-primary, #cbd5e1);
   }
 
   .btn-secondary:hover {
-    background: var(--cortex-bg-hover, rgba(255, 255, 255, 0.08));
+    background: var(--corthal-bg-hover, rgba(255, 255, 255, 0.08));
     color: #ffffff;
   }
 
   .btn-primary {
-    background: var(--cortex-accent, #0284c7);
+    background: var(--corthal-accent, #0284c7);
     border: none;
     color: #ffffff;
   }

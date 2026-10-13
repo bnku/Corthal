@@ -27,6 +27,6 @@ fn main() {
         }
     }
 
-    cortex_lib::run()
+    corthal_lib::run()
 }
 

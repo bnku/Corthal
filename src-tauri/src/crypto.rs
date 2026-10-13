@@ -50,7 +50,7 @@ static SESSION_PASSPHRASE: LazyLock<Arc<RwLock<Option<CachedPassphraseEntry>>>> 
 
 fn get_security_config_path() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    home.join(".config").join("cortex").join("security_config.json")
+    home.join(".config").join("corthal").join("security_config.json")
 }
 
 pub fn load_security_config() -> SecurityConfig {

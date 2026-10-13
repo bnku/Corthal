@@ -2,7 +2,8 @@ import type { Locale, TranslationSchema } from "./types";
 import { ru } from "./ru";
 import { en } from "./en";
 
-const STORAGE_KEY = "cortex_locale";
+const STORAGE_KEY = "corthal_locale";
+const LEGACY_STORAGE_KEY = "cortex_locale";
 
 const dictionaries: Record<Locale, TranslationSchema> = {
   ru,
@@ -19,7 +20,7 @@ export class I18nStore {
   private initLocale() {
     if (typeof window === "undefined") return;
     try {
-      const saved = localStorage.getItem(STORAGE_KEY) as Locale | null;
+      const saved = (localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY)) as Locale | null;
       if (saved && (saved === "ru" || saved === "en")) {
         this.locale = saved;
         return;

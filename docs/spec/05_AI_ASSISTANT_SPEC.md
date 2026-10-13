@@ -1,4 +1,4 @@
-# CORTEX: AI Assistant & Blind Agent Specification
+# CORTHAL: AI Assistant & Blind Agent Specification
 
 ## 1. Концепция «Слепого агента» (Blind Agent)
 Агент — это внешняя языковая модель (Gemini / Antigravity / Claude / локальная модель), которая:
@@ -10,7 +10,7 @@
 
 ---
 
-## 2. Tools (Инструменты агента в Cortex)
+## 2. Tools (Инструменты агента в Corthal)
 Агент оснащается локальными инструментами через стандартный протокол Function Calling:
 * `vault_search(query: string)` — поиск по заметкам и тегам.
 * `vault_create_note(path: string, content: string)` — создание новой заметки в хабе.
