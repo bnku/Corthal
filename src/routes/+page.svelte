@@ -1188,17 +1188,17 @@
 
     // Restore saved panel dimensions
     try {
-      const savedExp = localStorage.getItem("corthal_explorer_width") ?? localStorage.getItem("cortex_explorer_width");
+      const savedExp = localStorage.getItem("corthal_explorer_width");
       if (savedExp) {
         const n = parseInt(savedExp, 10);
         if (!isNaN(n) && n >= 180 && n <= 700) explorerWidth = n;
       }
-      const savedAst = localStorage.getItem("corthal_assistant_width") ?? localStorage.getItem("cortex_assistant_width");
+      const savedAst = localStorage.getItem("corthal_assistant_width");
       if (savedAst) {
         const n = parseInt(savedAst, 10);
         if (!isNaN(n) && n >= 240 && n <= 850) assistantWidth = n;
       }
-      const savedSplit = localStorage.getItem("corthal_split_ratio") ?? localStorage.getItem("cortex_split_ratio");
+      const savedSplit = localStorage.getItem("corthal_split_ratio");
       if (savedSplit) {
         const f = parseFloat(savedSplit);
         if (!isNaN(f) && f >= 0.15 && f <= 0.85) splitRatio = f;

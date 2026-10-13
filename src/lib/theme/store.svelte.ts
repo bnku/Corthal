@@ -11,7 +11,6 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "corthal_theme_config";
-const LEGACY_STORAGE_KEY = "cortex_theme_config";
 
 class ThemeStore {
   config = $state<UserThemeConfig>({
@@ -80,7 +79,7 @@ class ThemeStore {
   private loadFromStorage() {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
+      const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         this.config = { ...this.config, ...parsed };
