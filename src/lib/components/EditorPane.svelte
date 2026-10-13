@@ -368,7 +368,7 @@
   }
 
   function handleTextareaKeydown(e: KeyboardEvent) {
-    if ((e.ctrlKey || e.metaKey) && (e.code === "KeyE" || e.key.toLowerCase() === "e")) {
+    if ((e.ctrlKey || e.metaKey) && (e.code === "KeyE" || e.key.toLowerCase() === "e" || e.key === "у" || e.key === "У")) {
       e.preventDefault();
       checkEditorSelection();
       handleFloatingEncrypt();
@@ -838,7 +838,7 @@
           <button
             class="shortcut-action-row"
             onclick={onToggleSidebar}
-            title="Скрыть или показать проводник"
+            title="Скрыть или показать проводник (Ctrl+B вне редактора, Ctrl+Alt+B везде)"
           >
             <span class="shortcut-label">Проводник заметок</span>
             <span class="shortcut-keys">

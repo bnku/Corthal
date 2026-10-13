@@ -49,6 +49,11 @@
   let selectionFrom = $state(0);
   let selectionTo = $state(0);
   let isEncrypting = $state(false);
+  let isBold = $state(false);
+  let isItalic = $state(false);
+  let isStrike = $state(false);
+  let isCode = $state(false);
+  let isLink = $state(false);
 
   // Slash Command State
   let slashOpen = $state(false);
@@ -69,31 +74,352 @@
     );
   });
 
-  function wrapSelection(before: string, after: string = before) {
-    if (!editorView) return;
-    const { from, to } = editorView.state.selection.main;
-    const sel = editorView.state.sliceDoc(from, to);
+  const WORD_CHAR_RE = /[\p{L}\p{N}_-]/u;
 
-    // If already wrapped, unwrap
-    if (
-      sel.startsWith(before) &&
-      sel.endsWith(after) &&
-      sel.length >= before.length + after.length
-    ) {
-      const unwrapped = sel.slice(before.length, sel.length - after.length);
-      editorView.dispatch({
-        changes: { from, to, insert: unwrapped },
-        selection: { anchor: from, head: from + unwrapped.length },
-      });
-    } else {
-      const wrapped = `${before}${sel}${after}`;
-      editorView.dispatch({
-        changes: { from, to, insert: wrapped },
-        selection: { anchor: from + before.length, head: to + before.length },
+  function isWordChar(char: string): boolean {
+    return Boolean(char && WORD_CHAR_RE.test(char));
+  }
+
+  function findWordAt(text: string, offset: number): { from: number; to: number } | null {
+    if (text.length === 0) return null;
+    let idx = offset;
+    if (idx >= text.length || !isWordChar(text[idx])) {
+      if (idx > 0 && isWordChar(text[idx - 1])) {
+        idx = idx - 1;
+      } else {
+        return null;
+      }
+    }
+    let from = idx;
+    while (from > 0 && isWordChar(text[from - 1])) {
+      from--;
+    }
+    let to = idx;
+    while (to < text.length && isWordChar(text[to])) {
+      to++;
+    }
+    if (from === to) return null;
+    return { from, to };
+  }
+
+  function findEnclosingSpan(
+    lineText: string,
+    offset: number,
+    marker: string,
+    type: "bold" | "italic" | "strike" | "code" | "highlight"
+  ): { start: number; end: number } | null {
+    const mLen = marker.length;
+    const indices: number[] = [];
+    let i = 0;
+    while (i <= lineText.length - mLen) {
+      if (lineText.slice(i, i + mLen) === marker) {
+        if (type === "italic") {
+          const prevIsStar = i > 0 && lineText[i - 1] === "*";
+          const nextIsStar = i + 1 < lineText.length && lineText[i + 1] === "*";
+          if (prevIsStar || nextIsStar) {
+            i++;
+            continue;
+          }
+        }
+        if (type === "code") {
+          const prevIsTick = i > 0 && lineText[i - 1] === "`";
+          const nextIsTick = i + 1 < lineText.length && lineText[i + 1] === "`";
+          if (prevIsTick || nextIsTick) {
+            i++;
+            continue;
+          }
+        }
+        indices.push(i);
+        i += mLen;
+      } else {
+        i++;
+      }
+    }
+
+    for (let p = 0; p + 1 < indices.length; p += 2) {
+      const spanStart = indices[p];
+      const spanEnd = indices[p + 1] + mLen;
+      if (offset >= spanStart && offset <= spanEnd) {
+        return { start: spanStart, end: spanEnd };
+      }
+    }
+    return null;
+  }
+
+  function checkFormatActive(
+    view: EditorView,
+    type: "bold" | "italic" | "strike" | "code" | "link"
+  ): boolean {
+    const { from, to } = view.state.selection.main;
+    const doc = view.state.doc;
+
+    if (type === "link") {
+      if (from !== to) {
+        const text = doc.sliceString(from, to).trim();
+        return /^\[.*?\]\(.*?\)$/.test(text);
+      }
+      const line = doc.lineAt(from);
+      const lineOffset = from - line.from;
+      const links = [...line.text.matchAll(/\[(.*?)\]\((.*?)\)/g)];
+      return links.some((m) => {
+        const start = m.index!;
+        const end = start + m[0].length;
+        return lineOffset >= start && lineOffset <= end;
       });
     }
+
+    let marker = "**";
+    if (type === "italic") marker = "*";
+    else if (type === "strike") marker = "~~";
+    else if (type === "code") marker = "`";
+
+    const mLen = marker.length;
+
+    if (from !== to) {
+      const rawText = doc.sliceString(from, to).trim();
+      let isSelf = false;
+      if (type === "italic") {
+        const count = rawText.match(/^\*+/)?.[0].length || 0;
+        isSelf = (count === 1 || count === 3) && rawText.endsWith("*") && rawText.length >= 2;
+      } else {
+        isSelf = rawText.startsWith(marker) && rawText.endsWith(marker) && rawText.length >= mLen * 2;
+      }
+      if (isSelf) return true;
+
+      if (type === "italic") {
+        const starBefore = doc.sliceString(Math.max(0, from - 3), from).match(/\*+$/)?.[0].length || 0;
+        const starAfter = doc.sliceString(to, Math.min(doc.length, to + 3)).match(/^\*+/)?.[0].length || 0;
+        return (starBefore === 1 || starBefore === 3) && (starAfter === 1 || starAfter === 3);
+      } else {
+        const docBefore = doc.sliceString(Math.max(0, from - mLen), from);
+        const docAfter = doc.sliceString(to, Math.min(doc.length, to + mLen));
+        return docBefore === marker && docAfter === marker;
+      }
+    } else {
+      const line = doc.lineAt(from);
+      const span = findEnclosingSpan(line.text, from - line.from, marker, type);
+      return Boolean(span);
+    }
+  }
+
+  function handleInsertOrToggleLink() {
+    if (!editorView) return;
+    const { from, to } = editorView.state.selection.main;
+    const doc = editorView.state.doc;
+    const sel = doc.sliceString(from, to);
+
+    // If selection is already a markdown link [text](url):
+    const linkMatch = sel.match(/^\[(.*?)\]\((.*?)\)$/);
+    if (linkMatch) {
+      const text = linkMatch[1];
+      editorView.dispatch({
+        changes: { from, to, insert: text },
+        selection: { anchor: from, head: from + text.length },
+      });
+      editorView.focus();
+      bubbleVisible = false;
+      return;
+    }
+
+    // If selection is inside a link [text](url):
+    const line = doc.lineAt(from);
+    const lineOffset = from - line.from;
+    const lineLinks = [...line.text.matchAll(/\[(.*?)\]\((.*?)\)/g)];
+    for (const m of lineLinks) {
+      const mStart = m.index!;
+      const mEnd = mStart + m[0].length;
+      if (lineOffset >= mStart && lineOffset <= mEnd) {
+        const text = m[1];
+        editorView.dispatch({
+          changes: { from: line.from + mStart, to: line.from + mEnd, insert: text },
+          selection: { anchor: line.from + mStart, head: line.from + mStart + text.length },
+        });
+        editorView.focus();
+        bubbleVisible = false;
+        return;
+      }
+    }
+
+    // If text is selected and is an URL:
+    if (from !== to && /^https?:\/\//i.test(sel.trim())) {
+      const template = `[ссылка](${sel.trim()})`;
+      editorView.dispatch({
+        changes: { from, to, insert: template },
+        selection: { anchor: from + 1, head: from + 7 },
+      });
+      editorView.focus();
+      bubbleVisible = false;
+      return;
+    }
+
+    // Default: wrap selection or insert template
+    const linkText = sel || "ссылка";
+    const template = `[${linkText}](url)`;
+    editorView.dispatch({
+      changes: { from, to, insert: template },
+      selection: {
+        anchor: from + linkText.length + 3,
+        head: from + template.length - 1,
+      },
+    });
     editorView.focus();
     bubbleVisible = false;
+  }
+
+  function toggleFormat(type: "bold" | "italic" | "strike" | "code" | "highlight" | "link") {
+    if (!editorView) return;
+    const state = editorView.state;
+    const doc = state.doc;
+    const { from, to } = state.selection.main;
+
+    if (type === "link") {
+      handleInsertOrToggleLink();
+      return;
+    }
+
+    let marker = "**";
+    if (type === "italic") marker = "*";
+    else if (type === "strike") marker = "~~";
+    else if (type === "code") marker = "`";
+    else if (type === "highlight") marker = "==";
+
+    const mLen = marker.length;
+
+    // --- CASE 1: Selection is not empty (from !== to) ---
+    if (from !== to) {
+      const rawText = doc.sliceString(from, to);
+      const leadMatch = rawText.match(/^\s*/);
+      const trailMatch = rawText.match(/\s*$/);
+      const leadSpaces = leadMatch ? leadMatch[0] : "";
+      const trailSpaces = trailMatch ? trailMatch[0] : "";
+
+      if (rawText.trim().length === 0) {
+        return;
+      }
+
+      const coreFrom = from + leadSpaces.length;
+      const coreTo = to - trailSpaces.length;
+      const coreText = rawText.slice(leadSpaces.length, rawText.length - trailSpaces.length);
+
+      // Check 1: Is coreText itself wrapped in marker?
+      let isSelfWrapped = false;
+      if (type === "italic") {
+        const starCount = coreText.match(/^\*+/)?.[0].length || 0;
+        isSelfWrapped = (starCount === 1 || starCount === 3) && coreText.endsWith("*") && coreText.length >= 2;
+      } else {
+        isSelfWrapped = coreText.startsWith(marker) && coreText.endsWith(marker) && coreText.length >= mLen * 2;
+      }
+
+      if (isSelfWrapped) {
+        const unwrapped = coreText.slice(mLen, coreText.length - mLen);
+        editorView.dispatch({
+          changes: { from: coreFrom, to: coreTo, insert: unwrapped },
+          selection: { anchor: coreFrom, head: coreFrom + unwrapped.length },
+        });
+        editorView.focus();
+        bubbleVisible = false;
+        return;
+      }
+
+      // Check 2: Are markers immediately outside the selection in document?
+      const docBefore = doc.sliceString(Math.max(0, coreFrom - mLen), coreFrom);
+      const docAfter = doc.sliceString(coreTo, Math.min(doc.length, coreTo + mLen));
+      let isOuterWrapped = false;
+
+      if (type === "italic") {
+        const starBefore = doc.sliceString(Math.max(0, coreFrom - 3), coreFrom).match(/\*+$/)?.[0].length || 0;
+        const starAfter = doc.sliceString(coreTo, Math.min(doc.length, coreTo + 3)).match(/^\*+/)?.[0].length || 0;
+        isOuterWrapped = (starBefore === 1 || starBefore === 3) && (starAfter === 1 || starAfter === 3);
+      } else {
+        isOuterWrapped = docBefore === marker && docAfter === marker;
+      }
+
+      if (isOuterWrapped) {
+        editorView.dispatch({
+          changes: { from: coreFrom - mLen, to: coreTo + mLen, insert: coreText },
+          selection: { anchor: coreFrom - mLen, head: coreTo - mLen },
+        });
+        editorView.focus();
+        bubbleVisible = false;
+        return;
+      }
+
+      // Check 3: Otherwise wrap
+      const wrapped = `${marker}${coreText}${marker}`;
+      editorView.dispatch({
+        changes: { from: coreFrom, to: coreTo, insert: wrapped },
+        selection: { anchor: coreFrom + mLen, head: coreTo + mLen },
+      });
+      editorView.focus();
+      bubbleVisible = false;
+      return;
+    }
+
+    // --- CASE 2: No selection (cursor collapsed) ---
+    const pos = from;
+
+    // Check if cursor is directly between empty markers (e.g. **|**)
+    const checkBefore = doc.sliceString(Math.max(0, pos - mLen), pos);
+    const checkAfter = doc.sliceString(pos, Math.min(doc.length, pos + mLen));
+    if (checkBefore === marker && checkAfter === marker) {
+      editorView.dispatch({
+        changes: { from: pos - mLen, to: pos + mLen, insert: "" },
+        selection: { anchor: pos - mLen },
+      });
+      editorView.focus();
+      return;
+    }
+
+    // Check if cursor is inside an existing span on this line
+    const line = doc.lineAt(pos);
+    const lineText = line.text;
+    const offset = pos - line.from;
+    const span = findEnclosingSpan(lineText, offset, marker, type);
+    if (span) {
+      const absStart = line.from + span.start;
+      const absEnd = line.from + span.end;
+      const content = lineText.slice(span.start + mLen, span.end - mLen);
+      editorView.dispatch({
+        changes: { from: absStart, to: absEnd, insert: content },
+        selection: { anchor: Math.max(absStart, Math.min(absStart + content.length, pos - mLen)) },
+      });
+      editorView.focus();
+      return;
+    }
+
+    // Check if cursor is on/adjacent to a word
+    const wordRange = findWordAt(lineText, offset);
+    if (wordRange) {
+      const absWordFrom = line.from + wordRange.from;
+      const absWordTo = line.from + wordRange.to;
+      const wordText = lineText.slice(wordRange.from, wordRange.to);
+
+      const beforeWord = doc.sliceString(Math.max(0, absWordFrom - mLen), absWordFrom);
+      const afterWord = doc.sliceString(absWordTo, Math.min(doc.length, absWordTo + mLen));
+
+      if (beforeWord === marker && afterWord === marker) {
+        editorView.dispatch({
+          changes: { from: absWordFrom - mLen, to: absWordTo + mLen, insert: wordText },
+          selection: { anchor: pos - mLen },
+        });
+      } else {
+        const wrapped = `${marker}${wordText}${marker}`;
+        editorView.dispatch({
+          changes: { from: absWordFrom, to: absWordTo, insert: wrapped },
+          selection: { anchor: pos + mLen },
+        });
+      }
+      editorView.focus();
+      return;
+    }
+
+    // Fallback: insert empty pair
+    const emptyPair = `${marker}${marker}`;
+    editorView.dispatch({
+      changes: { from: pos, to: pos, insert: emptyPair },
+      selection: { anchor: pos + mLen },
+    });
+    editorView.focus();
   }
 
   async function handleEncryptSelection() {
@@ -118,22 +444,8 @@
     }
   }
 
-  function handleInsertLink() {
-    if (!editorView) return;
-    const { from, to } = editorView.state.selection.main;
-    const sel = editorView.state.sliceDoc(from, to) || "ссылка";
-    const template = `[${sel}](url)`;
-    editorView.dispatch({
-      changes: { from, to, insert: template },
-      selection: { anchor: from + sel.length + 3, head: from + template.length - 1 },
-    });
-    editorView.focus();
-    bubbleVisible = false;
-  }
-
   function handleSelectionUpdate(view: EditorView) {
     const sel = view.state.selection.main;
-    const isCtrl = false;
 
     // 1. Update cursor line and column
     const curLine = view.state.doc.lineAt(sel.head);
@@ -148,6 +460,11 @@
         selectedText = text;
         selectionFrom = sel.from;
         selectionTo = sel.to;
+        isBold = checkFormatActive(view, "bold");
+        isItalic = checkFormatActive(view, "italic");
+        isStrike = checkFormatActive(view, "strike");
+        isCode = checkFormatActive(view, "code");
+        isLink = checkFormatActive(view, "link");
 
         const coords = view.coordsAtPos(sel.from);
         const containerRect = editorContainerEl?.getBoundingClientRect();
@@ -212,6 +529,84 @@
     editorView.focus();
   }
 
+  function createKeyboardHandler() {
+    return EditorView.domEventHandlers({
+      keydown(e: KeyboardEvent, view: EditorView) {
+        const isCtrl = e.ctrlKey || e.metaKey;
+        if (!isCtrl) return false;
+
+        // 1. Bold: Ctrl+B
+        if (!e.shiftKey && !e.altKey && (e.code === "KeyB" || e.key.toLowerCase() === "b" || e.key === "и" || e.key === "И")) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleFormat("bold");
+          return true;
+        }
+
+        // 2. Italic: Ctrl+I
+        if (!e.shiftKey && !e.altKey && (e.code === "KeyI" || e.key.toLowerCase() === "i" || e.key === "ш" || e.key === "Ш")) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleFormat("italic");
+          return true;
+        }
+
+        // 3. Strikethrough: Ctrl+Shift+X or Ctrl+Shift+S
+        if (e.shiftKey && !e.altKey && (
+          e.code === "KeyX" || e.code === "KeyS" ||
+          e.key.toLowerCase() === "x" || e.key.toLowerCase() === "s" ||
+          e.key === "ч" || e.key === "Ч" || e.key === "ы" || e.key === "Ы"
+        )) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleFormat("strike");
+          return true;
+        }
+
+        // 4. Inline Code: Ctrl+` (Backquote) or Ctrl+Shift+C
+        if (
+          (!e.shiftKey && !e.altKey && (e.code === "Backquote" || e.key === "`" || e.key === "ё" || e.key === "Ё")) ||
+          (e.shiftKey && !e.altKey && (e.code === "KeyC" || e.key.toLowerCase() === "c" || e.key === "с" || e.key === "С"))
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleFormat("code");
+          return true;
+        }
+
+        // 5. Link: Ctrl+K
+        if (!e.shiftKey && !e.altKey && (e.code === "KeyK" || e.key.toLowerCase() === "k" || e.key === "л" || e.key === "Л")) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleFormat("link");
+          return true;
+        }
+
+        // 6. Secret: Ctrl+E
+        if (!e.shiftKey && !e.altKey && (e.code === "KeyE" || e.key.toLowerCase() === "e" || e.key === "у" || e.key === "У")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (bubbleVisible && selectedText) {
+            handleEncryptSelection();
+          } else {
+            onOpenSecretModal?.();
+          }
+          return true;
+        }
+
+        // 7. Save: Ctrl+S
+        if (!e.shiftKey && !e.altKey && (e.code === "KeyS" || e.key.toLowerCase() === "s" || e.key === "ы" || e.key === "Ы")) {
+          e.preventDefault();
+          e.stopPropagation();
+          onSave?.();
+          return true;
+        }
+
+        return false;
+      },
+    });
+  }
+
   function createCustomKeymap() {
     return keymap.of([
       {
@@ -224,14 +619,14 @@
       {
         key: "Mod-b",
         run: () => {
-          wrapSelection("**");
+          toggleFormat("bold");
           return true;
         },
       },
       {
         key: "Mod-i",
         run: () => {
-          wrapSelection("*");
+          toggleFormat("italic");
           return true;
         },
       },
@@ -249,7 +644,7 @@
       {
         key: "Mod-k",
         run: () => {
-          handleInsertLink();
+          toggleFormat("link");
           return true;
         },
       },
@@ -323,6 +718,7 @@
             })
           : []
       ),
+      createKeyboardHandler(),
       createCustomKeymap(),
       keymap.of([...defaultKeymap, ...historyKeymap, ...markdownKeymap]),
       EditorView.updateListener.of((update) => {
@@ -404,7 +800,8 @@
     >
       <button
         class="bubble-btn"
-        onclick={() => wrapSelection("**")}
+        class:active={isBold}
+        onclick={() => toggleFormat("bold")}
         title="Полужирный (Ctrl+B)"
         aria-label="Полужирный"
       >
@@ -413,7 +810,8 @@
 
       <button
         class="bubble-btn"
-        onclick={() => wrapSelection("*")}
+        class:active={isItalic}
+        onclick={() => toggleFormat("italic")}
         title="Курсив (Ctrl+I)"
         aria-label="Курсив"
       >
@@ -422,8 +820,9 @@
 
       <button
         class="bubble-btn"
-        onclick={() => wrapSelection("~~")}
-        title="Зачёркнутый"
+        class:active={isStrike}
+        onclick={() => toggleFormat("strike")}
+        title="Зачёркнутый (Ctrl+Shift+X / Ctrl+Shift+S)"
         aria-label="Зачёркнутый"
       >
         <span class="btn-text strike">S</span>
@@ -431,8 +830,9 @@
 
       <button
         class="bubble-btn"
-        onclick={() => wrapSelection("`")}
-        title="Код"
+        class:active={isCode}
+        onclick={() => toggleFormat("code")}
+        title="Код (Ctrl+` или Ctrl+Shift+C)"
         aria-label="В коде"
       >
         <Icon name="code" size={13} />
@@ -440,7 +840,8 @@
 
       <button
         class="bubble-btn"
-        onclick={handleInsertLink}
+        class:active={isLink}
+        onclick={() => toggleFormat("link")}
         title="Ссылка (Ctrl+K)"
         aria-label="Вставить ссылку"
       >
@@ -614,6 +1015,11 @@
   .bubble-btn:hover {
     background: rgba(255, 255, 255, 0.08);
     color: var(--cortex-fg-primary, #f8fafc);
+  }
+
+  .bubble-btn.active {
+    background: var(--cortex-accent, #3b82f6);
+    color: #ffffff;
   }
 
   .btn-text.bold {

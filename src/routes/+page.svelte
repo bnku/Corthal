@@ -888,7 +888,12 @@
   function isEditingText(target: EventTarget | null): boolean {
     if (!target || !(target instanceof HTMLElement)) return false;
     const tag = target.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
+    if (
+      tag === "INPUT" ||
+      tag === "TEXTAREA" ||
+      target.isContentEditable ||
+      Boolean(target.closest(".cm-editor, .cm-content"))
+    ) {
       return true;
     }
     return false;
@@ -1050,8 +1055,19 @@
       return;
     }
 
-    // Toggle Sidebar: Ctrl+B
-    if (isCtrl && (e.code === "KeyB" || e.key.toLowerCase() === "b" || e.key === "и" || e.key === "И")) {
+    // Toggle Sidebar:
+    // 1) Ctrl+Alt+B or Ctrl+Shift+B toggles sidebar from anywhere (even when typing in editor)
+    if (isCtrl && (e.altKey || e.shiftKey) && (e.code === "KeyB" || e.key.toLowerCase() === "b" || e.key === "и" || e.key === "И")) {
+      e.preventDefault();
+      showLeftSidebar = !showLeftSidebar;
+      return;
+    }
+
+    // 2) Ctrl+B toggles sidebar ONLY when NOT editing text (in editor, Ctrl+B is bold text formatting)
+    if (isCtrl && !e.altKey && !e.shiftKey && (e.code === "KeyB" || e.key.toLowerCase() === "b" || e.key === "и" || e.key === "И")) {
+      if (isEditingText(e.target)) {
+        return; // Don't toggle sidebar; let the editor format text as bold!
+      }
       e.preventDefault();
       showLeftSidebar = !showLeftSidebar;
       return;
@@ -1243,7 +1259,7 @@
           class="layout-btn"
           class:active={showLeftSidebar}
           onclick={() => (showLeftSidebar = !showLeftSidebar)}
-          title="Скрыть/показать проводник заметок (Ctrl+B)"
+          title="Скрыть/показать проводник заметок (Ctrl+B вне текста, Ctrl+Alt+B везде)"
           aria-label="Переключить боковую панель проводника"
         >
           <Icon name="panel-left" size={15} />
